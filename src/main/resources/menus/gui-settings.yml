@@ -1,0 +1,43 @@
+# Common GUI settings shared across all menus
+# This file contains buttons and settings used in shop pages
+
+gui:
+  # Navigation buttons for shop pages
+  back-button:
+    name: '&9BACK TO CATEGORIES'
+    lore:
+      - ''
+      - '&bClick to return to the main menu.'
+      - ''
+
+  prev-button:
+    name: '&e<- PREVIOUS PAGE'
+    lore:
+      - ''
+      - '&7See the previous page.'
+      - ''
+
+  next-button:
+    name: '&eNEXT PAGE ->'
+    lore:
+      - ''
+      - '&7See the next page.'
+      - ''
+
+  # Controls lore lines on shop items
+  item-lore:
+    # Price display lines (shown at top of item lore)
+    show-buy-price: true
+    buy-price-line: '&6Buy Price: &a%price%'
+    show-sell-price: true
+    sell-price-line: '&cSell Price: &a%sell-price%'
+
+    # Hint lines (shown at bottom of item lore)
+    show-buy-hint: true
+    buy-hint-line: '&eLeft-click to buy'
+    show-sell-hint: true
+    sell-hint-line: '&aRight-click to sell'
+
+    # Purchase menu amount and total lines
+    amount-line: '&eAmount: &7%amount%'
+    total-line: '&eTotal: &7%total%'

@@ -1,0 +1,149 @@
+gui-name: '&8Blocks Shop'
+rows: 3
+permission: ''
+items:
+  - material: STONE
+    name: '&fStone'
+    price: 5
+    sell-price: 2
+    amount: 16
+  - material: COBBLESTONE
+    name: '&7Cobblestone'
+    price: 3
+    sell-price: 1
+    amount: 32
+  - material: DIRT
+    name: '&6Dirt'
+    price: 2
+    sell-price: 1
+    amount: 32
+  - material: GRASS_BLOCK
+    name: '&aGrass Block'
+    price: 25
+    sell-price: 5
+    amount: 16
+  - material: SAND
+    name: '&eSand'
+    price: 6
+    sell-price: 2
+    amount: 32
+  - material: RED_SAND
+    name: '&6Red Sand'
+    price: 8
+    sell-price: 3
+    amount: 32
+  - material: GRAVEL
+    name: '&7Gravel'
+    price: 6
+    sell-price: 2
+    amount: 32
+  - material: OAK_LOG
+    name: '&6Oak Log'
+    price: 15
+    sell-price: 5
+    amount: 16
+  - material: SPRUCE_LOG
+    name: '&6Spruce Log'
+    price: 15
+    sell-price: 5
+    amount: 16
+  - material: BIRCH_LOG
+    name: '&6Birch Log'
+    price: 15
+    sell-price: 5
+    amount: 16
+  - material: DARK_OAK_LOG
+    name: '&6Dark Oak Log'
+    price: 18
+    sell-price: 6
+    amount: 16
+  - material: JUNGLE_LOG
+    name: '&6Jungle Log'
+    price: 18
+    sell-price: 6
+    amount: 16
+  - material: GLASS
+    name: '&fGlass'
+    price: 30
+    sell-price: 5
+    amount: 32
+  - material: WHITE_CONCRETE
+    name: '&fWhite Concrete'
+    price: 40
+    sell-price: 8
+    amount: 32
+  - material: BLACK_CONCRETE
+    name: '&8Black Concrete'
+    price: 40
+    sell-price: 8
+    amount: 32
+  - material: QUARTZ_BLOCK
+    name: '&fQuartz Block'
+    price: 80
+    sell-price: 20
+    amount: 16
+  - material: BRICKS
+    name: '&cBricks'
+    price: 60
+    sell-price: 15
+    amount: 16
+  - material: OBSIDIAN
+    name: '&5Obsidian'
+    price: 250
+    sell-price: 40
+    amount: 8
+  - material: PACKED_ICE
+    name: '&bPacked Ice'
+    price: 120
+    sell-price: 30
+    amount: 16
+  - material: PRISMARINE
+    name: '&bPrismarine'
+    price: 140
+    sell-price: 35
+    amount: 16
+  - material: SEA_LANTERN
+    name: '&bSea Lantern'
+    price: 180
+    sell-price: 45
+    amount: 8
+  - material: END_STONE
+    name: '&eEnd Stone'
+    price: 80
+    sell-price: 20
+    amount: 16
+  - material: NETHERRACK
+    name: '&cNetherrack'
+    price: 15
+    sell-price: 5
+    amount: 32
+  - material: NETHER_BRICKS
+    name: '&cNether Bricks'
+    price: 60
+    sell-price: 15
+    amount: 16
+  - material: TERRACOTTA
+    name: '&6Terracotta'
+    price: 35
+    sell-price: 8
+    amount: 32
+  - material: WHITE_WOOL
+    name: '&fWhite Wool'
+    price: 25
+    sell-price: 6
+    amount: 32
+  - material: RED_WOOL
+    name: '&cRed Wool'
+    price: 25
+    sell-price: 6
+    amount: 32
+  - material: BLUE_WOOL
+    name: '&9Blue Wool'
+    price: 25
+    sell-price: 6
+    amount: 32
+  - material: GREEN_WOOL
+    name: '&2Green Wool'
+    price: 25
+    sell-price: 6
+    amount: 32

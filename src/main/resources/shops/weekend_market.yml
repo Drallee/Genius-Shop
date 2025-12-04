@@ -1,0 +1,78 @@
+gui-name: '&d&lWeekend Market'
+rows: 4
+permission: ''
+available-times:
+  - "FRIDAY-SUNDAY"    # Only Friday, Saturday, Sunday
+  - "10:00AM-10:00PM"  # Only between 10 AM and 10 PM
+  # Example date range (will be formatted per config.yml date-format):
+  # - "2024-12-20 to 2024-12-26"
+items:
+  - material: DIAMOND_BLOCK
+    name: '&bDiamond Block'
+    price: 4500
+    sell-price: 2250
+    amount: 1
+    lore:
+      - '&7Weekend special pricing!'
+  - material: EMERALD_BLOCK
+    name: '&aEmerald Block'
+    price: 5400
+    sell-price: 2700
+    amount: 1
+    lore:
+      - '&7Weekend special pricing!'
+  - material: GOLDEN_APPLE
+    name: '&6Golden Apple'
+    price: 1000
+    sell-price: 400
+    amount: 4
+    lore:
+      - '&7Limited time offer!'
+  - material: ENCHANTED_GOLDEN_APPLE
+    name: '&6&lEnchanted Golden Apple'
+    price: 10000
+    amount: 1
+    lore:
+      - '&7Rare weekend exclusive!'
+      - '&cOnly available on weekends!'
+  - material: TOTEM_OF_UNDYING
+    name: '&eTotem of Undying'
+    price: 25000
+    amount: 1
+    lore:
+      - '&7Weekend exclusive item'
+      - '&6Very powerful!'
+  - material: NETHERITE_BLOCK
+    name: '&8Netherite Block'
+    price: 45000
+    sell-price: 22500
+    amount: 1
+    lore:
+      - '&7Weekend special pricing!'
+  - material: ANCIENT_DEBRIS
+    name: '&8Ancient Debris'
+    price: 12000
+    sell-price: 6000
+    amount: 1
+    lore:
+      - '&7Weekend market exclusive'
+  - material: TRIDENT
+    name: '&bTrident'
+    price: 18000
+    amount: 1
+    lore:
+      - '&7Weekend exclusive weapon'
+  - material: DRAGON_HEAD
+    name: '&5Dragon Head'
+    price: 35000
+    amount: 1
+    lore:
+      - '&7Rare collectible'
+      - '&dWeekend only!'
+  - material: NETHER_STAR
+    name: '&fNether Star'
+    price: 15000
+    sell-price: 7500
+    amount: 1
+    lore:
+      - '&7Weekend special pricing!'

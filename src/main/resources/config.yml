@@ -1,0 +1,70 @@
+# ==========================================================
+# Genius-Shop — Main Configuration
+# ==========================================================
+# This file controls general plugin behavior, currency formatting,
+# smart updates, debugging, and more.
+# ==========================================================
+
+config-version: 5
+
+# When true, missing/outdated config files will automatically be updated
+# by merging new keys from defaults (your custom changes are kept).
+merge-missing-defaults: true
+
+# Toggle automatic update checks on startup and join
+check-updates: true
+
+# If true, admins will receive a message on join when an update is available
+# Requires 'check-updates' to be true
+send-update-message-ingame: true
+
+# Enable detailed debug logging to console
+# Shows: shop openings, permissions checks, time restrictions,
+#        purchase/sell transactions, player balances, etc.
+# Useful for troubleshooting issues.
+debug: false
+
+# ==========================================================
+# Economy Formatting
+# ==========================================================
+eco:
+  # Optional override for currency symbol. If this is set, it replaces
+  # your economy plugin's formatting entirely.
+  # Example: "€" → €50, "G" → G50
+  override-currency-symbol: ""
+
+# Fallback used ONLY if no Vault economy is available.
+fallback-currency-symbol: "$"
+
+# ==========================================================
+# Date Format for Time-Limited Shops
+# ==========================================================
+# Choose how date ranges are displayed in shop availability times
+# Options:
+#   - "yyyy-MM-dd"       → 2024-10-31 (ISO format)
+#   - "MM/dd/yyyy"       → 10/31/2024 (US format)
+#   - "dd/MM/yyyy"       → 31/10/2024 (EU format)
+#   - "dd-MM-yyyy"       → 31-10-2024
+#   - "MMM dd yyyy"      → Oct 31 2024
+#   - "dd MMM yyyy"      → 31 Oct 2024
+#   - "MMMM dd, yyyy"    → October 31, 2024
+date-format: "dd MMM yyyy"
+
+# ==========================================================
+# Default Shop Files
+# ==========================================================
+# When enabled, the plugin will create default shop files on first run
+# This creates: blocks.yml, farming.yml, misc.yml, premium.yml, spawners.yml, weekend_market.yml
+create-default-shops: true
+
+# ==========================================================
+# Web Config Editor API
+# ==========================================================
+# This enables a REST API for the web-based config editor
+# IMPORTANT: Keep your API key secret! Anyone with the key can edit configs
+api:
+  enabled: true
+  port: 8080
+  # Generate a secure random key: https://www.uuidgenerator.net/
+  # Change this to a unique value for your server
+  api-key: "change-this-to-a-secure-random-key"

@@ -1,0 +1,90 @@
+# Main shop menu configuration
+# This file contains the main menu that players see when opening /shop
+
+title: '&8Shop Menu'
+rows: 3  # Number of rows (each row = 9 slots, so 3 rows = 27 slots)
+
+# Shop buttons
+# Each item can have:
+#   - slot: The slot number (0-53)
+#   - material: The item material
+#   - name: Display name (supports color codes)
+#   - lore: List of lore lines (supports %available-times% placeholder)
+#   - shop-key: Which shop to open
+#   - permission: Optional permission to see this button
+#   - hide-attributes: true/false - Hide "When in Main Hand" etc.
+#   - hide-additional: true/false - Hide additional tooltip info
+items:
+  info:
+    slot: 4
+    material: BOOK
+    name: '&cINFO'
+    lore:
+      - ''
+      - '&7Made by &bDralle'
+      - '&7Version: &b1.3.0'
+      - ''
+  blocks:
+    slot: 11
+    material: DIRT
+    name: '&bBlocks'
+    lore:
+      - ''
+      - '&7Buy building blocks here.'
+      - '&7Available: &e%available-times%'
+      - ''
+    shop-key: blocks
+  spawners:
+    slot: 12
+    material: SPAWNER
+    name: '&bSpawners'
+    lore:
+      - ''
+      - '&7Buy mob spawners here.'
+      - '&7Available: &e%available-times%'
+      - ''
+    shop-key: spawners
+    permission: shop.spawners
+    hide-attributes: false
+    hide-additional: true
+  farming:
+    slot: 13
+    material: GOLDEN_HOE
+    name: '&bFarming'
+    lore:
+      - ''
+      - '&7Buy and sell crops.'
+      - '&7Available: &e%available-times%'
+      - ''
+    shop-key: farming
+  premium:
+    slot: 14
+    material: EMERALD_BLOCK
+    name: '&6Premium Shop'
+    lore:
+      - ''
+      - '&7Exclusive / premium items.'
+      - '&7Available: &e%available-times%'
+      - ''
+    shop-key: premium
+    permission: shop.premium
+  misc:
+    slot: 15
+    material: REDSTONE
+    name: '&bMisc Items'
+    lore:
+      - ''
+      - '&7Random stuff.'
+      - '&7Available: &e%available-times%'
+      - ''
+    shop-key: misc
+  weekend_market:
+    slot: 22
+    material: NETHER_STAR
+    name: '&d&lWeekend Market'
+    lore:
+      - ''
+      - '&7Special items at discounted prices!'
+      - '&7Available: &e%available-times%'
+      - ''
+    shop-key: weekend_market

@@ -1,0 +1,13 @@
+name: Genius-Shop
+main: me.dralle.shop.ShopPlugin
+version: ${project.version}
+api-version: 1.21
+author: you
+description: Data-driven shop with GUI, permissions and Vault
+depend: [Vault]
+commands:
+  shop:
+    description: Open the shop menu or reload the plugin
+    usage: /shop [reload|editor]
+    permission: geniusshop.use
+    permission-message: '&8&l| &cGENIUS-SHOP &8&l| &cYou do not have permission.'
