@@ -1,0 +1,77 @@
+# Purchase menu configuration
+# This file contains settings for the item purchase interface
+
+title-prefix: '&8Buying '
+display-material: BOOK
+display-slot: 22
+max-amount: 2304  # Maximum items that can be purchased at once (default: 36 stacks of 64)
+
+# Display item lore placeholders
+lore:
+  amount: '&eAmount: &7'
+  total: '&eTotal: &7'
+  spawner: '&7Spawner: &e'
+
+# Action buttons
+buttons:
+  confirm:
+    material: LIME_STAINED_GLASS
+    name: '&aCONFIRM PURCHASE'
+    lore:
+      - ''
+      - '&7Click to complete your purchase'
+      - ''
+    slot: 39
+  cancel:
+    material: RED_STAINED_GLASS
+    name: '&cCancel'
+    lore:
+      - ''
+      - '&7Return to %shop%'
+      - '&7Page %page%'
+      - ''
+    slot: 41
+  back:
+    material: ENDER_CHEST
+    name: '&9Back'
+    lore:
+      - ''
+      - '&7Return to %shop%'
+      - '&7Page %page%'
+      - ''
+    slot: 40
+
+  # Add amount buttons
+  add:
+    material: LIME_STAINED_GLASS_PANE
+    '1':
+      name: '&aAdd 1'
+      slot: 24
+    '10':
+      name: '&aAdd 10'
+      slot: 25
+    # Example custom buttons - uncomment and adjust as needed:
+    # '4':
+    #   material: LIME_STAINED_GLASS_PANE
+    #   name: '&aAdd 4'
+    #   slot: 33
+
+  # Remove amount buttons
+  remove:
+    material: RED_STAINED_GLASS_PANE
+    '1':
+      name: '&cRemove 1'
+      slot: 20
+    '10':
+      name: '&cRemove 10'
+      slot: 19
+
+  # Set amount buttons
+  set:
+    material: YELLOW_STAINED_GLASS_PANE
+    '64':
+      name: '&aSet to 64'
+      slot: 26
+    '1':
+      name: '&cSet to 1'
+      slot: 18
