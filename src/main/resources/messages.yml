@@ -1,0 +1,29 @@
+config-version: 3
+
+messages:
+  prefix: "&8&l| &cSHOP &8&l| "
+  no-permission: "%prefix%&cYou don't have permission to do that."
+  player-only: "&cOnly players can use this command."
+  shop-not-found: "&cShop '&e%shop%&c' was not found."
+  shop-no-permission: "%prefix%&cYou don't have permission to open the &e%shop%&c shop."
+  shop-not-available: "%prefix%&cThe &e%shop%&c shop is not available right now!\n%prefix%&7Available: &e%available-times%"
+  shop-always-available: "&aAlways"  # Used for %available-times% when no time restrictions are set
+  economy-not-ready: "&cEconomy plugin is not ready."
+  not-enough-money: "&cYou can't afford &7%amount%x &4%item%&c for &4%price%."
+  buy-success: "&eYou bought &7%amount%x &6%item%&e for &6%price%."
+  payment-error: "&cSomething went wrong with the payment."
+
+  # Selling
+  cannot-sell: "%prefix%&cYou can't sell that item."
+  no-items-to-sell: "%prefix%&cYou don't have any &e%item%&c to sell."
+  sell-success: "%prefix%&aYou sold &7%amount%x &6%item%&a for &6%price%."
+  sell-all-success: "%prefix%&aYou sold &7%amount%x &6%item%&a for &6%price% in total."
+
+  # Buying guard
+  cannot-buy: "%prefix%&cYou can't buy that item."
+
+  # Reload
+  reload-no-permission: "%prefix%&cYou don't have permission to reload the plugin."
+  reload-success: "%prefix%&aGenius-Shop has been reloaded."
+  reload-failed: "%prefix%&cReload failed, check console."
+  update-available: "%prefix%&aA new update is available! &7(&c%current% &7-> &a%new%&7)"

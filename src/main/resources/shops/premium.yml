@@ -1,0 +1,41 @@
+gui-name: '&8Premium Shop'
+rows: 3
+permission: shop.premium
+items:
+  - material: DIAMOND
+    name: '&bDiamond'
+    price: 500
+    sell-price: 250
+    amount: 8
+  - material: EMERALD
+    name: '&aEmerald'
+    price: 600
+    sell-price: 300
+    amount: 8
+  - material: NETHERITE_INGOT
+    name: '&8Netherite Ingot'
+    price: 5000
+    sell-price: 2500
+    amount: 1
+  - material: ENCHANTED_GOLDEN_APPLE
+    name: '&6Enchanted Golden Apple'
+    price: 8000
+    amount: 1
+  - material: BEACON
+    name: '&bBeacon'
+    price: 15000
+    amount: 1
+  - material: ENDER_CHEST
+    name: '&5Ender Chest'
+    price: 1200
+    sell-price: 500
+    amount: 1
+  - material: SHULKER_BOX
+    name: '&dShulker Box'
+    price: 2000
+    sell-price: 500
+    amount: 1
+  - material: ELYTRA
+    name: '&bElytra'
+    price: 20000
+    amount: 1

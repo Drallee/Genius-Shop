@@ -1,0 +1,68 @@
+gui-name: '&8Spawner Shop'
+rows: 4
+permission: shop.spawners
+items:
+  - material: SPAWNER
+    name: '&aPig Spawner'
+    price: 50000
+    sell-price: 25000
+    amount: 1
+    spawner-type: PIG
+    lore:
+      - '&7Spawns pigs.'
+  - material: SPAWNER
+    name: '&aCow Spawner'
+    price: 75000
+    sell-price: 35000
+    amount: 1
+    spawner-type: COW
+    lore:
+      - '&7Spawns cows.'
+  - material: SPAWNER
+    name: '&aSheep Spawner'
+    price: 60000
+    sell-price: 30000
+    amount: 1
+    spawner-type: SHEEP
+  - material: SPAWNER
+    name: '&aChicken Spawner'
+    price: 45000
+    sell-price: 22000
+    amount: 1
+    spawner-type: CHICKEN
+  - material: SPAWNER
+    name: '&eVillager Spawner'
+    price: 200000
+    sell-price: 100000
+    amount: 1
+    spawner-type: VILLAGER
+  - material: SPAWNER
+    name: '&cBlaze Spawner'
+    price: 150000
+    sell-price: 80000
+    amount: 1
+    spawner-type: BLAZE
+  - material: SPAWNER
+    name: '&cSkeleton Spawner'
+    price: 110000
+    sell-price: 55000
+    amount: 1
+    spawner-type: SKELETON
+  - material: SPAWNER
+    name: '&cZombie Spawner'
+    price: 100000
+    sell-price: 50000
+    amount: 1
+    spawner-type: ZOMBIE
+  - material: SPAWNER
+    name: '&cCreeper Spawner'
+    price: 180000
+    sell-price: 90000
+    amount: 1
+    spawner-type: CREEPER
+  - material: SPAWNER
+    name: '&6Iron Golem Spawner'
+    price: 300000
+    sell-price: 150000
+    amount: 1
+    spawner-type: IRON_GOLEM

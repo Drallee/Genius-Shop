@@ -1,0 +1,64 @@
+gui-name: '&8Farming Shop'
+rows: 4
+permission: ''
+items:
+  - material: WHEAT_SEEDS
+    name: '&aWheat Seeds'
+    price: 10
+    sell-price: 3
+    amount: 16
+  - material: WHEAT
+    name: '&eWheat'
+    price: 25
+    sell-price: 8
+    amount: 16
+  - material: CARROT
+    name: '&eCarrot'
+    price: 20
+    sell-price: 6
+    amount: 16
+  - material: POTATO
+    name: '&ePotato'
+    price: 20
+    sell-price: 6
+    amount: 16
+  - material: BEETROOT_SEEDS
+    name: '&cBeetroot Seeds'
+    price: 15
+    sell-price: 5
+    amount: 16
+  - material: BEETROOT
+    name: '&cBeetroot'
+    price: 25
+    sell-price: 8
+    amount: 16
+  - material: SUGAR_CANE
+    name: '&aSugar Cane'
+    price: 35
+    sell-price: 10
+    amount: 16
+  - material: CACTUS
+    name: '&aCactus'
+    price: 35
+    sell-price: 10
+    amount: 16
+  - material: PUMPKIN
+    name: '&6Pumpkin'
+    price: 40
+    sell-price: 12
+    amount: 16
+  - material: MELON_SLICE
+    name: '&aMelon Slice'
+    price: 6
+    sell-price: 2
+    amount: 32
+  - material: BONE_MEAL
+    name: '&fBone Meal'
+    price: 50
+    sell-price: 10
+    amount: 16
+  - material: HAY_BLOCK
+    name: '&eHay Bale'
+    price: 160
+    sell-price: 40
+    amount: 8

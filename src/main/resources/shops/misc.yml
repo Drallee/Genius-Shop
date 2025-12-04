@@ -1,0 +1,48 @@
+gui-name: '&8Misc Shop'
+rows: 3
+permission: ''
+items:
+  - material: TORCH
+    name: '&eTorch'
+    price: 10
+    amount: 32
+  - material: LADDER
+    name: '&eLadder'
+    price: 15
+    amount: 16
+  - material: WATER_BUCKET
+    name: '&9Water Bucket'
+    price: 150
+    amount: 1
+  - material: LAVA_BUCKET
+    name: '&6Lava Bucket'
+    price: 200
+    amount: 1
+  - material: NAME_TAG
+    name: '&fName Tag'
+    price: 500
+    amount: 1
+  - material: LEAD
+    name: '&fLead'
+    price: 200
+    amount: 2
+  - material: EXPERIENCE_BOTTLE
+    name: '&aBottle o'' Enchanting'
+    price: 150
+    sell-price: 30
+    amount: 8
+  - material: ENDER_PEARL
+    name: '&5Ender Pearl'
+    price: 120
+    sell-price: 40
+    amount: 8
+  - material: GUNPOWDER
+    name: '&7Gunpowder'
+    price: 60
+    sell-price: 15
+    amount: 16
+  - material: STRING
+    name: '&fString'
+    price: 40
+    sell-price: 10
+    amount: 16
