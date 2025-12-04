@@ -37,11 +37,11 @@ public class MessageManager {
     // ===================================================
 
     public String getGuiString(String path, String def) {
-        return color(plugin.getGuiConfig().getString("gui." + path, def));
+        return color(plugin.getMenuManager().getGuiSettingsConfig().getString("gui." + path, def));
     }
 
     public List<String> getGuiStringList(String path) {
-        List<String> raw = plugin.getGuiConfig().getStringList("gui." + path);
+        List<String> raw = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui." + path);
         List<String> out = new ArrayList<>();
 
         for (String line : raw) {

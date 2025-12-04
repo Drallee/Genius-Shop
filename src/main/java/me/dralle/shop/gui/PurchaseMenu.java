@@ -88,8 +88,8 @@ public class PurchaseMenu implements Listener {
             lore.add("");
         }
 
-        String amountLine = plugin.getGuiConfig().getString("gui.item-lore.amount-line", "&eAmount: &7%amount%");
-        String totalLine = plugin.getGuiConfig().getString("gui.item-lore.total-line", "&eTotal: &7%total%");
+        String amountLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.amount-line", "&eAmount: &7%amount%");
+        String totalLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.total-line", "&eTotal: &7%total%");
         lore.add(ItemUtil.color(amountLine.replace("%amount%", String.valueOf(amount))));
         lore.add(ItemUtil.color(totalLine.replace("%total%", currency + (price * amount))));
 
@@ -333,8 +333,8 @@ public class PurchaseMenu implements Listener {
         String confirm = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.confirm.name", "&aCONFIRM PURCHASE");
         
         // Get shop name for placeholders
-        String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").get(0).asString() : null;
-        int shopPage = player.hasMetadata("buy.shopPage") ? player.getMetadata("buy.shopPage").get(0).asInt() : 1;
+        String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
+        int shopPage = player.hasMetadata("buy.shopPage") ? player.getMetadata("buy.shopPage").getFirst().asInt() : 1;
         String shopName = "Categories";
         if (shopKey != null && !shopKey.isEmpty()) {
             ShopData shopData = plugin.getShopManager().getShop(shopKey);
@@ -519,8 +519,8 @@ public class PurchaseMenu implements Listener {
 
         // Instead of closing, we just re-open the menu to refresh it (e.g., update lore if we had dynamic lore)
         // or simply do nothing to keep it open. reopening is safer to ensure state consistency if we add dynamic elements later.
-        String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").get(0).asString() : null;
-        int shopPage = player.hasMetadata("buy.shopPage") ? player.getMetadata("buy.shopPage").get(0).asInt() : 1;
+        String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
+        int shopPage = player.hasMetadata("buy.shopPage") ? player.getMetadata("buy.shopPage").getFirst().asInt() : 1;
         open(player, material, price, amount, spawnerType, potionType, customName, null, null, hideAttr, hideAdd, shopKey, shopPage);
     }
 

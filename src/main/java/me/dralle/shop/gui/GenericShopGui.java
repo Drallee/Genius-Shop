@@ -20,7 +20,6 @@ import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class GenericShopGui implements Listener {
 
@@ -116,13 +115,13 @@ public class GenericShopGui implements Listener {
             lore.add("");
 
             // Configurable price display lines
-            if (plugin.getGuiConfig().getBoolean("gui.item-lore.show-buy-price", true) && si.getPrice() > 0) {
-                String buyPriceLine = plugin.getGuiConfig().getString("gui.item-lore.buy-price-line", "&6Buy Price: &a%price%");
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-price", true) && si.getPrice() > 0) {
+                String buyPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-price-line", "&6Buy Price: &a%price%");
                 lore.add(ItemUtil.color(buyPriceLine.replace("%price%", currency + si.getPrice())));
             }
 
-            if (plugin.getGuiConfig().getBoolean("gui.item-lore.show-sell-price", true) && si.getSellPrice() != null && si.getSellPrice() > 0) {
-                String sellPriceLine = plugin.getGuiConfig().getString("gui.item-lore.sell-price-line", "&cSell Price: &a%sell-price%");
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-price", true) && si.getSellPrice() != null && si.getSellPrice() > 0) {
+                String sellPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-price-line", "&cSell Price: &a%sell-price%");
                 lore.add(ItemUtil.color(sellPriceLine.replace("%sell-price%", currency + si.getSellPrice())));
             }
 
@@ -135,12 +134,12 @@ public class GenericShopGui implements Listener {
             lore.add("");
 
             // Configurable hint lines
-            if (plugin.getGuiConfig().getBoolean("gui.item-lore.show-buy-hint", true) && si.getPrice() > 0) {
-                String buyHint = plugin.getGuiConfig().getString("gui.item-lore.buy-hint-line", "&eLeft-click to buy for %price%");
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-hint", true) && si.getPrice() > 0) {
+                String buyHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-hint-line", "&aLeft-click to buy");
                 lore.add(ItemUtil.color(buyHint.replace("%price%", currency + si.getPrice())));
             }
-            if (plugin.getGuiConfig().getBoolean("gui.item-lore.show-sell-hint", true) && si.getSellPrice() != null) {
-                String sellHint = plugin.getGuiConfig().getString("gui.item-lore.sell-hint-line", "&aRight-click to sell for %sell-price%");
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-hint", true) && si.getSellPrice() != null) {
+                String sellHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-hint-line", "&eRight-click to sell");
                 lore.add(ItemUtil.color(sellHint.replace("%sell-price%", currency + si.getSellPrice())));
             }
 
@@ -171,20 +170,20 @@ public class GenericShopGui implements Listener {
         int back = nav + 4;
         int next = nav + 5;
 
-        String backName = plugin.getGuiConfig().getString("gui.back-button.name", "&9Back");
-        List<String> backLore = plugin.getGuiConfig().getStringList("gui.back-button.lore");
+        String backName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.back-button.name", "&9Back");
+        List<String> backLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.back-button.lore");
 
         inv.setItem(back, ItemUtil.create(Material.ENDER_CHEST, 1, backName, backLore));
 
         if (page > 1) {
-            String prevName = plugin.getGuiConfig().getString("gui.prev-button.name", "&e<- Previous");
-            List<String> prevLore = plugin.getGuiConfig().getStringList("gui.prev-button.lore");
+            String prevName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.prev-button.name", "&e<- Previous");
+            List<String> prevLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.prev-button.lore");
             inv.setItem(prev, ItemUtil.create(Material.ARROW, 1, prevName, prevLore));
         }
 
         if (page < totalPages) {
-            String nextName = plugin.getGuiConfig().getString("gui.next-button.name", "&eNext ->");
-            List<String> nextLore = plugin.getGuiConfig().getStringList("gui.next-button.lore");
+            String nextName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.next-button.name", "&eNext ->");
+            List<String> nextLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.next-button.lore");
             inv.setItem(next, ItemUtil.create(Material.ARROW, 1, nextName, nextLore));
         }
 
@@ -204,7 +203,7 @@ public class GenericShopGui implements Listener {
         if (!player.hasMetadata("shop.current")) return;
         if (!player.hasMetadata("shop.page")) return;
 
-        String shopKey = player.getMetadata("shop.current").get(0).asString();
+        String shopKey = player.getMetadata("shop.current").getFirst().asString();
         ShopData shop = plugin.getShopManager().getShop(shopKey);
         if (shop == null) return;
 
@@ -217,7 +216,7 @@ public class GenericShopGui implements Listener {
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        int page = player.getMetadata("shop.page").get(0).asInt();
+        int page = player.getMetadata("shop.page").getFirst().asInt();
 
         int configuredRows = shop.getRows();
         int usableRows = Math.max(configuredRows, 1);

@@ -1,6 +1,6 @@
 gui-name: '&8Premium Shop'
 rows: 3
-permission: shop.premium
+permission: geniusshop.shop.premium
 items:
   - material: DIAMOND
     name: '&bDiamond'
