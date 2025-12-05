@@ -176,7 +176,7 @@ public class ShopPlugin extends JavaPlugin {
 
                 // Send as clickable text component using Spigot API
                 try {
-                    net.md_5.bungee.api.chat.TextComponent message = new net.md_5.bungee.api.chat.TextComponent(url);
+                    net.md_5.bungee.api.chat.TextComponent message = new net.md_5.bungee.api.chat.TextComponent("Click to open web editor");
                     message.setColor(net.md_5.bungee.api.ChatColor.AQUA);
                     message.setUnderlined(true);
                     message.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(

@@ -18,6 +18,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
 
+import java.util.Map;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -112,7 +114,6 @@ public class GenericShopGui implements Listener {
             ShopItem si = allItems.get(i);
 
             List<String> lore = new ArrayList<>();
-            lore.add("");
 
             // Configurable price display lines
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-price", true) && si.getPrice() > 0) {
@@ -125,13 +126,34 @@ public class GenericShopGui implements Listener {
                 lore.add(ItemUtil.color(sellPriceLine.replace("%sell-price%", currency + si.getSellPrice())));
             }
 
+            // Check if item has special properties (spawner, potion, enchantments, or custom lore)
+            boolean hasSpecialProperties = si.getSpawnerType() != null ||
+                                          si.getPotionType() != null ||
+                                          (si.getEnchantments() != null && !si.getEnchantments().isEmpty()) ||
+                                          (si.getLore() != null && !si.getLore().isEmpty());
+
+            // Add empty line before special properties if they exist
+            if (hasSpecialProperties) {
+                lore.add("");
+            }
+
+            // Add custom item lore from shop config
+            if (si.getLore() != null && !si.getLore().isEmpty()) {
+                for (String loreLine : si.getLore()) {
+                    lore.add(ItemUtil.color(loreLine));
+                }
+            }
+
             if (si.getSpawnerType() != null)
                 lore.add(ItemUtil.color("&7Spawner Type: &e" + si.getSpawnerType()));
 
             if (si.getPotionType() != null)
                 lore.add(ItemUtil.color("&7Potion Type: &d" + si.getPotionType()));
 
-            lore.add("");
+            // Add empty line after special properties if they exist
+            if (hasSpecialProperties) {
+                lore.add("");
+            }
 
             // Configurable hint lines
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-hint", true) && si.getPrice() > 0) {
