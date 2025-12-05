@@ -54,8 +54,8 @@ items:
 | `material` | String | Minecraft material name |
 | `name` | String | Display name (supports `&` color codes) |
 | `lore` | List | Item description lines |
-| `price` | Number | Buy price (omit or negative = can't buy) |
-| `sell-price` | Number | Sell price (omit or negative = can't sell) |
+| `price` | Number | Buy price (omit, set to 0, or set to negative = can't buy) |
+| `sell-price` | Number | Sell price (omit, set to 0, or set to negative = can't sell) |
 | `amount` | Integer | Default quantity |
 | `enchantments` | Map | Enchantments (ENCHANTMENT: LEVEL) |
 | `spawner-type` | String | For spawners (PIG, ZOMBIE, etc.) |
@@ -411,7 +411,10 @@ Use `&` followed by a color/format code:
 
 ### Sell-Only Items
 
-Set `price` to negative or omit it to make items sell-only:
+To make items sell-only (cannot be purchased), you can:
+- Omit the `price` field entirely
+- Set `price: 0`
+- Set `price: -1` (or any negative number)
 
 ```yaml
 items:
@@ -421,13 +424,17 @@ items:
       - '&7Sell your excess cobblestone'
       - ''
       - '&cSell: $1'
+    price: 0  # or -1, or omit this line
     sell-price: 1
     amount: 64
 ```
 
 ### Buy-Only Items
 
-Set `sell-price` to negative or omit it to make items buy-only:
+To make items buy-only (cannot be sold), you can:
+- Omit the `sell-price` field entirely
+- Set `sell-price: 0`
+- Set `sell-price: -1` (or any negative number)
 
 ```yaml
 items:
@@ -438,6 +445,22 @@ items:
       - ''
       - '&aBuy: &6$100'
     price: 100
+    sell-price: -1  # or 0, or omit this line
+    amount: 1
+```
+
+### Display-Only Items
+
+To make items display-only (cannot buy or sell), disable both prices:
+
+```yaml
+items:
+  - material: NETHER_STAR
+    name: '&d&lComing Soon!'
+    lore:
+      - '&7This item will be available in the future'
+    price: 0  # or -1, or omit
+    sell-price: 0  # or -1, or omit
     amount: 1
 ```
 

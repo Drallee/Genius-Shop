@@ -1,81 +1,139 @@
 # Configuration Guide
 
-This guide covers the YAML configuration files for Genius Shop.
+This guide explains all configuration files for Genius-Shop and how to customize them.
 
-## Configuration Files
+## Configuration Files Overview
 
-```
-plugins/GeniusShop/
-├── config.yml          # Main plugin settings
-├── messages.yml        # All plugin messages
-├── discord.yml         # Discord webhook settings
-├── menus/              # GUI menu configurations
-│   ├── gui-settings.yml
-│   ├── main-menu.yml
-│   ├── purchase-menu.yml
-│   └── sell-menu.yml
-└── shops/              # Individual shop files
-    ├── blocks.yml
-    ├── farming.yml
-    └── ...
-```
+Genius-Shop uses multiple YAML configuration files:
+
+- **config.yml** - Main plugin settings (economy, updates, API)
+- **messages.yml** - All player-facing messages and text
+- **discord.yml** - Discord webhook notifications
+- **menus/gui-settings.yml** - GUI text and lore customization
+- **menus/main-menu.yml** - Main shop menu layout
+- **menus/purchase-menu.yml** - Purchase GUI settings
+- **menus/sell-menu.yml** - Sell GUI settings
+- **shops/*.yml** - Individual shop definitions
+
+---
 
 ## config.yml
 
-Main configuration file for the plugin.
+Main plugin configuration file.
+
+### General Settings
 
 ```yaml
-# API server for web editor
+config-version: 5
+
+# Auto-update config files when new keys are added
+merge-missing-defaults: true
+
+# Check for plugin updates on startup
+check-updates: true
+
+# Notify admins about updates when they join
+send-update-message-ingame: true
+
+# Enable debug logging to console
+debug: false
+```
+
+### Economy Settings
+
+```yaml
+eco:
+  # Override currency symbol (empty = use Vault economy plugin's symbol)
+  # Examples: "$", "€", "G", "coins"
+  override-currency-symbol: ""
+
+# Fallback if no Vault economy is available
+fallback-currency-symbol: "$"
+```
+
+### Date Format
+
+```yaml
+# How dates are displayed for time-limited shops
+# Options: "yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy", "dd MMM yyyy", etc.
+date-format: "dd MMM yyyy"
+```
+
+### Default Shops
+
+```yaml
+# Create example shop files on first run
+# Creates: blocks.yml, farming.yml, misc.yml, premium.yml, spawners.yml, weekend_market.yml
+create-default-shops: true
+```
+
+### Web Editor API
+
+```yaml
 api:
   enabled: true
   port: 8080
-  # The API key gets generated on startup, change it for security purposes!
+  # IMPORTANT: Change this to a secure random key!
+  # Generate at: https://www.uuidgenerator.net/
   api-key: "change-this-to-a-secure-random-key"
-
-# Update checker
-check-updates: true
-send-update-message-ingame: true
-
-# Shop settings
-shop:
-  sound-effects: true
-  close-on-purchase: false
-  transaction-cooldown: 0  # Seconds between transactions
-
-# Discord integration
-discord:
-  enabled: false
-  webhook-file: discord.yml
 ```
 
-### Key Settings Explained
+**⚠️ Security Warning**: Keep your API key secret! Anyone with the key can edit your shop configs through the web editor.
 
-- **api.bind-address**:
-  - `localhost` or `127.0.0.1` - Only local access
-  - `0.0.0.0` - Allow remote access (use with caution!)
+---
 
 ## messages.yml
 
-Customize all plugin messages with Minecraft color codes.
+All player-facing messages and feedback text.
+
+### Message Structure
 
 ```yaml
-prefix: "&8[&5GeniusShop&8]&r"
+config-version: 3
 
-shop:
-  opened: "&aOpened shop: &e{shop}"
-  purchase-success: "&aYou purchased &e{amount}x {item} &afor &6${price}"
-  purchase-fail: "&cYou don't have enough money! Need: &e${price}"
-  sell-success: "&aYou sold &e{amount}x {item} &afor &6${price}"
-  sell-fail: "&cYou don't have any {item} to sell!"
+messages:
+  prefix: "&8&l| &cSHOP &8&l| "
+  no-permission: "%prefix%&cYou don't have permission to do that."
+  player-only: "&cOnly players can use this command."
 
-errors:
-  no-permission: "&cYou don't have permission to use this!"
-  invalid-shop: "&cThat shop doesn't exist!"
+  # Shop access
+  shop-not-found: "&cShop '&e%shop%&c' was not found."
+  shop-no-permission: "%prefix%&cYou don't have permission to open the &e%shop%&c shop."
+  shop-not-available: "%prefix%&cThe &e%shop%&c shop is not available right now!\n%prefix%&7Available: &e%available-times%"
+  shop-always-available: "&aAlways"
 
-admin:
-  reload-success: "&aGeniusShop reloaded successfully!"
-  token-generated: "&aWeb editor token: &e{token}"
+  # Economy
+  economy-not-ready: "&cEconomy plugin is not ready."
+  not-enough-money: "&cYou can't afford &7%amount%x &4%item%&c for &4%price%."
+  buy-success: "&eYou bought &7%amount%x &6%item%&e for &6%price%."
+  payment-error: "&cSomething went wrong with the payment."
+
+  # Selling
+  cannot-sell: "%prefix%&cYou can't sell that item."
+  no-items-to-sell: "%prefix%&cYou don't have any &e%item%&c to sell."
+  sell-success: "%prefix%&aYou sold &7%amount%x &6%item%&a for &6%price%."
+  sell-all-success: "%prefix%&aYou sold &7%amount%x &6%item%&a for &6%price% in total."
+
+  # Buying guard
+  cannot-buy: "%prefix%&cYou can't buy that item."
+
+  # Admin
+  reload-no-permission: "%prefix%&cYou don't have permission to reload the plugin."
+  reload-success: "%prefix%&aGenius-Shop has been reloaded."
+  reload-failed: "%prefix%&cReload failed, check console."
+  update-available: "%prefix%&aA new update is available! &7(&c%current% &7-> &a%new%&7)"
 ```
+
+### Available Placeholders
+
+- `%prefix%` - Message prefix
+- `%shop%` - Shop name
+- `%item%` - Item name
+- `%amount%` - Item quantity
+- `%price%` - Price/earnings
+- `%available-times%` - When shop is available
+- `%current%` - Current plugin version
+- `%new%` - New plugin version
 
 ### Color Codes
 
@@ -86,194 +144,245 @@ Use standard Minecraft color codes:
 - `&n` - Underline
 - `&r` - Reset
 
+---
+
+## discord.yml
+
+Discord webhook notifications for shop transactions.
+
+### Basic Setup
+
+```yaml
+config-version: 1
+
+# Enable Discord notifications
+enabled: false
+
+# Your Discord webhook URL
+webhook-url: "WEBHOOK_URL_HERE"
+```
+
+**How to create a webhook:**
+1. Go to your Discord server settings
+2. Select "Integrations" → "Webhooks"
+3. Click "New Webhook"
+4. Copy the webhook URL and paste it into discord.yml
+
+### Purchase Notifications
+
+```yaml
+purchase:
+  enabled: true
+  type: "embed"  # "embed" or "plain"
+
+  # For plain messages
+  plain-message: "🛒 **%player%** purchased **%amount%x %item%** for **%currency%%price%**"
+
+  # For embed messages
+  embed:
+    title: "🛒 Purchase Transaction"
+    description: "**%player%** purchased items from the shop"
+    color: 3066993  # Green
+    fields:
+      - name: "Player"
+        value: "%player%"
+        inline: true
+      - name: "Item"
+        value: "%item%"
+        inline: true
+      - name: "Amount"
+        value: "%amount%"
+        inline: true
+      - name: "Total Cost"
+        value: "%currency%%price%"
+        inline: true
+    footer: "Genius Shop"
+    timestamp: true
+```
+
+### Sell Notifications
+
+```yaml
+sell:
+  enabled: true
+  type: "embed"
+  plain-message: "💰 **%player%** sold **%amount%x %item%** for **%currency%%price%**"
+  embed:
+    title: "💰 Sell Transaction"
+    description: "**%player%** sold items to the shop"
+    color: 15844367  # Gold
+    fields:
+      - name: "Player"
+        value: "%player%"
+        inline: true
+      - name: "Item"
+        value: "%item%"
+        inline: true
+      - name: "Amount"
+        value: "%amount%"
+        inline: true
+      - name: "Total Earned"
+        value: "%currency%%price%"
+        inline: true
+    footer: "Genius Shop"
+    timestamp: true
+```
+
+### Common Embed Colors
+
+- `3066993` - Green (#2ecc71)
+- `15844367` - Gold (#f1c40f)
+- `3447003` - Blue (#3498db)
+- `15158332` - Red (#e74c3c)
+- `10181046` - Purple (#9b59b6)
+
+### Available Placeholders
+
+- `%player%` - Player username
+- `%item%` - Item name (color codes stripped)
+- `%amount%` - Number of items
+- `%price%` - Total price/earnings
+- `%currency%` - Currency symbol
+- `%timestamp%` - Current timestamp (ISO 8601)
+
+---
+
 ## Menu Configuration
 
 ### gui-settings.yml
 
-Global GUI settings for all menus.
+Global GUI settings for all shop menus.
 
 ```yaml
-gui-settings:
-  show-buy-price: true
-  buy-price-line: "&7Buy: &a${price}"
-  show-buy-hint: true
-  buy-hint-line: "&eLeft-click to buy"
+gui:
+  # Navigation buttons
+  back-button:
+    name: '&9BACK TO CATEGORIES'
+    lore:
+      - ''
+      - '&bClick to return to the main menu.'
+      - ''
 
-  show-sell-price: true
-  sell-price-line: "&7Sell: &c${price}"
-  show-sell-hint: true
-  sell-hint-line: "&eRight-click to sell"
+  prev-button:
+    name: '&e<- PREVIOUS PAGE'
+    lore:
+      - ''
+      - '&7See the previous page.'
+      - ''
+
+  next-button:
+    name: '&eNEXT PAGE ->'
+    lore:
+      - ''
+      - '&7See the next page.'
+      - ''
+
+  # Item lore customization
+  item-lore:
+    # Price display (shown at top of lore)
+    show-buy-price: true
+    buy-price-line: '&6Buy Price: &a%price%'
+    show-sell-price: true
+    sell-price-line: '&cSell Price: &a%sell-price%'
+
+    # Hint lines (shown at bottom of lore)
+    show-buy-hint: true
+    buy-hint-line: '&eLeft-click to buy'
+    show-sell-hint: true
+    sell-hint-line: '&aRight-click to sell'
+
+    # Purchase menu lines
+    amount-line: '&eAmount: &7%amount%'
+    total-line: '&eTotal: &7%total%'
 ```
 
 ### main-menu.yml
 
-Configure the main shop selection menu.
-
-```yaml
-gui:
-  main:
-    title: "&8&l⛏ &5&lGENIUS SHOP"
-    rows: 3
-    items:
-      blocks:
-        slot: 11
-        material: STONE
-        name: "&6&lBlocks Shop"
-        lore:
-          - "&7Building blocks and materials"
-          - ""
-          - "&eClick to browse!"
-        shop-key: blocks
-        permission: ""
-```
+Defines the main shop menu layout. See [Examples](Examples) for detailed shop menu configuration.
 
 ### purchase-menu.yml
 
-Configure the quantity selection menu for purchases.
-
-```yaml
-purchase-menu:
-  title-prefix: "&8Buy: "
-  max-amount: 2304  # 36 stacks
-  slots:
-    1:
-      slot: 10
-      material: PAPER
-    64:
-      slot: 13
-      material: IRON_INGOT
-```
+Settings for the item purchase GUI (amount selection interface).
 
 ### sell-menu.yml
 
-Configure the sell confirmation menu.
+Settings for the item selling GUI (amount selection interface).
 
+---
+
+## Shop Definitions
+
+Individual shop files are stored in the `shops/` folder. Each shop is a separate YAML file.
+
+### Making Items Non-Purchasable or Non-Sellable
+
+**Important**: To disable buying or selling for an item, you have three options:
+
+- **To disable buying**: Remove the `price:` field entirely, OR set it to `0`, OR set it to a negative value (e.g., `-1`)
+- **To disable selling**: Remove the `sell-price:` field entirely, OR set it to `0`, OR set it to a negative value (e.g., `-1`)
+
+**Example - Display only (cannot buy or sell):**
 ```yaml
-sell-menu:
-  title-prefix: "&8Sell: "
-  max-amount: 2304
-  slots:
-    1:
-      slot: 10
-      material: PAPER
+items:
+  0:
+    material: DIAMOND
+    name: "&bRare Diamond"
+    lore:
+      - "&7This is for display only!"
+    # Omit price/sell-price, OR set to 0, OR set to -1
 ```
 
-## Shop Files
-
-Individual shop configurations in `shops/` folder.
-
-### Basic Shop Structure
-
-```yaml
-# shops/blocks.yml
-shop:
-  gui-name: "&6&lBlocks Shop"
-  rows: 6
-  permission: ""
-  available-times: ""  # Empty = always available
-
-  items:
-    0:  # Slot number
-      material: STONE
-      buy-price: 10.0
-      sell-price: 5.0
-      name: "&fStone"
-      lore:
-        - "&7A basic building block"
-        - ""
-        - "&aBuy: &6$10"
-        - "&aSell: &c$5"
-      amount: 64
-      max-stack-size: 64
-```
-
-### Item Properties
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `material` | String | Yes | Minecraft material name |
-| `buy-price` | Number | No | Purchase price (0 or negative = can't buy) |
-| `sell-price` | Number | No | Sell price (0 or negative = can't sell) |
-| `name` | String | No | Display name (supports colors) |
-| `lore` | List | No | Item lore/description |
-| `amount` | Number | No | Default purchase amount |
-| `max-stack-size` | Number | No | Maximum per transaction |
-| `permission` | String | No | Required permission |
-| `enchantments` | Map | No | Enchantments (see below) |
-| `potion-type` | String | No | For potions (SPEED, STRENGTH, etc.) |
-| `spawner-type` | String | No | For spawners (PIG, ZOMBIE, etc.) |
-
-### Advanced Features
-
-#### Enchantments
-
+**Example - Can only buy (cannot sell):**
 ```yaml
 items:
   0:
     material: DIAMOND_SWORD
-    name: "&bEnchanted Sword"
-    enchantments:
-      SHARPNESS: 5
-      UNBREAKING: 3
-      FIRE_ASPECT: 2
+    name: "&cSpecial Sword"
+    price: 1000.0
+    sell-price: -1  # Can also omit or set to 0
 ```
 
-#### Potions
-
+**Example - Can only sell (cannot buy):**
 ```yaml
 items:
   0:
-    material: POTION
-    name: "&bSpeed Potion"
-    potion-type: SPEED
+    material: DIRT
+    name: "&7Dirt"
+    price: 0  # Can also omit or set to -1
+    sell-price: 0.5
 ```
 
-#### Spawners
+See the [Examples](Examples) page for detailed information on creating and configuring shops.
 
-```yaml
-items:
-  0:
-    material: SPAWNER
-    name: "&6Pig Spawner"
-    spawner-type: PIG
-    buy-price: 10000
-```
+---
 
-#### Time Restrictions
+## Configuration Tips
 
-```yaml
-shop:
-  available-times: "MON 00:00-23:59, SAT 00:00-23:59, SUN 00:00-23:59"
-  # Format: DAY HH:MM-HH:MM, DAY HH:MM-HH:MM
-  # Days: MON, TUE, WED, THU, FRI, SAT, SUN
-```
+1. **Always back up** your configs before making major changes
+2. **Use the web editor** for easier configuration with live preview
+3. **Test time restrictions** before deploying to production
+4. **Keep your API key secure** - don't share it publicly
+5. **Use `/shop reload`** after changing configs to apply changes
+6. **Check the console** for error messages if configs don't load
 
-## Discord Integration
+---
 
-Configure Discord webhooks in `discord.yml`:
+## Auto-Update System
 
-```yaml
-discord:
-  webhooks:
-    - url: "https://discord.com/api/webhooks/..."
-      events:
-        - purchase
-        - sell
-      embed-color: 5814783
-```
+Genius-Shop automatically merges new config keys when you update the plugin:
 
-Events available:
-- `purchase` - Item purchases
-- `sell` - Item sales
-- `shop-open` - Shop opens
+- **merge-missing-defaults: true** - Adds new keys while keeping your changes
+- **merge-missing-defaults: false** - Never modifies your configs (not recommended)
 
-## Tips
+When enabled, the plugin will:
+- Add new configuration keys from updates
+- Keep all your existing values and customizations
+- Create backups before making changes
+- Log all changes to the console
 
-1. **Use the Web Editor**: Much easier than manually editing YAML
-2. **Backup Configs**: Before major changes, backup your configs
-3. **Test Changes**: Use `/shop reload` to test without restarting
-4. **Color Codes**: Preview colors at [Minecraft Color Codes](https://www.digminecraft.com/lists/color_list_pc.php)
-5. **Material Names**: Use exact Minecraft material names (see [Spigot API](https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Material.html))
+This means you can safely update the plugin without losing your configuration!
+
+---
 
 ## Next Steps
 

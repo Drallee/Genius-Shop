@@ -1141,6 +1141,11 @@ s        /* Keep background animation subtle and slow */
 
         .item-count {
             position: absolute;
+            z-index:1;
+            color: white;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
             bottom: 2px;
             right: 2px;
             font-size: 0.7em;
@@ -3248,7 +3253,12 @@ s        /* Keep background animation subtle and slow */
             // Show lore if available
             if (item.lore && item.lore.length > 0) {
                 item.lore.forEach(line => {
-                    tooltipHTML += `<div class="tooltip-line">${parseMinecraftColors(line)}</div>`;
+                    // Show empty lines as blank spacing, non-empty lines with color parsing
+                    if (line.trim()) {
+                        tooltipHTML += `<div class="tooltip-line">${parseMinecraftColors(line)}</div>`;
+                    } else {
+                        tooltipHTML += `<div class="tooltip-line">&nbsp;</div>`;
+                    }
                 });
             }
 
@@ -3421,10 +3431,14 @@ s        /* Keep background animation subtle and slow */
 
                         let tooltipHTML = `<div class="tooltip-title">${displayName}</div>`;
 
+                        // Show lore (display empty lines as spacing)
                         if (shopData.lore && shopData.lore.length > 0) {
                             shopData.lore.forEach(line => {
+                                // Show empty lines as blank spacing, non-empty lines with color parsing
                                 if (line.trim()) {
                                     tooltipHTML += `<div class="tooltip-line">${parseMinecraftColors(line)}</div>`;
+                                } else {
+                                    tooltipHTML += `<div class="tooltip-line">&nbsp;</div>`;
                                 }
                             });
                         }
@@ -4728,7 +4742,8 @@ s        /* Keep background animation subtle and slow */
 
             console.log('=== PARSING MAIN MENU ===');
             console.log('Parsing main-menu.yml, total lines:', lines.length);
-            console.log('First 5 lines:', lines.slice(0, 5));
+            console.log('First 50 lines of YAML content:');
+            console.log(lines.slice(0, 50).map((l, i) => `${i}: ${JSON.stringify(l)}`).join('\n'));
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -4738,6 +4753,11 @@ s        /* Keep background animation subtle and slow */
                 if (!trimmed || trimmed.startsWith('#')) continue;
 
                 const indent = line.search(/\S/);
+
+                // Debug: log every non-empty line in items section
+                if (inItems && i < 100) {
+                    console.log(`Line ${i}: indent=${indent}, inItems=${inItems}, currentShop=${currentShop?.key}, currentField=${currentField}, line=${JSON.stringify(line)}`);
+                }
 
                 // Look for title (indent 0)
                 if (indent === 0 && trimmed.startsWith('title:')) {
@@ -4760,14 +4780,17 @@ s        /* Keep background animation subtle and slow */
                 // Look for items section (indent 0)
                 if (indent === 0 && trimmed === 'items:') {
                     inItems = true;
-                    console.log('Found items section at line', i);
+                    console.log('Found items section at line', i, 'setting inItems=true');
                     continue;
                 }
 
                 // Parse shop buttons (indent 2 = shop key)
                 if (inItems && indent === 2 && trimmed.includes(':') && !trimmed.startsWith('-')) {
                     const shopKey = trimmed.split(':')[0].trim();
-                    console.log('Found shop button at line', i, ':', shopKey, 'indent:', indent);
+                    console.log('Found shop button at line', i, ':', shopKey, 'indent:', indent, 'line:', JSON.stringify(line));
+
+                    // Debug check
+                    console.log('Checking shop button condition: inItems=', inItems, 'indent=', indent, 'includes(":")=', trimmed.includes(':'), 'startsWith("-")=', trimmed.startsWith('-'));
 
                     // Save previous shop if valid
                     if (currentShop && currentShop.slot !== null) {
@@ -4788,11 +4811,18 @@ s        /* Keep background animation subtle and slow */
                     };
                     currentField = null;
                 }
-                // Lore items (indent 6, list format) - check this BEFORE regular properties
-                else if (currentField === 'lore' && indent === 6 && trimmed.startsWith('-')) {
+                // Lore items (list format) - check this BEFORE regular properties
+                // Lore items are at indent 4 with '-' prefix
+                else if (currentField === 'lore' && indent === 4 && trimmed.startsWith('-')) {
                     const loreValue = trimmed.substring(1).trim().replace(/['"]/g, '');
-                    console.log('Adding lore at line', i, 'indent:', indent, 'value:', loreValue);
-                    currentShop.lore.push(loreValue);
+                    console.log('Adding lore at line', i, 'indent:', indent, 'value:', JSON.stringify(loreValue), 'to shop:', currentShop?.key, 'line:', JSON.stringify(line));
+                    if (currentShop) {
+                        currentShop.lore.push(loreValue);
+                    }
+                }
+                // Debug: if currentField is lore but we don't match the condition
+                else if (currentField === 'lore' && trimmed && !trimmed.startsWith('#')) {
+                    console.log('Skipped potential lore line at', i, 'currentField:', currentField, 'indent:', indent, 'trimmed:', JSON.stringify(trimmed), 'line:', JSON.stringify(line));
                 }
                 // Shop button properties (indent 4)
                 else if (currentShop && indent === 4 && trimmed.includes(':') && !trimmed.startsWith('-')) {
@@ -4811,6 +4841,7 @@ s        /* Keep background animation subtle and slow */
                     } else if (key.trim() === 'name') {
                         currentShop.name = value;
                     } else if (key.trim() === 'lore') {
+                        console.log('Setting currentField to lore at line', i, 'for shop:', currentShop.key, 'indent:', indent, 'line:', JSON.stringify(line));
                         currentField = 'lore';
                     } else if (key.trim() === 'shop-key') {
                         currentShop.shopKey = value;
@@ -4833,7 +4864,15 @@ s        /* Keep background animation subtle and slow */
             console.log(`Loaded ${loadedGuiShops.length} shop buttons from main-menu.yml`);
             console.log('Main menu title:', mainMenuTitle);
             console.log('Main menu rows:', mainMenuRows);
-            console.log('All shops:', loadedGuiShops.map(s => ({ key: s.key, lore: s.lore.length })));
+            console.log('All shops:', loadedGuiShops.map(s => ({ key: s.key, slot: s.slot, lore: s.lore.length, loreContent: s.lore })));
+
+            // Detailed lore debug for each shop
+            loadedGuiShops.forEach(shop => {
+                console.log(`Shop "${shop.key}" (slot ${shop.slot}):`, {
+                    loreCount: shop.lore.length,
+                    lore: shop.lore
+                });
+            });
         }
 
         // Parse purchase-menu.yml
@@ -6098,7 +6137,8 @@ s        /* Keep background animation subtle and slow */
                 </div>
                 <div class="form-group">
                     <label>Lore (one per line, use & for colors)</label>
-                    <textarea id="modal-lore" rows="5">${(item.lore || []).join('\n')}</textarea>
+                    <textarea id="modal-lore" rows="5" placeholder="Enter lore lines here... (empty lines are preserved for spacing)">${(item.lore || []).join('\n')}</textarea>
+                    <small style="color: #888; display: block; margin-top: 4px;">Currently has ${(item.lore || []).length} line(s)</small>
                 </div>
                 <div class="form-group">
                     <label>Enchantments (format: ENCHANTMENT:LEVEL, one per line)</label>
@@ -6236,6 +6276,11 @@ s        /* Keep background animation subtle and slow */
             const shop = loadedGuiShops[index];
             if (!shop) return;
 
+            console.log('Opening main menu shop modal for:', shop.key, 'with lore:', shop.lore);
+            console.log('Lore array length:', (shop.lore || []).length);
+            console.log('Lore joined:', JSON.stringify((shop.lore || []).join('\n')));
+            console.log('Full shop object:', JSON.stringify(shop, null, 2));
+
             const content = `
                 <div class="form-group">
                     <label>Button Key (YAML identifier)</label>
@@ -6257,7 +6302,8 @@ s        /* Keep background animation subtle and slow */
                 </div>
                 <div class="form-group">
                     <label>Lore (one per line, use %available-times% for availability)</label>
-                    <textarea id="modal-lore" rows="5">${(shop.lore || []).join('\n')}</textarea>
+                    <textarea id="modal-lore" rows="5" placeholder="Enter lore lines here... (empty lines are preserved for spacing)">${(shop.lore || []).join('\n')}</textarea>
+                    <small style="color: #888; display: block; margin-top: 4px;">Currently has ${(shop.lore || []).length} line(s)</small>
                 </div>
                 <div class="form-group">
                     <label>Shop Key (File)</label>

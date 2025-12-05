@@ -1,16 +1,16 @@
 # Web Editor Guide
 
-The Genius Shop Web Editor provides a powerful, modern interface for managing your shops with live preview.
-
-![Web Editor Screenshot](https://via.placeholder.com/800x400?text=Web+Editor+Screenshot)
+The Genius Shop Web Editor provides a modern web interface for managing your shops directly from your browser.
 
 ## Features
 
-✨ **Live Preview** - See changes in real-time with Minecraft-style GUI
-🔄 **Undo/Redo** - Easily revert mistakes
-💾 **Auto-save** - Changes saved automatically
-🎨 **Visual Editor** - No YAML knowledge required
-📱 **Responsive** - Works on desktop and mobile
+✨ **Live Visual Editor** - Edit shops with a visual Minecraft-style preview
+🔐 **Secure Authentication** - Token-based login system
+💾 **Direct File Editing** - Changes are saved directly to YAML files
+🎨 **Color Code Support** - Preview Minecraft color codes in real-time
+📱 **Responsive Design** - Works on desktop, tablet, and mobile
+
+---
 
 ## Getting Started
 
@@ -22,157 +22,169 @@ In `config.yml`:
 api:
   enabled: true
   port: 8080
-  bind-address: "localhost"  # Change to 0.0.0.0 for remote access
+  api-key: "change-this-to-a-secure-random-key"
 ```
+
+**Important**:
+- The web editor automatically binds to `0.0.0.0` (all network interfaces) so it can be accessed from your local network
+- Change the `api-key` to a secure random value for security
+- The default port is `8080` - make sure it's not blocked by your firewall
 
 Reload the plugin: `/shop reload`
 
-### Step 2: Get Authentication Token
+### Step 2: Generate Login Token
 
-1. Join your Minecraft server
-2. Run `/shop editor` in-game
-3. Copy the generated token (valid for 5 minutes)
+The web editor uses an auto-login token system for secure authentication.
 
+**In-game command:**
 ```
-[GeniusShop] Web editor token: abc123xyz
-[GeniusShop] Access at: http://localhost:8080
-[GeniusShop] Token expires in 5 minutes
+/shop editor
 ```
 
-### Step 3: Login
+This will:
+1. Generate a one-time use token (valid for 5 minutes)
+2. Display a clickable link with the token embedded
+3. The token automatically logs you in when you click the link
 
-1. Open your browser to `http://your-server-ip:8080`
-2. Enter your Minecraft username
-3. Paste your UUID as password (get it with `/uuid` in-game)
-4. Or use the token for auto-login
+**Example output:**
+```
+§a§l[Shop Editor]
+§7Click the link below to open the shop editor:
+http://192.168.1.100:8080/?token=abc123...
+§7This token expires in 5 minutes
+```
 
-> **Note**: The web editor only works while you're online in-game for security
+### Step 3: Access the Editor
 
-## Interface Overview
+**Option A: Click the link** (recommended)
+- Click the link shown in-game
+- You'll be automatically logged in with the token
 
-### Header Bar
+**Option B: Manual login**
+- Navigate to `http://your-server-ip:8080`
+- Enter your Minecraft username
+- Enter your player UUID as password
+- Click "LOGIN"
 
-- **User Info** - Shows your username and online status
-- **Auto-save Toggle** - Enable/disable automatic saving
-- **Animations Toggle** - Enable/disable UI animations
-- **Activity Log** - View recent changes
-- **Sync** - Reload from server
-- **Save** - Manually save changes
-- **Logout** - End your session
+**How to get your UUID:**
+- Check at https://mcuuid.net/
+- The login page provides a link to check your UUID
 
-### Tabs
+---
 
-#### 1. Shop Items
+## Authentication System
 
-Manage items in the currently selected shop.
+### Auto-Login Tokens
 
-**Features:**
-- Add new items with the "+" button
-- Edit item properties (material, name, lore, prices)
-- Drag items to reposition in GUI slots
-- Remove items with the "×" button
-- Search and filter materials
+When you run `/shop editor`:
+- A unique one-time token is created
+- Token expires after 5 minutes
+- Token is tied to your IP address
+- Token is consumed after first use (one-time only)
+- Creates a session that lasts 1 hour
 
-**Item Properties:**
-- **Material**: Minecraft item type
-- **Slot**: Position in GUI (0-53 for 6-row menu)
-- **Name**: Display name (supports color codes)
-- **Lore**: Description lines
-- **Buy Price**: Purchase cost (negative = can't buy)
-- **Sell Price**: Sell value (negative = can't sell)
-- **Amount**: Default quantity
-- **Enchantments**: Add enchantments
-- **Special**: Potion types, spawner types
+### Session Management
 
-#### 2. Shop Settings
+- Sessions last for 1 hour after login
+- You must be online in-game to use the editor
+- Sessions are validated on each API request
+- Logging out invalidates your session immediately
 
-Configure global shop properties.
+### Security Features
 
-- **GUI Name**: Shop menu title
-- **Rows**: Number of inventory rows (1-6)
-- **Permission**: Required permission node
-- **Available Times**: Time restrictions
+✅ **IP Verification**: Tokens are tied to your IP address
+✅ **Permission Check**: Requires `geniusshop.admin` or `shop.admin` permission
+✅ **Online Verification**: Player must be online in-game
+✅ **One-Time Tokens**: Each token can only be used once
+✅ **Time Expiration**: Tokens expire after 5 minutes, sessions after 1 hour
+✅ **Local Network Support**: Works with localhost and local network IPs
 
-**Price Display Settings:**
-- Show/hide buy prices
-- Customize buy price format
-- Show/hide sell prices
-- Customize sell price format
+---
 
-#### 3. Main Menu
+## Network Access
 
-Configure the shop selection menu.
+### Accessing from Different Devices
 
-- **Title**: Main menu title
-- **Rows**: Menu size
-- **Shop Buttons**: Add shops to main menu
-  - Button position
-  - Icon material
-  - Display name and lore
-  - Linked shop file
+The web editor binds to `0.0.0.0` (all interfaces), which means:
 
-#### 4. Transaction Menus
+✅ **Same Computer**: `http://localhost:8080`
+✅ **Local Network**: `http://192.168.1.XXX:8080` (use your server's IP)
+✅ **Other Devices**: Any device on your local network can access it
 
-Configure purchase and sell quantity menus.
+### Firewall Configuration
 
-- **Title Prefix**: Menu title format
-- **Max Amount**: Maximum transaction size
-- **Quick Buy Slots**: Preset quantity buttons
+If you can't connect:
+1. Check if port 8080 is open on your server
+2. Allow port 8080 in Windows Firewall / Linux iptables
+3. Check your router's firewall settings if accessing from another device
 
-### Live Preview Panel
+### Remote Access (Advanced)
 
-The right panel shows a live Minecraft-style preview.
+⚠️ **Not Recommended**: Exposing the editor to the internet is not recommended without additional security measures (VPN, reverse proxy with HTTPS, etc.)
 
-**Features:**
-- Real-time updates as you edit
-- Hover over items to see tooltips
-- Visual representation of GUI layout
-- Page navigation for multi-page shops
+If you need remote access:
+- Use a VPN to connect to your local network
+- Set up a reverse proxy with HTTPS (nginx, Apache)
+- Use SSH port forwarding: `ssh -L 8080:localhost:8080 user@server`
 
-## Common Tasks
+---
 
-### Creating a New Shop
+## Using the Editor
 
-1. Go to **Shop Settings** tab
-2. Set GUI name and rows
-3. Go to **Shop Items** tab
-4. Click "**+ ADD ITEM**"
-5. Fill in item details
-6. Click slot in preview to place item
-7. Save changes
+### Interface Overview
 
-### Editing an Item
+The web editor consists of:
 
-1. Go to **Shop Items** tab
-2. Find the item card
-3. Edit any property (material, name, prices, etc.)
-4. Changes appear instantly in preview
-5. Auto-save will save automatically
+**Left Panel:**
+- Shop selector dropdown
+- File selector (shops, main menu, settings)
+- Edit forms for items and settings
 
-### Adding to Main Menu
+**Right Panel:**
+- Live Minecraft-style GUI preview
+- Shows exactly how the shop looks in-game
+- Updates in real-time as you edit
 
-1. Go to **Main Menu** tab
-2. Click "**ADD NEW SHOP**"
-3. Set button key (identifier)
-4. Choose slot position
-5. Set material, name, and lore
-6. Link to shop file
-7. Save changes
+**Top Bar:**
+- Current user and session info
+- Save button
+- Logout button
 
-### Setting Time Restrictions
+### Editing Shop Items
 
-1. Go to **Shop Settings** tab
-2. Find "**Available Times**"
-3. Format: `DAY HH:MM-HH:MM, DAY HH:MM-HH:MM`
-4. Example: `MON 00:00-23:59, SAT 00:00-23:59`
-5. Leave empty for always available
+1. Select a shop from the dropdown
+2. The shop items will load in the editor
+3. Edit item properties:
+   - Material (Minecraft item type)
+   - Display name (supports `&` color codes)
+   - Lore (description lines)
+   - Price (buy price - omit, set to 0, or -1 to disable buying)
+   - Sell Price (sell price - omit, set to 0, or -1 to disable selling)
+   - Amount (default quantity)
+   - Enchantments (for enchanted items)
+   - Spawner Type (for spawners)
+   - Potion Type (for potions)
 
-### Using Undo/Redo
+4. Click "SAVE" to write changes to disk
+5. Changes take effect immediately (no reload needed for most changes)
 
-- Click **Activity Log** button in header
-- View list of recent changes
-- Click "**↶ ROLLBACK**" to undo a change
-- Supports multiple levels of undo
+### Editing Shop Settings
+
+Modify global shop properties:
+- GUI Name (shop title)
+- Rows (GUI size, 1-6)
+- Permission (required permission, leave empty for none)
+- Available Times (time restrictions for shop availability)
+
+### Editing Main Menu
+
+Configure the shop selection menu:
+- Add/remove shop buttons
+- Set button positions
+- Configure button icons and text
+- Link buttons to shop files
+
+---
 
 ## Color Codes
 
@@ -185,56 +197,26 @@ Use Minecraft color codes in names and lore:
 | `&2` | Dark Green | `&n` | <u>Underline</u> |
 | `&3` | Dark Aqua | `&m` | ~~Strikethrough~~ |
 | `&4` | Dark Red | `&r` | Reset |
-| `&5` | Purple | | |
-| `&6` | Gold | | |
-| `&7` | Gray | | |
-| `&8` | Dark Gray | | |
-| `&9` | Blue | | |
-| `&a` | Green | | |
-| `&b` | Aqua | | |
-| `&c` | Red | | |
-| `&d` | Pink | | |
-| `&e` | Yellow | | |
-| `&f` | White | | |
+| `&5` | Purple |
+| `&6` | Gold |
+| `&7` | Gray |
+| `&8` | Dark Gray |
+| `&9` | Blue |
+| `&a` | Green |
+| `&b` | Aqua |
+| `&c` | Red |
+| `&d` | Pink |
+| `&e` | Yellow |
+| `&f` | White |
 
 **Example:**
 ```
-&6&lSuper Sword
-&7A powerful weapon!
-&a&lBuy: &6$100
+&6&lDiamond Sword
+&7A legendary weapon
+&aBuy: &6$1,000
 ```
 
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+S` | Save changes |
-| `Ctrl+Z` | Undo (via activity log) |
-| `Ctrl+R` | Reload from server |
-| `Esc` | Close modal dialogs |
-
-## Security & Best Practices
-
-### Security
-
-✅ **DO:**
-- Keep `bind-address: localhost` for local access only
-- Use strong passwords (UUIDs)
-- Regenerate tokens regularly
-- Only give admin permissions to trusted users
-
-❌ **DON'T:**
-- Expose to public internet without proper security
-- Share your authentication tokens
-- Leave sessions open on shared computers
-
-### Best Practices
-
-1. **Test Changes**: Preview before saving
-2. **Use Auto-save**: Enable for convenience
-3. **Regular Backups**: Backup configs before major changes
-4. **Activity Log**: Review changes before rollback
-5. **Mobile Friendly**: Works on tablets for on-the-go editing
+---
 
 ## Troubleshooting
 
@@ -243,81 +225,105 @@ Use Minecraft color codes in names and lore:
 **Problem**: Browser shows "Can't reach this page"
 
 **Solutions:**
-- Check if API is enabled in `config.yml`
-- Verify port 8080 is not blocked by firewall
-- Try `http://localhost:8080` if on same machine
-- Check server console for errors
+1. Verify API is enabled: `api.enabled: true` in config.yml
+2. Check the server console for "Web config API started on port 8080"
+3. Ensure port 8080 is not blocked by firewall
+4. Try accessing from the server itself first: `http://localhost:8080`
+5. Check if another program is using port 8080
 
 ### Token Expired
 
-**Problem**: "Token has expired" error
+**Problem**: "Invalid or expired token" error
 
 **Solutions:**
 - Tokens expire after 5 minutes
-- Run `/shop editor` again for a new token
-- Login with username/UUID instead
+- Run `/shop editor` again to generate a new token
+- Click the link immediately after generating it
 
 ### Authentication Failed
 
-**Problem**: "Authentication failed" error
+**Problem**: Login page shows "Authentication failed"
 
 **Solutions:**
-- Ensure you're logged into Minecraft server
-- Verify you have `geniusshop.admin` permission
-- Check username and UUID are correct
-- Get UUID with `/uuid` command in-game
+- Ensure you're online on the Minecraft server
+- Verify you have `geniusshop.admin` or `shop.admin` permission
+- Double-check your UUID is correct (use https://mcuuid.net/)
+- Username is case-sensitive - use exact Minecraft username
+
+### Player Not Online Error
+
+**Problem**: "Player is no longer online" error
+
+**Solutions:**
+- You must remain logged into the Minecraft server while using the editor
+- If you disconnect from the server, your session is invalidated
+- Log back into Minecraft and run `/shop editor` again
+
+### IP Address Mismatch
+
+**Problem**: "IP address mismatch" error
+
+**Solutions:**
+- Tokens are tied to your IP address for security
+- If your IP changes (VPN, network switch), generate a new token
+- Make sure you're accessing from the same device/network where you ran the command
 
 ### Changes Not Saving
 
-**Problem**: Edits don't persist after reload
+**Problem**: Edits don't persist after clicking save
 
 **Solutions:**
-- Click "**SAVE**" button manually
-- Check auto-save is enabled
-- Verify you have write permissions on config files
-- Check server console for errors
+- Check server console for error messages
+- Verify file permissions (server must be able to write to plugins/GeniusShop/)
+- Ensure your session hasn't expired (sessions last 1 hour)
+- Try logging out and back in
 
-### Preview Not Updating
+---
 
-**Problem**: Live preview doesn't show changes
+## Best Practices
 
-**Solutions:**
-- Refresh the page
-- Check browser console for errors (F12)
-- Verify WebSocket connection is active
-- Try a different browser
+💡 **Test Changes**: Preview your changes in the live preview before saving
+💡 **Stay Online**: Keep your Minecraft client connected while editing
+💡 **Save Frequently**: Click save after making important changes
+💡 **Check Console**: Monitor server console for errors
+💡 **Backup First**: Backup your config files before major changes
+💡 **Use HTTPS**: If exposing remotely, use a reverse proxy with HTTPS
 
-## Tips & Tricks
+---
 
-💡 **Quick Material Search**: Type to filter the material dropdown
-💡 **Drag & Drop**: Drag items in preview to reposition
-💡 **Copy Slots**: Duplicate items across slots
-💡 **Bulk Edit**: Use YAML export for mass changes
-💡 **Mobile Editing**: Use tablet for comfortable mobile editing
+## Technical Details
 
-## Advanced Features
+### API Endpoints
 
-### Activity Log
+The web editor uses these API endpoints:
 
-Track all changes with timestamps:
-- View who made changes
-- See before/after values
-- Rollback unwanted changes
-- Audit trail for multi-admin setups
+- `POST /api/login` - Username/UUID authentication
+- `POST /api/auto-login` - Token-based auto-login
+- `GET /api/shops` - List all shop files
+- `GET /api/shop/{name}` - Get shop configuration
+- `POST /api/shop/{name}` - Save shop configuration
+- `GET /api/main-menu` - Get main menu config
+- `POST /api/main-menu` - Save main menu config
+- `GET /api/gui-settings` - Get GUI settings
+- `POST /api/gui-settings` - Save GUI settings
 
-### Export/Import
+### File Locations
 
-Export configurations as YAML:
-1. Make your edits in web editor
-2. Save changes
-3. Access files in `plugins/GeniusShop/`
-4. Share with other servers
+The web editor directly modifies these files:
+
+- `plugins/GeniusShop/shops/*.yml` - Shop definitions
+- `plugins/GeniusShop/menus/main-menu.yml` - Main menu layout
+- `plugins/GeniusShop/menus/gui-settings.yml` - GUI text/lore settings
+- `plugins/GeniusShop/menus/purchase-menu.yml` - Purchase GUI (read-only)
+- `plugins/GeniusShop/menus/sell-menu.yml` - Sell GUI (read-only)
+
+---
 
 ## Next Steps
 
+- **[Configuration](Configuration)** - Learn about all config files
 - **[Examples](Examples)** - See example shop configurations
-- **[Configuration](Configuration)** - Learn YAML structure
-- **[Commands & Permissions](Commands-and-Permissions)** - Admin commands
+- **[Commands & Permissions](Commands-and-Permissions)** - Admin commands reference
 
 ---
 
