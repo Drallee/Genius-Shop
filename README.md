@@ -1,149 +1,101 @@
-**🛍️ Genius-Shop**  
-A powerful, configurable economy shop plugin for Minecraft servers.
+# Genius Shop
 
-**Genius-Shop adds a fully GUI-based item shop where players can buy and sell items using your server’s economy.**  
-It replaces command-based shops with a clean, visual interface and lets server owners customize categories, items, prices, and messages through simple YAML files.
+**A powerful, data-driven economy shop plugin with GUI, permissions, and Vault integration for Paper/Spigot servers.**
 
-Genius-Shop works on any **Spigot / Paper 1.21+** server and supports all Vault-compatible economy plugins.  
-It’s built for smooth player interaction and deep admin customization — no databases required, and no confusing setup.
+## :sparkles: Features
 
----
+:shopping_cart: **Flexible Shop System**
+- **Data-driven configuration** - Create unlimited shops with YAML files
+- **Buy & sell functionality** - Players can both purchase and sell items
+- **Permission-based access** - Control who can open specific shops
+- **Multi-page support** - Shops automatically paginate based on content
+- **Time restrictions** - Create limited-time or scheduled shops
+- **Customizable GUI** - Full control over titles, colors, and layouts
 
-**✨ Features**
+:art: **Modern User Interface**
+- **Interactive main menu** - Centralized hub for all your shops
+- **Color-coded formatting** - Rich text with Minecraft color codes
+- **Custom lore support** - Add descriptions and tooltips to items
+- **Purchase confirmation** - Prevent accidental transactions
+- **Sell menu** - Dedicated interface for selling inventory items
 
-**🖼️ Intuitive GUI**  
-- Interactive menus with category icons and item displays.  
-- Every title, name, and lore line is configurable in `gui.yml`.  
-- Fits any server theme or language.
+:globe_with_meridians: **Web-Based Editor**
+- **Live GUI preview** - See changes in real-time with Minecraft textures
+- **Intuitive interface** - Easily arrange main menu items
+- **Visual shop builder** - No YAML knowledge required
+- **Secure authentication** - UUID-based login system
+- **Auto-save** - Changes sync directly to server files
+- **RESTful API** - Built-in HTTP server for remote management
 
-**💰 Buy & Sell System**  
-- **Left-click → Buy**, **Right-click → Sell** — all within the GUI.  
-- Individual buy and sell prices per item.  
-- Works instantly with **Vault-based economies** (EssentialsX, CMI, etc.).
+:moneybag: **Economy Integration**
+- **Vault support** - Works with any economy plugin
+- **Configurable prices** - Set buy and sell prices independently
+- **Transaction logging** - Track all purchases and sales
+- **Discord webhooks** - Send transaction notifications to Discord
+- **Economy statistics** - Monitor server-wide shop activity
 
-**⚙️ Fully Data-Driven**  
-- Define everything in simple YAML — no in-game setup required.  
-- Item options include:  
-  - `material`, `name`, `price`, `sell-price`, `amount`, `lore`  
-  - `spawner-type` for mob spawners  
-  - `hide-attributes` and `hide-additional` to remove vanilla tooltips  
-  - Per-shop `permission` nodes for restricted categories
+:bar_chart: **Admin Features**
+- **Live reload** - Update shops without restarting the server (`/shop reload`)
+- **Shop statistics** - Track items bought, sold, and shop usage
+- **Update checker** - Automatic notifications for new versions
+- **Permission system** - Granular control over features and items
+- **Auto-migration** - Seamlessly upgrades from older config formats
 
-**📦 Smart Config Updater**  
-- Automatically merges new defaults into configs when updating.  
-- Keeps user edits intact and prevents missing keys or messages.
+:video_game: **Player-Friendly**
+- **Simple commands** - `/shop` to access shops instantly
+- **Stack purchasing** - Buy/sell items in bulk
+- **Visual feedback** - Clear success/error messages
+- **Spawner support** - Special handling for mob spawners with entity types
 
-**💬 Fully Custom Messages**  
-- All chat text is in `messages.yml`.  
-- Use color codes (`&`) and placeholders like `%item%`, `%price%`, `%amount%`.  
-- Supports a configurable prefix via `%prefix%`.
+## :clipboard: Requirements
 
-**🧍 Player-Friendly Experience**  
-- Overflow items automatically drop on the ground if inventory is full.  
-- Smooth pagination and category navigation.  
-- Built-in support for **Spawner items** with correct entity type.
+- **Minecraft**: 1.21+ (Paper recommended)
+- **Java**: 21+
+- **Vault**: Required for economy functionality
+- **Economy Plugin**: Any Vault-compatible economy plugin (e.g., EssentialsX)
 
-**🔒 Permission Control**  
-- Define per-shop access like `shop.premium`, `shop.spawners`, etc.  
-- Global permissions:  
-  - `geniusshop.use` → Access `/shop`  
-  - `geniusshop.reload` → Reload all configs  
+## :rocket: Quick Start
 
-**⚡ Instant Reloads**  
-Edit your configs and apply changes instantly with: `/shop reload`
+1. Install Vault and an economy plugin
+2. Drop `Genius-Shop.jar` into your plugins folder
+3. Restart the server
+4. Configure shops in `plugins/Genius-Shop/shops/`
+5. Enable the web editor in `config.yml` (optional)
+6. Run `/shop reload` to apply changes
+7. Use `/shop` in-game to open the main menu
 
----
+## :wrench: Configuration
 
-**🗂️ Configuration Overview**
+Shop Files
+Create individual `.yml` files in `plugins/Genius-Shop/shops/`:
 
-| File | Purpose |
-|------|----------|
-| **config.yml** | General plugin settings and metrics toggle |
-| **messages.yml** | All player-facing text |
-| **gui.yml** | GUI layout, buttons, and navigation names |
-| **shops.yml** | Defines each shop, its items, and permissions |
+Web Editor
+Access the visual editor at `http://your-server:8080` after enabling the API in `config.yml`.
 
+## :pencil: Commands
 
-**📝 Example Configuration (YAML Preview)**
-_A quick look at how simple Genius-Shop’s config files are._
+- `/shop` - Open the main shop menu
+- `/shop reload` - Reload all configurations
+- `/shop editor` - Access web editor info
 
+## :closed_lock_with_key: Permissions
 
-```yml
-# shops.yml
-shops:
-  blocks:
-    gui-name: "&8Blocks Shop"
-    rows: 3
-    permission: ""
-    items:
-      - material: STONE
-        name: "&fStone"
-        price: 5
-        sell-price: 2
-        amount: 16
+- `geniusshop.use` - Access shops (default: true)
+- `geniusshop.admin` - Reload and manage shops
+- `custom.permission` - Lock any shop behind a permission of your choise
 
-      - material: DIRT
-        name: "&6Dirt"
-        price: 2
-        sell-price: 1
-        amount: 32
-        hide-attributes: true
-```
+## :chart_with_upwards_trend: Features at a Glance
 
+:white_check_mark: Multi-shop support with unlimited items  
+:white_check_mark: Web-based configuration editor  
+:white_check_mark: Buy and sell mechanics  
+:white_check_mark: Permission-based shop restrictions  
+:white_check_mark: Time-restricted shops  
+:white_check_mark: Discord webhook integration  
+:white_check_mark: Automatic config migration  
+:white_check_mark: Spawner entity type support   
+:white_check_mark: Update notifications  
 
+## BStats Metrics
 
-```yml
-# gui.yml
-gui:
-  main:
-    title: "&8Shop Menu"
-    size: 27
-    items:
-      blocks:
-        slot: 11
-        material: GRASS_BLOCK
-        name: "&aBlocks"
-        lore:
-          - "&7Building materials"
-        shop-key: blocks
-```
-```yml
-# messages.yml
-messages:
-  prefix: "&8&l| &cSHOP &8&l| "
-  buy-success: "%prefix%&eYou bought &7%amount%x %item% &efor &6$%price%."
-  sell-success: "%prefix%&aYou sold &7%amount%x %item% &afor &6$%price%."
-```
-
-
----
-
-**⚡ Highlights**
-
-- ✔️ Supports **Minecraft 1.21+**  
-- ⚡ Lightweight — no database required  
-- 🔁 Reload-safe — no restarts needed  
-- 🎨 Fully colorized, customizable GUIs  
-- 💸 Vault economy support  
-
----
-
-**💬 Commands**
-
-| Command | Description |
-|----------|-------------|
-| `/shop` | Opens the main shop menu |
-| `/shop reload` | Reloads all configuration files |
-
----
-
-**🧰 Ideal For**
-
-Server owners who want a **modern, professional, and customizable shop system** that “just works.”  
-Perfect for **Survival**, **Skyblock**, or **Economy** servers where clean design and flexibility matter most.
-
----
-
-**🔗 Requirements**
-- Spigot / Paper 1.21+  
-- [Vault](https://www.spigotmc.org/resources/vault.34315/) (for economy support)
+![BStats Metrics](https://bstats.org/signatures/bukkit/Genius-Shop.svg)
