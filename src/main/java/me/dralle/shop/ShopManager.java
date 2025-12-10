@@ -97,6 +97,13 @@ public class ShopManager {
             // Potion type
             String potionType = (String) map.get("potion-type");
 
+            // Potion level (0 = use base type, 1-255 = custom amplifier)
+            int potionLevel = 0;
+            Object potionLevelObj = map.get("potion-level");
+            if (potionLevelObj instanceof Number) {
+                potionLevel = Math.min(Math.max(((Number) potionLevelObj).intValue(), 0), 255);
+            }
+
             // Lore
             List<String> lore = new ArrayList<>();
             Object loreObj = map.get("lore");
@@ -129,6 +136,24 @@ public class ShopManager {
             if (map.containsKey("hide-additional"))
                 hideAdditional = Boolean.parseBoolean(String.valueOf(map.get("hide-additional")));
 
+            // -----------------------------------------------------
+            // Require flags (for both buying and selling)
+            // -----------------------------------------------------
+            boolean requireName = false;
+            if (map.containsKey("require-name"))
+                requireName = Boolean.parseBoolean(String.valueOf(map.get("require-name")));
+
+            boolean requireLore = false;
+            if (map.containsKey("require-lore"))
+                requireLore = Boolean.parseBoolean(String.valueOf(map.get("require-lore")));
+
+            // -----------------------------------------------------
+            // Unstable TNT flag
+            // -----------------------------------------------------
+            boolean unstableTnt = false;
+            if (map.containsKey("unstable-tnt"))
+                unstableTnt = Boolean.parseBoolean(String.valueOf(map.get("unstable-tnt")));
+
             // Create shop item
             items.add(new ShopItem(
                     mat,
@@ -136,12 +161,16 @@ public class ShopManager {
                     amount,
                     spawnerType,
                     potionType,
+                    potionLevel,
                     name,
                     lore,
                     sellPrice,
                     enchantments,
                     hideAttributes,
-                    hideAdditional
+                    hideAdditional,
+                    requireName,
+                    requireLore,
+                    unstableTnt
             ));
         }
 

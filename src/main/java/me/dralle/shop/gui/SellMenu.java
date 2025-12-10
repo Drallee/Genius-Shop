@@ -44,7 +44,7 @@ public class SellMenu implements Listener {
             return;
         }
 
-        int owned = countPlayerItems(player, item.getMaterial(), item.getSpawnerType(), item.getPotionType(), item.getEnchantments());
+        int owned = countPlayerItems(player, item.getMaterial(), item.getSpawnerType(), item.getPotionType(), item.getEnchantments(), item.getName(), item.getLore(), item.requiresName(), item.requiresLore());
         if (owned <= 0) {
             // NEW: Do NOT open the menu if player owns none
             String msg = ShopPlugin.getInstance().getMessages()
@@ -66,6 +66,8 @@ public class SellMenu implements Listener {
                 item.getLore(),
                 item.shouldHideAttributes(),
                 item.shouldHideAdditional(),
+                item.requiresName(),
+                item.requiresLore(),
                 shopKey,
                 shopPage
         );
@@ -86,6 +88,8 @@ public class SellMenu implements Listener {
             List<String> customLore,
             boolean hideAttributes,
             boolean hideAdditional,
+            boolean requireName,
+            boolean requireLore,
             String shopKey,
             int shopPage
     ) {
@@ -99,7 +103,7 @@ public class SellMenu implements Listener {
         String title = ItemUtil.color(titlePrefix + customName);
         Inventory inv = Bukkit.createInventory(player, 54, title);
 
-        int owned = countPlayerItems(player, material, spawnerType, potionType, enchantments);
+        int owned = countPlayerItems(player, material, spawnerType, potionType, enchantments, customName, customLore, requireName, requireLore);
         if (amount > owned) amount = owned;
 
         List<String> lore = new ArrayList<>();
@@ -297,6 +301,14 @@ public class SellMenu implements Listener {
         else
             player.removeMetadata("sell.customName", plugin);
 
+        if (customLore != null && !customLore.isEmpty())
+            player.setMetadata("sell.customLore", new FixedMetadataValue(plugin, String.join("\n", customLore)));
+        else
+            player.removeMetadata("sell.customLore", plugin);
+
+        player.setMetadata("sell.requireName", new FixedMetadataValue(plugin, requireName));
+        player.setMetadata("sell.requireLore", new FixedMetadataValue(plugin, requireLore));
+
         // Store shop context for back button
         if (shopKey != null && !shopKey.isEmpty()) {
             player.setMetadata("sell.shopKey", new FixedMetadataValue(plugin, shopKey));
@@ -336,6 +348,15 @@ public class SellMenu implements Listener {
         String customName = getMeta(player, "sell.customName", null);
         boolean hideAttr = getMetaBool(player, "sell.hide_attr");
         boolean hideAdd = getMetaBool(player, "sell.hide_add");
+        boolean requireName = getMetaBool(player, "sell.requireName");
+        boolean requireLore = getMetaBool(player, "sell.requireLore");
+
+        // Restore lore if present
+        List<String> customLore = null;
+        if (player.hasMetadata("sell.customLore")) {
+            String packed = player.getMetadata("sell.customLore").get(0).asString();
+            customLore = java.util.Arrays.asList(packed.split("\n"));
+        }
 
         Material material = Material.matchMaterial(materialName);
         if (material == null) material = Material.DIRT;
@@ -377,7 +398,7 @@ public class SellMenu implements Listener {
         Material backMat = Material.valueOf(guiCfg.getString("buttons.back.material", "ENDER_CHEST"));
 
         int maxAmount = guiCfg.getInt("max-amount", 2304);
-        int owned = countPlayerItems(player, material, spawnerType, potionType, enchantments);
+        int owned = countPlayerItems(player, material, spawnerType, potionType, enchantments, customName, customLore, requireName, requireLore);
         if (owned <= 0) {
             String msg = plugin.getMessages().getMessage("no-items-to-sell")
                     .replace("%item%", material.name());
@@ -398,7 +419,7 @@ public class SellMenu implements Listener {
                         String buttonName = guiCfg.getString("buttons.add." + key + ".name", "&aAdd " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             int newAmount = Math.min(amount + value, Math.min(owned, maxAmount));
-                            open(player, material, sellPrice, newAmount, spawnerType, potionType, enchantments, customName, null, hideAttr, hideAdd, shopKey, shopPage);
+                            open(player, material, sellPrice, newAmount, spawnerType, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage);
                             return;
                         }
                     } catch (NumberFormatException ignored) {}
@@ -416,7 +437,7 @@ public class SellMenu implements Listener {
                         int value = Integer.parseInt(key);
                         String buttonName = guiCfg.getString("buttons.remove." + key + ".name", "&cRemove " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
-                            open(player, material, sellPrice, Math.max(1, amount - value), spawnerType, potionType, enchantments, customName, null, hideAttr, hideAdd, shopKey, shopPage);
+                            open(player, material, sellPrice, Math.max(1, amount - value), spawnerType, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage);
                             return;
                         }
                     } catch (NumberFormatException ignored) {}
@@ -435,7 +456,7 @@ public class SellMenu implements Listener {
                         String buttonName = guiCfg.getString("buttons.set." + key + ".name", "&aSet to " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             int newAmount = Math.max(1, Math.min(value, Math.min(owned, maxAmount)));
-                            open(player, material, sellPrice, newAmount, spawnerType, potionType, enchantments, customName, null, hideAttr, hideAdd, shopKey, shopPage);
+                            open(player, material, sellPrice, newAmount, spawnerType, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage);
                             return;
                         }
                     } catch (NumberFormatException ignored) {}
@@ -447,7 +468,7 @@ public class SellMenu implements Listener {
         if (clicked.getType() == confirmMat &&
                 name.equals(ItemUtil.color(confirmName))) {
 
-            sellItems(player, material, spawnerType, potionType, enchantments, amount, sellPrice, customName, hideAttr, hideAdd);
+            sellItems(player, material, spawnerType, potionType, enchantments, amount, sellPrice, customName, customLore, hideAttr, hideAdd, requireName, requireLore);
             return;
         }
 
@@ -456,7 +477,7 @@ public class SellMenu implements Listener {
                 name.equals(ItemUtil.color(sellAllName))) {
 
             int sellAmount = Math.min(owned, maxAmount);
-            sellItems(player, material, spawnerType, potionType, enchantments, sellAmount, sellPrice, customName, hideAttr, hideAdd);
+            sellItems(player, material, spawnerType, potionType, enchantments, sellAmount, sellPrice, customName, customLore, hideAttr, hideAdd, requireName, requireLore);
             return;
         }
 
@@ -499,12 +520,12 @@ public class SellMenu implements Listener {
      * ============================================================ */
     private void sellItems(Player player, Material material, String spawnerType, String potionType,
                            Map<String, Integer> enchantments, int amount, double sellPrice, String customName,
-                           boolean hideAttr, boolean hideAdd) {
+                           List<String> customLore, boolean hideAttr, boolean hideAdd, boolean requireName, boolean requireLore) {
 
-        int owned = countPlayerItems(player, material, spawnerType, potionType, enchantments);
+        int owned = countPlayerItems(player, material, spawnerType, potionType, enchantments, customName, customLore, requireName, requireLore);
         ShopPlugin plugin = ShopPlugin.getInstance();
         plugin.debug("Sell attempt: " + player.getName() + " selling " + amount + "x " + material + " (owns: " + owned + ")");
-        
+
         if (owned < amount) {
             plugin.debug("Sell failed: Player doesn't have enough items");
             // Re-color the final message so %item% color codes work
@@ -515,7 +536,7 @@ public class SellMenu implements Listener {
             return;
         }
 
-        removeItems(player, material, spawnerType, potionType, enchantments, amount);
+        removeItems(player, material, spawnerType, potionType, enchantments, amount, customName, customLore, requireName, requireLore);
 
         double total = sellPrice * amount;
 
@@ -550,19 +571,19 @@ public class SellMenu implements Listener {
 
         // Refresh the menu so "You own: X" updates
         // We recalculate amount to ensure it doesn't exceed new owned count
-        int newOwned = countPlayerItems(player, material, spawnerType, potionType, enchantments);
+        int newOwned = countPlayerItems(player, material, spawnerType, potionType, enchantments, customName, customLore, requireName, requireLore);
         int newAmount = Math.min(amount, newOwned);
         if (newAmount <= 0) newAmount = 1; // Default to 1 if they sold everything, just for display
 
         String shopKey = player.hasMetadata("sell.shopKey") ? player.getMetadata("sell.shopKey").get(0).asString() : null;
         int shopPage = player.hasMetadata("sell.shopPage") ? player.getMetadata("sell.shopPage").get(0).asInt() : 1;
-        open(player, material, sellPrice, newAmount, spawnerType, potionType, enchantments, customName, null, hideAttr, hideAdd, shopKey, shopPage);
+        open(player, material, sellPrice, newAmount, spawnerType, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage);
     }
 
     /* ============================================================
      *  UTILITIES
      * ============================================================ */
-    private static int countPlayerItems(Player player, Material material, String spawnerType, String potionType, Map<String, Integer> enchantments) {
+    private static int countPlayerItems(Player player, Material material, String spawnerType, String potionType, Map<String, Integer> enchantments, String customName, List<String> customLore, boolean requireName, boolean requireLore) {
         int count = 0;
         for (ItemStack it : player.getInventory().getContents()) {
             if (it == null || it.getType() != material) continue;
@@ -571,13 +592,23 @@ public class SellMenu implements Listener {
                 if (!spawnerMatches(it, spawnerType)) continue;
             }
 
-            if ((material == Material.POTION || material == Material.SPLASH_POTION || 
+            if ((material == Material.POTION || material == Material.SPLASH_POTION ||
                  material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW) && potionType != null) {
                 if (!potionMatches(it, potionType)) continue;
             }
 
             if (enchantments != null && !enchantments.isEmpty()) {
                 if (!enchantmentsMatch(it, enchantments)) continue;
+            }
+
+            // Check custom name if enabled
+            if (requireName && customName != null) {
+                if (!nameMatches(it, customName)) continue;
+            }
+
+            // Check custom lore if enabled
+            if (requireLore && customLore != null && !customLore.isEmpty()) {
+                if (!loreMatches(it, customLore)) continue;
             }
 
             count += it.getAmount();
@@ -602,26 +633,51 @@ public class SellMenu implements Listener {
 
     private static boolean enchantmentsMatch(ItemStack it, Map<String, Integer> requiredEnchants) {
         if (!it.hasItemMeta() || requiredEnchants == null || requiredEnchants.isEmpty()) return false;
-        
+
         ItemMeta meta = it.getItemMeta();
         if (!meta.hasEnchants()) return false;
-        
+
         // Check each required enchantment
         for (Map.Entry<String, Integer> entry : requiredEnchants.entrySet()) {
             String enchantName = entry.getKey();
             int requiredLevel = entry.getValue();
-            
+
             org.bukkit.enchantments.Enchantment enchant = org.bukkit.enchantments.Enchantment.getByName(enchantName.toUpperCase());
             if (enchant == null) continue;
-            
+
             int itemLevel = meta.getEnchantLevel(enchant);
             if (itemLevel != requiredLevel) return false;
         }
-        
+
         return true;
     }
 
-    private static void removeItems(Player player, Material material, String spawnerType, String potionType, Map<String, Integer> enchantments, int amount) {
+    private static boolean nameMatches(ItemStack it, String requiredName) {
+        if (!it.hasItemMeta()) return false;
+        ItemMeta meta = it.getItemMeta();
+        if (!meta.hasDisplayName()) return false;
+        String itemName = meta.getDisplayName();
+        String coloredRequiredName = ItemUtil.color(requiredName);
+        return itemName.equals(coloredRequiredName);
+    }
+
+    private static boolean loreMatches(ItemStack it, List<String> requiredLore) {
+        if (!it.hasItemMeta()) return false;
+        ItemMeta meta = it.getItemMeta();
+        if (!meta.hasLore()) return false;
+        List<String> itemLore = meta.getLore();
+        if (itemLore == null || itemLore.size() != requiredLore.size()) return false;
+
+        // Check each lore line matches
+        for (int i = 0; i < requiredLore.size(); i++) {
+            String coloredRequired = ItemUtil.color(requiredLore.get(i));
+            if (!itemLore.get(i).equals(coloredRequired)) return false;
+        }
+
+        return true;
+    }
+
+    private static void removeItems(Player player, Material material, String spawnerType, String potionType, Map<String, Integer> enchantments, int amount, String customName, List<String> customLore, boolean requireName, boolean requireLore) {
         int toRemove = amount;
         for (int i = 0; i < player.getInventory().getSize(); i++) {
             ItemStack it = player.getInventory().getItem(i);
@@ -631,13 +687,23 @@ public class SellMenu implements Listener {
                 if (!spawnerMatches(it, spawnerType)) continue;
             }
 
-            if ((material == Material.POTION || material == Material.SPLASH_POTION || 
+            if ((material == Material.POTION || material == Material.SPLASH_POTION ||
                  material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW) && potionType != null) {
                 if (!potionMatches(it, potionType)) continue;
             }
 
             if (enchantments != null && !enchantments.isEmpty()) {
                 if (!enchantmentsMatch(it, enchantments)) continue;
+            }
+
+            // Check custom name if enabled
+            if (requireName && customName != null) {
+                if (!nameMatches(it, customName)) continue;
+            }
+
+            // Check custom lore if enabled
+            if (requireLore && customLore != null && !customLore.isEmpty()) {
+                if (!loreMatches(it, customLore)) continue;
             }
 
             int stack = it.getAmount();

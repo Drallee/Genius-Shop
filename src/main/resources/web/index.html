@@ -2922,9 +2922,13 @@ s        /* Keep background animation subtle and slow */
                 lore: [],
                 spawnerType: '',
                 potionType: '',
+                potionLevel: 0,
                 enchantments: {},
                 hideAttributes: false,
-                hideAdditional: false
+                hideAdditional: false,
+                requireName: false,
+                requireLore: false,
+                unstableTnt: false
             };
 
             items.push(item);
@@ -3347,6 +3351,9 @@ s        /* Keep background animation subtle and slow */
                 if (item.potionType && item.potionType.trim()) {
                     shopYaml += `    potion-type: ${item.potionType}\n`;
                 }
+                if (item.potionLevel && item.potionLevel > 0) {
+                    shopYaml += `    potion-level: ${item.potionLevel}\n`;
+                }
                 if (item.enchantments && Object.keys(item.enchantments).length > 0) {
                     shopYaml += `    enchantments:\n`;
                     Object.entries(item.enchantments).forEach(([enchName, level]) => {
@@ -3358,6 +3365,15 @@ s        /* Keep background animation subtle and slow */
                 }
                 if (item.hideAdditional) {
                     shopYaml += `    hide-additional: true\n`;
+                }
+                if (item.requireName) {
+                    shopYaml += `    require-name: true\n`;
+                }
+                if (item.requireLore) {
+                    shopYaml += `    require-lore: true\n`;
+                }
+                if (item.unstableTnt) {
+                    shopYaml += `    unstable-tnt: true\n`;
                 }
                 if (item.lore && item.lore.length > 0) {
                     shopYaml += `    lore:\n`;
@@ -3720,9 +3736,13 @@ s        /* Keep background animation subtle and slow */
                         lore: [],
                         spawnerType: '',
                         potionType: '',
+                        potionLevel: 0,
                         enchantments: {},
                         hideAttributes: false,
-                        hideAdditional: false
+                        hideAdditional: false,
+                        requireName: false,
+                        requireLore: false,
+                        unstableTnt: false
                     };
                     inLore = false;
                     console.log('Parsed item (format 1):', material, 'at line', i, 'indent', indent);
@@ -3743,9 +3763,13 @@ s        /* Keep background animation subtle and slow */
                         lore: [],
                         spawnerType: '',
                         potionType: '',
+                        potionLevel: 0,
                         enchantments: {},
                         hideAttributes: false,
-                        hideAdditional: false
+                        hideAdditional: false,
+                        requireName: false,
+                        requireLore: false,
+                        unstableTnt: false
                     };
                     inLore = false;
                     console.log('Started new item (format 2) at line', i, 'indent', indent);
@@ -3780,10 +3804,18 @@ s        /* Keep background animation subtle and slow */
                         currentItem.spawnerType = value;
                     } else if (key.trim() === 'potion-type') {
                         currentItem.potionType = value;
+                    } else if (key.trim() === 'potion-level') {
+                        currentItem.potionLevel = parseInt(value) || 0;
                     } else if (key.trim() === 'hide-attributes') {
                         currentItem.hideAttributes = value.toLowerCase() === 'true';
                     } else if (key.trim() === 'hide-additional') {
                         currentItem.hideAdditional = value.toLowerCase() === 'true';
+                    } else if (key.trim() === 'require-name') {
+                        currentItem.requireName = value.toLowerCase() === 'true';
+                    } else if (key.trim() === 'require-lore') {
+                        currentItem.requireLore = value.toLowerCase() === 'true';
+                    } else if (key.trim() === 'unstable-tnt') {
+                        currentItem.unstableTnt = value.toLowerCase() === 'true';
                     } else if (key.trim() === 'lore') {
                         inLore = true;
                     } else if (key.trim() === 'enchantments') {
@@ -4176,7 +4208,9 @@ s        /* Keep background animation subtle and slow */
                 shopKey: defaultShop,
                 permission: '',
                 hideAttributes: false,
-                hideAdditional: false
+                hideAdditional: false,
+                requireName: false,
+                requireLore: false
             };
 
             loadedGuiShops.push(newShop);
@@ -4807,7 +4841,9 @@ s        /* Keep background animation subtle and slow */
                         shopKey: shopKey,
                         permission: '',
                         hideAttributes: false,
-                        hideAdditional: false
+                        hideAdditional: false,
+                        requireName: false,
+                        requireLore: false
                     };
                     currentField = null;
                 }
@@ -5176,7 +5212,9 @@ s        /* Keep background animation subtle and slow */
                         shopKey: shopKey,
                         permission: '',
                         hideAttributes: false,
-                        hideAdditional: false
+                        hideAdditional: false,
+                        requireName: false,
+                        requireLore: false
                     };
                     currentField = null;
                     console.log('Parsing shop button:', shopKey);
@@ -6158,6 +6196,24 @@ s        /* Keep background animation subtle and slow */
                         Hide Additional Info
                     </label>
                 </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="modal-requireName" ${item.requireName ? 'checked' : ''}>
+                        Require Name (item must have this name to sell, and will include name when bought)
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="modal-requireLore" ${item.requireLore ? 'checked' : ''}>
+                        Require Lore (item must have this lore to sell, and will include lore when bought)
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="modal-unstableTnt" ${item.unstableTnt ? 'checked' : ''}>
+                        Unstable TNT (spawns TNT entities with 0 fuse instead of giving TNT items)
+                    </label>
+                </div>
             `;
 
             openEditModal({
@@ -6205,9 +6261,16 @@ s        /* Keep background animation subtle and slow */
                         if (potionTypeInput) {
                             updateItem(item.id, 'potionType', potionTypeInput.value);
                         }
+                        const potionLevelInput = document.getElementById('modal-potionLevel');
+                        if (potionLevelInput) {
+                            updateItem(item.id, 'potionLevel', parseInt(potionLevelInput.value) || 0);
+                        }
                     }
                     updateItem(item.id, 'hideAttributes', document.getElementById('modal-hideAttributes').checked);
                     updateItem(item.id, 'hideAdditional', document.getElementById('modal-hideAdditional').checked);
+                    updateItem(item.id, 'requireName', document.getElementById('modal-requireName').checked);
+                    updateItem(item.id, 'requireLore', document.getElementById('modal-requireLore').checked);
+                    updateItem(item.id, 'unstableTnt', document.getElementById('modal-unstableTnt').checked);
 
                     // Log the update
                     const afterData = JSON.parse(JSON.stringify(item));
@@ -6256,6 +6319,11 @@ s        /* Keep background animation subtle and slow */
                                 <label>Potion Type</label>
                                 <input type="text" id="modal-potionType" value="${item.potionType || 'SPEED'}" placeholder="e.g., SPEED, STRENGTH, INVISIBILITY">
                                 <small style="color: #888; display: block; margin-top: 4px;">Examples: SPEED, STRENGTH, REGENERATION, FIRE_RESISTANCE, WATER_BREATHING, INVISIBILITY, NIGHT_VISION, WEAKNESS, POISON, SLOWNESS, HARMING, HEALING, LUCK</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Potion Level (0 = default, 1-255 = custom level)</label>
+                                <input type="number" id="modal-potionLevel" value="${item.potionLevel || 0}" min="0" max="255" placeholder="0">
+                                <small style="color: #888; display: block; margin-top: 4px;">0 uses Minecraft's default level. 1-255 creates custom amplified effects (e.g., level 5 = Speed V)</small>
                             </div>
                         `;
                     }

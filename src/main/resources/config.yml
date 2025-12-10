@@ -5,7 +5,7 @@
 # smart updates, debugging, and more.
 # ==========================================================
 
-config-version: 5
+config-version: 6
 
 # When true, missing/outdated config files will automatically be updated
 # by merging new keys from defaults (your custom changes are kept).
@@ -23,6 +23,15 @@ send-update-message-ingame: true
 #        purchase/sell transactions, player balances, etc.
 # Useful for troubleshooting issues.
 debug: false
+
+# ==========================================================
+# Metrics (bStats)
+# ==========================================================
+# Enable or disable anonymous usage statistics
+# bStats collects anonymous data to help plugin developers understand usage
+# All data is anonymous and helps improve the plugin
+# View stats at: https://bstats.org/plugin/bukkit/Genius-Shop
+metrics: true
 
 # ==========================================================
 # Economy Formatting
@@ -68,3 +77,7 @@ api:
   # Generate a secure random key: https://www.uuidgenerator.net/
   # Change this to a unique value for your server
   api-key: "change-this-to-a-secure-random-key"
+  # Enable/disable the /shop editor command
+  # When false, players cannot use /shop editor to access the web editor
+  # Note: The API can still be enabled without this command
+  enable-editor-command: true

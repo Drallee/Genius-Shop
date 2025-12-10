@@ -124,6 +124,12 @@ public class ShopPlugin extends JavaPlugin {
 
             // /shop editor
             if (args.length > 0 && args[0].equalsIgnoreCase("editor")) {
+                // Check if editor command is enabled
+                if (!getConfig().getBoolean("api.enable-editor-command", true)) {
+                    sender.sendMessage("§cThe /shop editor command is disabled");
+                    return true;
+                }
+
                 if (!(sender instanceof Player)) {
                     sender.sendMessage(getMessages().getMessage("player-only"));
                     return true;
@@ -139,7 +145,7 @@ public class ShopPlugin extends JavaPlugin {
 
                 // Check if API server is running
                 if (apiServer == null) {
-                    sender.sendMessage("§cShop editor is not enabled! Please enable it in config.yml");
+                    sender.sendMessage("§cShop editor is not disabled!");
                     return true;
                 }
 
@@ -218,28 +224,32 @@ public class ShopPlugin extends JavaPlugin {
             return true;
         });
 
-        // bStats metrics (always enabled)
-        try {
-            Metrics metrics = new Metrics(this, 27943); // your bStats plugin ID
-            this.metricsWrapper = new MetricsWrapper(metrics);
+        // bStats metrics (opt-in via config)
+        if (getConfig().getBoolean("metrics", true)) {
+            try {
+                Metrics metrics = new Metrics(this, 27943); // your bStats plugin ID
+                this.metricsWrapper = new MetricsWrapper(metrics);
 
-            // SimplePie: which economy plugin is used
-            metrics.addCustomChart(new SimplePie("economy_plugin", () ->
-                    economy.getProviderName()
-            ));
+                // SimplePie: which economy plugin is used
+                metrics.addCustomChart(new SimplePie("economy_plugin", () ->
+                        economy.getProviderName()
+                ));
 
-            // SimplePie: currency symbol (from economy or config fallback)
-            metrics.addCustomChart(new SimplePie("currency_symbol", this::getCurrencySymbol));
+                // SimplePie: currency symbol (from economy or config fallback)
+                metrics.addCustomChart(new SimplePie("currency_symbol", this::getCurrencySymbol));
 
-            // Line charts for counts (per-server)
-            metrics.addCustomChart(new SingleLineChart("items_bought", () -> itemsBought));
-            metrics.addCustomChart(new SingleLineChart("items_sold", () -> itemsSold));
-            metrics.addCustomChart(new SingleLineChart("shops_opened", () -> shopsOpened));
-            metrics.addCustomChart(new SingleLineChart("players_used", () -> playersUsed));
+                // Line charts for counts (per-server)
+                metrics.addCustomChart(new SingleLineChart("items_bought", () -> itemsBought));
+                metrics.addCustomChart(new SingleLineChart("items_sold", () -> itemsSold));
+                metrics.addCustomChart(new SingleLineChart("shops_opened", () -> shopsOpened));
+                metrics.addCustomChart(new SingleLineChart("players_used", () -> playersUsed));
 
-            getLogger().info("[Genius-Shop] Metrics enabled.");
-        } catch (Throwable t) {
-            getLogger().warning("[Genius-Shop] Failed to initialise bStats metrics: " + t.getMessage());
+                getLogger().info("[Genius-Shop] Metrics enabled.");
+            } catch (Throwable t) {
+                getLogger().warning("[Genius-Shop] Failed to initialise bStats metrics: " + t.getMessage());
+            }
+        } else {
+            getLogger().info("[Genius-Shop] Metrics disabled via config.");
         }
 
         // Start API server if enabled

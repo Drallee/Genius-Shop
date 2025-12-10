@@ -92,6 +92,16 @@ public class ItemUtil {
      * @param potionTypeName The potion type name (e.g., "SPEED", "STRENGTH", "REGENERATION")
      */
     public static void applyPotionType(ItemStack item, String potionTypeName) {
+        applyPotionType(item, potionTypeName, 0);
+    }
+
+    /**
+     * Apply potion type with custom level to an ItemStack if it's a potion or tipped arrow.
+     * @param item The ItemStack (must be POTION, SPLASH_POTION, LINGERING_POTION, or TIPPED_ARROW)
+     * @param potionTypeName The potion type name (e.g., "SPEED", "STRENGTH", "REGENERATION")
+     * @param level The potion level (0 = use base type, 1+ = custom amplifier, max 255)
+     */
+    public static void applyPotionType(ItemStack item, String potionTypeName, int level) {
         if (item == null || potionTypeName == null || potionTypeName.isEmpty()) return;
 
         Material mat = item.getType();
@@ -107,7 +117,36 @@ public class ItemUtil {
 
         try {
             PotionType potionType = PotionType.valueOf(potionTypeName.toUpperCase());
-            potionMeta.setBasePotionType(potionType);
+
+            // If level is 0 or not specified, use the base potion type
+            if (level <= 0) {
+                potionMeta.setBasePotionType(potionType);
+            } else {
+                // For custom levels, we need to use custom effects
+                // Set base to WATER to clear default effects, then add custom effect
+                potionMeta.setBasePotionType(PotionType.WATER);
+
+                // Get the effect type from potion type
+                org.bukkit.potion.PotionEffectType effectType = getPotionEffectType(potionType);
+                if (effectType != null) {
+                    // Clamp level between 1 and 255 (Minecraft limit)
+                    int amplifier = Math.min(Math.max(level - 1, 0), 254); // level 1 = amplifier 0
+
+                    // Duration depends on potion type (in ticks: 20 ticks = 1 second)
+                    int duration = getDefaultDuration(potionType);
+
+                    org.bukkit.potion.PotionEffect effect = new org.bukkit.potion.PotionEffect(
+                        effectType,
+                        duration,
+                        amplifier,
+                        false,  // ambient
+                        true,   // particles
+                        true    // icon
+                    );
+                    potionMeta.addCustomEffect(effect, true);
+                }
+            }
+
             item.setItemMeta(potionMeta);
         } catch (IllegalArgumentException e) {
             // Invalid potion type - log warning but don't crash
@@ -115,6 +154,79 @@ public class ItemUtil {
                 "Invalid potion type: " + potionTypeName + ". Valid types: SPEED, STRENGTH, REGENERATION, etc."
             );
         }
+    }
+
+    /**
+     * Get the PotionEffectType from a PotionType
+     */
+    private static org.bukkit.potion.PotionEffectType getPotionEffectType(PotionType potionType) {
+        // Map potion types to their effect types
+        String name = potionType.name().toUpperCase();
+
+        // Handle renamed types in newer versions
+        if (name.contains("SWIFTNESS")) return org.bukkit.potion.PotionEffectType.SPEED;
+        if (name.contains("HEALING")) return org.bukkit.potion.PotionEffectType.INSTANT_HEALTH;
+        if (name.contains("HARMING")) return org.bukkit.potion.PotionEffectType.INSTANT_DAMAGE;
+        if (name.contains("LEAPING")) return org.bukkit.potion.PotionEffectType.JUMP_BOOST;
+
+        // Try direct name matching
+        switch (potionType) {
+            case SLOWNESS: return org.bukkit.potion.PotionEffectType.SLOWNESS;
+            case STRENGTH: return org.bukkit.potion.PotionEffectType.STRENGTH;
+            case REGENERATION: return org.bukkit.potion.PotionEffectType.REGENERATION;
+            case FIRE_RESISTANCE: return org.bukkit.potion.PotionEffectType.FIRE_RESISTANCE;
+            case WATER_BREATHING: return org.bukkit.potion.PotionEffectType.WATER_BREATHING;
+            case INVISIBILITY: return org.bukkit.potion.PotionEffectType.INVISIBILITY;
+            case NIGHT_VISION: return org.bukkit.potion.PotionEffectType.NIGHT_VISION;
+            case WEAKNESS: return org.bukkit.potion.PotionEffectType.WEAKNESS;
+            case POISON: return org.bukkit.potion.PotionEffectType.POISON;
+            case LUCK: return org.bukkit.potion.PotionEffectType.LUCK;
+            case TURTLE_MASTER: return org.bukkit.potion.PotionEffectType.SLOWNESS;
+            case SLOW_FALLING: return org.bukkit.potion.PotionEffectType.SLOW_FALLING;
+            default:
+                // Try to get by name as fallback
+                try {
+                    return org.bukkit.potion.PotionEffectType.getByName(name);
+                } catch (Exception e) {
+                    return null;
+                }
+        }
+    }
+
+    /**
+     * Get default duration for a potion type (in ticks)
+     */
+    private static int getDefaultDuration(PotionType potionType) {
+        // Use string matching for version compatibility
+        String name = potionType.name().toUpperCase();
+
+        // Instant effects
+        if (name.contains("HEALING") || name.contains("HARMING") || name.equals("INSTANT_HEAL") || name.equals("INSTANT_DAMAGE")) {
+            return 1;
+        }
+
+        // 1:30 duration (90 seconds = 1800 ticks)
+        if (name.equals("STRENGTH") || name.equals("REGENERATION") ||
+            name.equals("POISON") || name.equals("WEAKNESS")) {
+            return 1800;
+        }
+
+        // 3:00 duration (180 seconds = 3600 ticks)
+        if (name.contains("SWIFTNESS") || name.equals("SPEED") || name.equals("SLOWNESS") ||
+            name.contains("LEAPING") || name.equals("JUMP_BOOST") ||
+            name.equals("FIRE_RESISTANCE") || name.equals("WATER_BREATHING") ||
+            name.equals("INVISIBILITY") || name.equals("NIGHT_VISION") ||
+            name.equals("LUCK") || name.equals("SLOW_FALLING")) {
+            return 3600;
+        }
+
+        // Turtle Master: 20 seconds
+        if (name.equals("TURTLE_MASTER")) {
+            return 400;
+        }
+
+        // Default: 3 minutes
+        return 3600;
     }
 
     /**

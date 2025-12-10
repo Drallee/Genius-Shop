@@ -41,11 +41,15 @@ public class PurchaseMenu implements Listener {
                 item.getAmount(),
                 item.getSpawnerType(),
                 item.getPotionType(),
+                item.getPotionLevel(),
                 item.getName(),
                 item.getLore(),
                 item.getEnchantments(),
                 item.shouldHideAttributes(),
                 item.shouldHideAdditional(),
+                item.requiresName(),
+                item.requiresLore(),
+                item.isUnstableTnt(),
                 shopKey,
                 shopPage
         );
@@ -60,11 +64,15 @@ public class PurchaseMenu implements Listener {
                             int amount,
                             String spawnerType,
                             String potionType,
+                            int potionLevel,
                             String customName,
                             List<String> customLore,
                             Map<String, Integer> enchantments,
                             boolean hideAttributes,
                             boolean hideAdditional,
+                            boolean requireName,
+                            boolean requireLore,
+                            boolean unstableTnt,
                             String shopKey,
                             int shopPage) {
 
@@ -107,7 +115,7 @@ public class PurchaseMenu implements Listener {
 
         // Apply potion type if this is a potion or tipped arrow
         if (potionType != null && (material == Material.POTION || material == Material.SPLASH_POTION || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW)) {
-            ItemUtil.applyPotionType(display, potionType);
+            ItemUtil.applyPotionType(display, potionType, potionLevel);
         }
 
         // Apply enchantments
@@ -127,7 +135,7 @@ public class PurchaseMenu implements Listener {
         inv.setItem(displaySlot, display);
 
         String confirm = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.confirm.name", "&aCONFIRM PURCHASE");
-        
+
         // Get shop name for placeholders
         String shopName = "Categories";
         if (shopKey != null && !shopKey.isEmpty()) {
@@ -136,7 +144,7 @@ public class PurchaseMenu implements Listener {
                 shopName = ItemUtil.color(shopData.getGuiName());
             }
         }
-        
+
         String back = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.back.name", "&9BACK TO CATEGORIES")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
@@ -160,7 +168,8 @@ public class PurchaseMenu implements Listener {
                         if (slot >= 0 && slot < 54) {
                             inv.setItem(slot, ItemUtil.create(addMaterial, 1, name, null));
                         }
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }
@@ -181,7 +190,8 @@ public class PurchaseMenu implements Listener {
                                 inv.setItem(slot, ItemUtil.create(remMaterial, 1, name, null));
                             }
                         }
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }
@@ -201,7 +211,8 @@ public class PurchaseMenu implements Listener {
                             inv.setItem(slot, ItemUtil.create(setMaterial, 1, name, null));
                         }
                     }
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
 
@@ -257,6 +268,8 @@ public class PurchaseMenu implements Listener {
         else
             player.removeMetadata("buy.potionType", plugin);
 
+        player.setMetadata("buy.potionLevel", new FixedMetadataValue(plugin, potionLevel));
+
         if (customName != null)
             player.setMetadata("buy.customName", new FixedMetadataValue(plugin, customName));
         else
@@ -264,6 +277,9 @@ public class PurchaseMenu implements Listener {
 
         player.setMetadata("buy.hideAttr", new FixedMetadataValue(plugin, hideAttributes));
         player.setMetadata("buy.hideAdd", new FixedMetadataValue(plugin, hideAdditional));
+        player.setMetadata("buy.requireName", new FixedMetadataValue(plugin, requireName));
+        player.setMetadata("buy.requireLore", new FixedMetadataValue(plugin, requireLore));
+        player.setMetadata("buy.unstableTnt", new FixedMetadataValue(plugin, unstableTnt));
 
         if (customLore != null && !customLore.isEmpty()) {
             player.setMetadata("buy.customLore",
@@ -306,9 +322,13 @@ public class PurchaseMenu implements Listener {
         int amount = metaInt(player);
         String spawnerType = meta(player, "buy.spawnerType", null);
         String potionType = meta(player, "buy.potionType", null);
+        int potionLevel = player.hasMetadata("buy.potionLevel") ? player.getMetadata("buy.potionLevel").get(0).asInt() : 0;
         String customName = meta(player, "buy.customName", null);
         boolean hideAttr = metaBool(player, "buy.hideAttr");
         boolean hideAdd = metaBool(player, "buy.hideAdd");
+        boolean requireName = metaBool(player, "buy.requireName");
+        boolean requireLore = metaBool(player, "buy.requireLore");
+        boolean unstableTnt = metaBool(player, "buy.unstableTnt");
 
         // Restore lore if present
         List<String> customLore = null;
@@ -331,7 +351,7 @@ public class PurchaseMenu implements Listener {
 
         // Config strings
         String confirm = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.confirm.name", "&aCONFIRM PURCHASE");
-        
+
         // Get shop name for placeholders
         String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
         int shopPage = player.hasMetadata("buy.shopPage") ? player.getMetadata("buy.shopPage").getFirst().asInt() : 1;
@@ -342,7 +362,7 @@ public class PurchaseMenu implements Listener {
                 shopName = ItemUtil.color(shopData.getGuiName());
             }
         }
-        
+
         String back = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.back.name", "&cBACK")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
@@ -371,10 +391,11 @@ public class PurchaseMenu implements Listener {
                         String buttonName = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.add." + key + ".name", "&aAdd " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             amount = Math.min(amount + value, maxAmount);
-                            open(player, material, price, amount, spawnerType, potionType, customName, customLore, enchantments, hideAttr, hideAdd, shopKey, shopPage);
+                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
                             return;
                         }
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }
@@ -390,10 +411,11 @@ public class PurchaseMenu implements Listener {
                         String buttonName = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.remove." + key + ".name", "&cRemove " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             amount = Math.max(1, amount - value);
-                            open(player, material, price, amount, spawnerType, potionType, customName, customLore, enchantments, hideAttr, hideAdd, shopKey, shopPage);
+                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
                             return;
                         }
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }
@@ -409,10 +431,11 @@ public class PurchaseMenu implements Listener {
                         String buttonName = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.set." + key + ".name", "&aSet to " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             amount = Math.max(1, Math.min(value, maxAmount));
-                            open(player, material, price, amount, spawnerType, potionType, customName, customLore, enchantments, hideAttr, hideAdd, shopKey, shopPage);
+                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
                             return;
                         }
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }
@@ -421,7 +444,7 @@ public class PurchaseMenu implements Listener {
         if (clicked.getType() == confirmMaterial &&
                 name.equals(ItemUtil.color(confirm))) {
 
-            finalizePurchase(player, material, amount, price, spawnerType, potionType, customName, hideAttr, hideAdd);
+            finalizePurchase(player, material, amount, price, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt);
             return;
         }
 
@@ -458,9 +481,15 @@ public class PurchaseMenu implements Listener {
                                   double price,
                                   String spawnerType,
                                   String potionType,
+                                  int potionLevel,
                                   String customName,
+                                  List<String> customLore,
+                                  Map<String, Integer> enchantments,
                                   boolean hideAttr,
-                                  boolean hideAdd) {
+                                  boolean hideAdd,
+                                  boolean requireName,
+                                  boolean requireLore,
+                                  boolean unstableTnt) {
 
         ShopPlugin plugin = ShopPlugin.getInstance();
         EconomyHook eco = plugin.getEconomy();
@@ -476,7 +505,7 @@ public class PurchaseMenu implements Listener {
         String replacement = customName != null ? customName.replace("&", "§") : material.name();
         double balance = eco.getBalance(player);
         plugin.debug("Purchase attempt: " + player.getName() + " buying " + amount + "x " + material + " for $" + total + " (balance: $" + balance + ")");
-        
+
         if (!eco.withdraw(player, total)) {
             plugin.debug("Purchase failed: Insufficient funds");
             String msg = plugin.getMessages().getMessage("not-enough-money")
@@ -487,14 +516,12 @@ public class PurchaseMenu implements Listener {
             return;
         }
 
-        // Retrieve enchantments from metadata
-        Map<String, Integer> enchantments = null;
-        if (player.hasMetadata("buy.enchantments")) {
-            enchantments = (Map<String, Integer>) player.getMetadata("buy.enchantments").getFirst().value();
-        }
-
         // Deliver item (with overflow dropping)
-        giveItemSafe(player, material, amount, spawnerType, potionType, customName, enchantments, hideAttr, hideAdd);
+        // Only apply custom name/lore if their respective require flags are true
+        String nameToApply = requireName ? customName : null;
+        List<String> loreToApply = requireLore ? customLore : null;
+
+        giveItemSafe(player, material, amount, spawnerType, potionType, potionLevel, nameToApply, loreToApply, enchantments, hideAttr, hideAdd, unstableTnt);
 
         plugin.itemsBought += amount;
         plugin.debug("Purchase successful: " + player.getName() + " bought " + amount + "x " + material + " for $" + total);
@@ -521,7 +548,7 @@ public class PurchaseMenu implements Listener {
         // or simply do nothing to keep it open. reopening is safer to ensure state consistency if we add dynamic elements later.
         String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
         int shopPage = player.hasMetadata("buy.shopPage") ? player.getMetadata("buy.shopPage").getFirst().asInt() : 1;
-        open(player, material, price, amount, spawnerType, potionType, customName, null, null, hideAttr, hideAdd, shopKey, shopPage);
+        open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
     }
 
     /* ============================================================
@@ -532,10 +559,13 @@ public class PurchaseMenu implements Listener {
                               int amount,
                               String spawnerType,
                               String potionType,
+                              int potionLevel,
                               String customName,
+                              List<String> customLore,
                               Map<String, Integer> enchantments,
                               boolean hideAttr,
-                              boolean hideAdd) {
+                              boolean hideAdd,
+                              boolean unstableTnt) {
 
         int remaining = amount;
 
@@ -546,10 +576,10 @@ public class PurchaseMenu implements Listener {
             // Spawner handling (both regular and trial spawners)
             if (material == Material.SPAWNER || material.name().equals("TRIAL_SPAWNER")) {
                 item = new ItemStack(material, stackSize);
-                
+
                 if (item.getItemMeta() instanceof BlockStateMeta) {
                     BlockStateMeta meta = (BlockStateMeta) item.getItemMeta();
-                    
+
                     // Try to handle as CreatureSpawner (works for both SPAWNER and TRIAL_SPAWNER)
                     if (meta.getBlockState() instanceof CreatureSpawner) {
                         CreatureSpawner cs = (CreatureSpawner) meta.getBlockState();
@@ -557,7 +587,8 @@ public class PurchaseMenu implements Listener {
                         if (spawnerType != null) {
                             try {
                                 cs.setSpawnedType(EntityType.valueOf(spawnerType.toUpperCase()));
-                            } catch (Exception ignored) {}
+                            } catch (Exception ignored) {
+                            }
                         }
 
                         meta.setBlockState(cs);
@@ -573,7 +604,7 @@ public class PurchaseMenu implements Listener {
 
             // Apply potion type if this is a potion or tipped arrow
             if (potionType != null && (material == Material.POTION || material == Material.SPLASH_POTION || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW)) {
-                ItemUtil.applyPotionType(item, potionType);
+                ItemUtil.applyPotionType(item, potionType, potionLevel);
             }
 
             // Apply enchantments
@@ -581,9 +612,28 @@ public class PurchaseMenu implements Listener {
                 ItemUtil.applyEnchantments(item, enchantments);
             }
 
+            // Apply unstable TNT NBT if enabled
+            if (unstableTnt && material == Material.TNT) {
+                try {
+                    // Use NBT API to set BlockStateTag with unstable: true
+                    item = org.bukkit.Bukkit.getUnsafe().modifyItemStack(item,
+                        "{BlockStateTag:{unstable:true}}");
+                } catch (Exception e) {
+                    // Fallback: If NBT modification fails, log it
+                    ShopPlugin.getInstance().getLogger().warning("Failed to apply unstable TNT NBT: " + e.getMessage());
+                }
+            }
+
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 if (customName != null) meta.setDisplayName(ItemUtil.color(customName));
+                if (customLore != null && !customLore.isEmpty()) {
+                    List<String> coloredLore = new ArrayList<>();
+                    for (String line : customLore) {
+                        coloredLore.add(ItemUtil.color(line));
+                    }
+                    meta.setLore(coloredLore);
+                }
                 if (hideAttr) meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
                 if (hideAdd) meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
                 item.setItemMeta(meta);

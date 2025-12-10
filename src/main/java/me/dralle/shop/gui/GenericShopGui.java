@@ -169,7 +169,7 @@ public class GenericShopGui implements Listener {
 
             // Apply potion type if this is a potion or tipped arrow
             if (si.isPotion()) {
-                ItemUtil.applyPotionType(item, si.getPotionType());
+                ItemUtil.applyPotionType(item, si.getPotionType(), si.getPotionLevel());
             }
 
             // Apply enchantments
