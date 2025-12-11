@@ -61,7 +61,7 @@
             </div>
 
             <!-- Mobile Dropdown Menu -->
-            <div id="mobile-menu" class="mobile-menu" style="display: none;">
+            <div id="mobile-menu" class="mobile-menu">
                 <div class="mobile-menu-content">
                     <label class="toggle-switch mobile-toggle">
                         <input type="checkbox" id="auto-save-toggle-mobile" checked>
@@ -519,6 +519,28 @@
             <div style="display: flex; justify-content: flex-end; gap: 12px;">
                 <button onclick="closeConfirmModal(false)" class="btn action-btn" style="padding: 13px 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); margin: 0;">Cancel</button>
                 <button onclick="closeConfirmModal(true)" class="btn action-btn" style="padding: 13px 28px; background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.3)); border: 1px solid rgba(255, 215, 0, 0.4); margin: 0;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div id="prompt-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10003; justify-content: center; align-items: center;">
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 500px; width: 90%; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(120, 119, 198, 0.3); backdrop-filter: blur(20px);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 id="prompt-modal-title" style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.2em; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px;">
+                    <span id="prompt-modal-icon" style="font-size: 1.3em;">✏️</span>
+                    <span id="prompt-modal-title-text">Enter Value</span>
+                </h2>
+            </div>
+            <div id="prompt-modal-content" style="color: rgba(220, 230, 245, 0.9); font-size: 0.95em; line-height: 1.6; margin-bottom: 16px;">
+                <!-- Content will be dynamically inserted here -->
+            </div>
+            <div style="margin-bottom: 24px;">
+                <input type="text" id="prompt-modal-input" style="width: 100%; padding: 15px 20px; border: 1px solid rgba(120, 119, 198, 0.2); background: rgba(15, 15, 25, 0.6); color: #f0f0f5; font-size: 0.95em; border-radius: 12px; font-family: 'Consolas', 'Monaco', monospace; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03);" placeholder="Enter value...">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closePromptModal(null)" class="btn action-btn" style="padding: 13px 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); margin: 0;">Cancel</button>
+                <button onclick="submitPromptModal()" class="btn action-btn" style="padding: 13px 28px; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); border: 1px solid rgba(120, 119, 198, 0.4); margin: 0;">OK</button>
             </div>
         </div>
     </div>

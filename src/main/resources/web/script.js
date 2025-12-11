@@ -165,6 +165,85 @@
             }
         }
 
+        // Custom prompt function
+        let promptCallback = null;
+        function showPrompt(message, defaultValue = '', title = 'Enter Value') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('prompt-modal');
+                const titleText = document.getElementById('prompt-modal-title-text');
+                const content = document.getElementById('prompt-modal-content');
+                const input = document.getElementById('prompt-modal-input');
+
+                titleText.textContent = title;
+                content.textContent = message;
+                input.value = defaultValue;
+                promptCallback = resolve;
+
+                const animationsDisabled = document.body.classList.contains('no-animations');
+                modal.style.display = 'flex';
+
+                const modalBox = modal.querySelector('div[style*="background"]');
+                if (modalBox && !animationsDisabled) {
+                    modalBox.style.animation = 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+                } else if (modalBox) {
+                    modalBox.style.animation = 'none';
+                }
+
+                // Focus input and select text
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 100);
+
+                // Handle Enter key
+                input.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        submitPromptModal();
+                    }
+                };
+
+                // Handle Escape key
+                input.onkeydown = (e) => {
+                    if (e.key === 'Escape') {
+                        closePromptModal(null);
+                    }
+                };
+            });
+        }
+
+        function closePromptModal(result) {
+            const modal = document.getElementById('prompt-modal');
+            const input = document.getElementById('prompt-modal-input');
+            const animationsDisabled = document.body.classList.contains('no-animations');
+
+            // Clear event handlers
+            input.onkeypress = null;
+            input.onkeydown = null;
+
+            const modalBox = modal.querySelector('div[style*="background"]');
+            if (modalBox && !animationsDisabled) {
+                modalBox.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    if (promptCallback) {
+                        promptCallback(result);
+                        promptCallback = null;
+                    }
+                }, 300);
+            } else {
+                modal.style.display = 'none';
+                if (promptCallback) {
+                    promptCallback(result);
+                    promptCallback = null;
+                }
+            }
+        }
+
+        function submitPromptModal() {
+            const input = document.getElementById('prompt-modal-input');
+            closePromptModal(input.value);
+        }
+
         // Performance optimization: debounce function
         function debounce(func, wait) {
             let timeout;
@@ -731,8 +810,8 @@
             loadShopFromData(filename);
         }
 
-        function createNewShop() {
-            const shopName = prompt('Enter new shop filename (without .yml):\nExample: custom_shop');
+        async function createNewShop() {
+            const shopName = await showPrompt('Enter new shop filename (without .yml):\nExample: custom_shop', '', 'Create New Shop');
             if (!shopName || !shopName.trim()) return;
 
             const filename = shopName.trim().replace(/\.yml$/, '') + '.yml';

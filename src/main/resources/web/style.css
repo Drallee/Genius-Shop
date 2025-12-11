@@ -485,6 +485,10 @@ s        /* Keep background animation subtle and slow */
             display: flex;
             align-items: center;
             gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+            backdrop-filter: blur(10px);
             letter-spacing: 0.5px;
         }
 
@@ -1322,7 +1326,7 @@ s        /* Keep background animation subtle and slow */
             border-radius: 10px;
             overflow: auto;
             position: sticky;
-            top: 0;
+            top: 65px;
             z-index: 100;
             backdrop-filter: blur(10px);
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
@@ -1440,27 +1444,39 @@ s        /* Keep background animation subtle and slow */
 
         /* Mobile Menu Styles */
         .mobile-menu-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 12px;
+            background: linear-gradient(135deg, rgba(120, 119, 198, 0.2), rgba(255, 0, 128, 0.2));
+            border: 1px solid rgba(120, 119, 198, 0.4);
+            border-radius: 10px;
+            padding: 10px 12px;
             cursor: pointer;
             transition: all 0.3s ease;
             z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(120, 119, 198, 0.2);
         }
 
         .mobile-menu-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(120, 119, 198, 0.5);
+            background: linear-gradient(135deg, rgba(120, 119, 198, 0.3), rgba(255, 0, 128, 0.3));
+            border-color: rgba(120, 119, 198, 0.6);
+            box-shadow: 0 6px 16px rgba(120, 119, 198, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .mobile-menu-btn:active {
+            transform: translateY(0);
         }
 
         .hamburger-icon {
             display: block;
             width: 24px;
-            height: 2px;
+            height: 3px;
             background: #fff;
             position: relative;
             transition: all 0.3s ease;
+            border-radius: 2px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .hamburger-icon::before,
@@ -1468,9 +1484,12 @@ s        /* Keep background animation subtle and slow */
             content: '';
             position: absolute;
             width: 24px;
-            height: 2px;
+            height: 3px;
             background: #fff;
             transition: all 0.3s ease;
+            border-radius: 2px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            left: 0;
         }
 
         .hamburger-icon::before {
@@ -1483,6 +1502,7 @@ s        /* Keep background animation subtle and slow */
 
         .mobile-menu-btn.active .hamburger-icon {
             background: transparent;
+            box-shadow: none;
         }
 
         .mobile-menu-btn.active .hamburger-icon::before {
