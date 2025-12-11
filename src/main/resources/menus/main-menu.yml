@@ -22,7 +22,8 @@ items:
     lore:
       - ''
       - '&7Made by &bDralle'
-      - '&7Version: &b1.3.0'
+      - '&7Version: &b%version%'
+      - '%update-available%'
       - ''
   blocks:
     slot: 11

@@ -81,3 +81,13 @@ api:
   # When false, players cannot use /shop editor to access the web editor
   # Note: The API can still be enabled without this command
   enable-editor-command: true
+  # Optional: Custom domain for the web editor
+  # If set, this domain will be used instead of the server IP when displaying the editor URL
+  # Examples: "shop.example.com" or "example.com:8080"
+  # Leave empty to use the default (server IP)
+  domain: ""
+  # IP Bypass System
+  # When enabled, allows users with permission "geniusshop.login.ip.bypass" to log in from
+  # different IPs after confirming their identity in-game
+  # Trusted IPs are saved per-user
+  allow-ip-bypass: true

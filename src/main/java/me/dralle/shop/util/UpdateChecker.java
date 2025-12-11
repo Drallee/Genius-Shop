@@ -22,10 +22,20 @@ public class UpdateChecker implements Listener {
 
     private final ShopPlugin plugin;
     private final String projectSlug; // Modrinth project slug (e.g., "genius-shop")
+    private String latestVersion = null;
+    private boolean updateAvailable = false;
 
     public UpdateChecker(ShopPlugin plugin, String projectSlug) {
         this.plugin = plugin;
         this.projectSlug = projectSlug;
+    }
+
+    public boolean isUpdateAvailable() {
+        return updateAvailable;
+    }
+
+    public String getLatestVersion() {
+        return latestVersion;
     }
 
     public void getVersion(final Consumer<String> consumer) {
@@ -66,15 +76,21 @@ public class UpdateChecker implements Listener {
     public void checkForUpdates() {
         if (!plugin.getConfig().getBoolean("check-updates", true)) return;
 
-        getVersion(latestVersion -> {
+        getVersion(latestVersionStr -> {
             String currentVersion = plugin.getDescription().getVersion();
-            
+            this.latestVersion = latestVersionStr;
+
             // Simple string comparison (works if semantic versioning is strictly followed)
-            if (currentVersion.equalsIgnoreCase(latestVersion)) return;
+            if (currentVersion.equalsIgnoreCase(latestVersionStr)) {
+                this.updateAvailable = false;
+                return;
+            }
+
+            this.updateAvailable = true;
 
             // Notify Console with color
             String prefix = "&8&l| &cGENIUS-SHOP &8&l| ";
-            Bukkit.getConsoleSender().sendMessage(ItemUtil.color(prefix + "&aThere is a new update available &7(&c" + currentVersion + " &7-> &a" + latestVersion + "&7)"));
+            Bukkit.getConsoleSender().sendMessage(ItemUtil.color(prefix + "&aThere is a new update available &7(&c" + currentVersion + " &7-> &a" + latestVersionStr + "&7)"));
             Bukkit.getConsoleSender().sendMessage(ItemUtil.color(prefix + "&aDownload it here: &ehttps://modrinth.com/plugin/" + projectSlug));
         });
     }

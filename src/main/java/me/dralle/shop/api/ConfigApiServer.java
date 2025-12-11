@@ -26,8 +26,27 @@ public class ConfigApiServer {
     private final String apiKey;
     private final Map<String, SessionData> sessions = new ConcurrentHashMap<>();
     private final Map<String, AutoLoginToken> autoLoginTokens = new ConcurrentHashMap<>();
+    private final Map<String, PendingLoginConfirmation> pendingConfirmations = new ConcurrentHashMap<>();
+    private final Map<String, java.util.Set<String>> trustedIps = new ConcurrentHashMap<>();
     private static final long SESSION_DURATION = 3600000; // 1 hour
     private static final long AUTO_LOGIN_TOKEN_DURATION = 300000; // 5 minutes
+    private static final long PENDING_CONFIRMATION_DURATION = 180000; // 3 minutes
+
+    public static class PendingLoginConfirmation {
+        public String username;
+        public String playerIp;
+        public String requestIp;
+        public String token;
+        public long expiry;
+
+        public PendingLoginConfirmation(String username, String playerIp, String requestIp, String token, long expiry) {
+            this.username = username;
+            this.playerIp = playerIp;
+            this.requestIp = requestIp;
+            this.token = token;
+            this.expiry = expiry;
+        }
+    }
 
     private static class SessionData {
         String username;
@@ -57,6 +76,74 @@ public class ConfigApiServer {
         this.plugin = plugin;
         this.port = port;
         this.apiKey = apiKey;
+        loadTrustedIps();
+    }
+
+    /**
+     * Load trusted IPs from file
+     */
+    private void loadTrustedIps() {
+        File trustedIpsFile = new File(plugin.getDataFolder(), "trusted-ips.yml");
+        if (!trustedIpsFile.exists()) {
+            return;
+        }
+
+        try {
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(trustedIpsFile);
+            for (String username : config.getKeys(false)) {
+                java.util.List<String> ips = config.getStringList(username);
+                if (!ips.isEmpty()) {
+                    trustedIps.put(username.toLowerCase(), new java.util.HashSet<>(ips));
+                }
+            }
+            plugin.getLogger().info("Loaded trusted IPs for " + trustedIps.size() + " users");
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to load trusted IPs: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Save trusted IPs to file
+     */
+    private void saveTrustedIps() {
+        File trustedIpsFile = new File(plugin.getDataFolder(), "trusted-ips.yml");
+        YamlConfiguration config = new YamlConfiguration();
+
+        for (Map.Entry<String, java.util.Set<String>> entry : trustedIps.entrySet()) {
+            config.set(entry.getKey(), new java.util.ArrayList<>(entry.getValue()));
+        }
+
+        try {
+            config.save(trustedIpsFile);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save trusted IPs: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Check if an IP is trusted for a user
+     */
+    private boolean isIpTrusted(String username, String ip) {
+        java.util.Set<String> userTrustedIps = trustedIps.get(username.toLowerCase());
+        return userTrustedIps != null && userTrustedIps.contains(ip);
+    }
+
+    /**
+     * Add a trusted IP for a user
+     */
+    public void addTrustedIp(String username, String ip) {
+        trustedIps.computeIfAbsent(username.toLowerCase(), k -> new java.util.HashSet<>()).add(ip);
+        saveTrustedIps();
+        plugin.getLogger().info("Added trusted IP " + ip + " for user " + username);
+    }
+
+    /**
+     * Get pending confirmation for a token
+     */
+    public PendingLoginConfirmation getPendingConfirmation(String token) {
+        // Clean up expired confirmations
+        pendingConfirmations.entrySet().removeIf(entry -> entry.getValue().expiry < System.currentTimeMillis());
+        return pendingConfirmations.get(token);
     }
 
     /**
@@ -96,6 +183,14 @@ public class ConfigApiServer {
                     serveWebFile(exchange, "login.html");
                 } else if (path.equals("/favicon.ico")) {
                     serveWebFile(exchange, "favicon.ico");
+                } else if (path.equals("/style.css")) {
+                    serveWebFile(exchange, "style.css");
+                } else if (path.equals("/script.js")) {
+                    serveWebFile(exchange, "script.js");
+                } else if (path.equals("/login-style.css")) {
+                    serveWebFile(exchange, "login-style.css");
+                } else if (path.equals("/login-script.js")) {
+                    serveWebFile(exchange, "login-script.js");
                 } else if (path.startsWith("/api/")) {
                     // Handle API requests
                     exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
@@ -109,14 +204,15 @@ public class ConfigApiServer {
 
                     handleRequest(exchange);
                 } else {
-                    // 404 for unknown paths
-                    String response = "404 Not Found";
-                    exchange.getResponseHeaders().add("Content-Type", "text/plain");
-                    byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(404, bytes.length);
-                    try (OutputStream os = exchange.getResponseBody()) {
-                        os.write(bytes);
-                    }
+                    // 404 for unknown paths - return detailed JSON error
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("error", "Not Found");
+                    errorResponse.put("status", 404);
+                    errorResponse.put("path", path);
+                    errorResponse.put("message", "The requested resource was not found on this server");
+                    errorResponse.put("timestamp", System.currentTimeMillis());
+
+                    sendJsonResponse(exchange, 404, errorResponse);
                 }
             });
 
@@ -145,7 +241,7 @@ public class ConfigApiServer {
                 if (method.equals("POST")) {
                     handleLogin(exchange);
                 } else {
-                    sendResponse(exchange, 405, "{\"error\": \"Method not allowed\"}");
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts POST requests");
                 }
                 return;
             }
@@ -155,14 +251,14 @@ public class ConfigApiServer {
                 if (method.equals("POST")) {
                     handleAutoLogin(exchange);
                 } else {
-                    sendResponse(exchange, 405, "{\"error\": \"Method not allowed\"}");
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts POST requests");
                 }
                 return;
             }
 
             // All other endpoints require valid session
             if (!validateSession(exchange)) {
-                sendResponse(exchange, 401, "{\"error\": \"Unauthorized - Invalid or expired session\"}");
+                sendError(exchange, 401, "Unauthorized", "Invalid or expired session token");
                 return;
             }
 
@@ -170,7 +266,7 @@ public class ConfigApiServer {
                 if (method.equals("GET")) {
                     handleListFiles(exchange);
                 } else {
-                    sendResponse(exchange, 405, "{\"error\": \"Method not allowed\"}");
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
                 }
             } else if (path.startsWith("/api/file/")) {
                 String fileName = path.substring("/api/file/".length());
@@ -181,7 +277,7 @@ public class ConfigApiServer {
                 } else if (method.equals("DELETE")) {
                     handleDeleteFile(exchange, fileName);
                 } else {
-                    sendResponse(exchange, 405, "{\"error\": \"Method not allowed\"}");
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET, POST, and DELETE requests");
                 }
             } else if (path.equals("/api/activity-log")) {
                 if (method.equals("GET")) {
@@ -189,14 +285,16 @@ public class ConfigApiServer {
                 } else if (method.equals("POST")) {
                     handleSaveActivityLog(exchange);
                 } else {
-                    sendResponse(exchange, 405, "{\"error\": \"Method not allowed\"}");
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET and POST requests");
                 }
             } else {
-                sendResponse(exchange, 404, "{\"error\": \"Not found\"}");
+                sendError(exchange, 404, "Endpoint Not Found", "The requested API endpoint does not exist");
             }
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Error handling API request", e);
-            sendResponse(exchange, 500, "{\"error\": \"Internal server error\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("exception", e.getClass().getSimpleName());
+            sendError(exchange, 500, "Internal Server Error", "An unexpected error occurred while processing your request", errorData);
         }
     }
 
@@ -208,20 +306,23 @@ public class ConfigApiServer {
         String password = extractJsonField(body, "password");
 
         if (username == null || password == null) {
-            sendResponse(exchange, 400, "{\"error\": \"Missing username or password\"}");
+            sendError(exchange, 400, "Bad Request", "Missing username or password in request body");
             return;
         }
 
         // Check if player is online and has admin permission
         Player player = Bukkit.getPlayerExact(username);
         if (player == null || !player.isOnline()) {
-            sendResponse(exchange, 401, "{\"error\": \"Player must be online to authenticate\"}");
+            sendError(exchange, 401, "Unauthorized", "Player must be logged into the Minecraft server to authenticate");
             return;
         }
 
         // Check admin permission
         if (!player.hasPermission("geniusshop.admin") && !player.hasPermission("shop.admin") && !player.isOp()) {
-            sendResponse(exchange, 403, "{\"error\": \"No admin permission\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("username", username);
+            errorData.put("requiredPermissions", new String[]{"geniusshop.admin", "shop.admin", "OP"});
+            sendError(exchange, 403, "Forbidden", "Player does not have admin permission to access the editor", errorData);
             plugin.getLogger().warning("Unauthorized login attempt by " + username + " - missing admin permission");
             return;
         }
@@ -234,14 +335,78 @@ public class ConfigApiServer {
 
         // Check if IPs match
         if (!playerIp.equals(requestIp)) {
-            sendResponse(exchange, 403, "{\"error\": \"IP address mismatch. You must access this from the same network as your Minecraft client.\"}");
-            plugin.getLogger().warning("Login attempt from mismatched IP - Player: " + playerIp + ", Request: " + requestIp);
-            return;
+            // Check if IP bypass is enabled and user has permission
+            boolean allowBypass = plugin.getConfig().getBoolean("api.allow-ip-bypass", true);
+
+            if (allowBypass && player.hasPermission("geniusshop.login.ip.bypass")) {
+                // Check if this IP is already trusted
+                if (!isIpTrusted(username, requestIp)) {
+                    // Create pending confirmation
+                    String confirmToken = UUID.randomUUID().toString();
+                    long confirmExpiry = System.currentTimeMillis() + PENDING_CONFIRMATION_DURATION;
+                    pendingConfirmations.put(confirmToken, new PendingLoginConfirmation(
+                            username, playerIp, requestIp, confirmToken, confirmExpiry
+                    ));
+
+                    // Send message to player with clickable confirmation
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                        player.sendMessage("§c§lSECURITY ALERT");
+                        player.sendMessage("");
+                        player.sendMessage("§7Someone is trying to access the shop editor from:");
+                        player.sendMessage("§e" + requestIp);
+                        player.sendMessage("");
+                        player.sendMessage("§7Your current IP: §a" + playerIp);
+                        player.sendMessage("");
+                        player.sendMessage("§7If this is you, click below to confirm:");
+
+                        // Create clickable confirmation button
+                        try {
+                            net.md_5.bungee.api.chat.TextComponent message = new net.md_5.bungee.api.chat.TextComponent(" [✓ CONFIRM LOGIN] ");
+                            message.setColor(net.md_5.bungee.api.ChatColor.GREEN);
+                            message.setBold(true);
+                            message.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(
+                                    net.md_5.bungee.api.chat.ClickEvent.Action.RUN_COMMAND,
+                                    "/shop confirmlogin " + confirmToken
+                            ));
+                            message.setHoverEvent(new net.md_5.bungee.api.chat.HoverEvent(
+                                    net.md_5.bungee.api.chat.HoverEvent.Action.SHOW_TEXT,
+                                    new net.md_5.bungee.api.chat.ComponentBuilder("§aClick to confirm and trust this IP").create()
+                            ));
+                            player.spigot().sendMessage(message);
+                        } catch (Exception e) {
+                            player.sendMessage("§aType: §e/shop confirmlogin " + confirmToken);
+                        }
+
+                        player.sendMessage("");
+                        player.sendMessage("§cThis request will expire in 3 minutes.");
+                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                    });
+
+                    Map<String, String> response = new HashMap<>();
+                    response.put("status", "pending_confirmation");
+                    response.put("message", "Please confirm this login in-game");
+                    response.put("confirmToken", confirmToken);
+                    response.put("username", username);
+                    sendJsonResponse(exchange, 403, response);
+                    plugin.getLogger().warning("Manual login IP mismatch for " + username + " - Confirmation required. Player IP: " + playerIp + ", Request IP: " + requestIp);
+                    return;
+                }
+                // IP is trusted, allow login to continue
+                plugin.getLogger().info("IP mismatch allowed - " + requestIp + " is a trusted IP for " + username);
+            } else {
+                Map<String, Object> errorData = new HashMap<>();
+                errorData.put("playerIp", playerIp);
+                errorData.put("requestIp", requestIp);
+                sendError(exchange, 403, "IP Mismatch", "You must access this from the same network as your Minecraft client", errorData);
+                plugin.getLogger().warning("Login attempt from mismatched IP - Player: " + playerIp + ", Request: " + requestIp);
+                return;
+            }
         }
 
         // Validate password (simple check - player's UUID as password)
         if (!password.equals(player.getUniqueId().toString())) {
-            sendResponse(exchange, 401, "{\"error\": \"Invalid credentials\"}");
+            sendError(exchange, 401, "Invalid Credentials", "Incorrect password provided");
             return;
         }
 
@@ -269,7 +434,7 @@ public class ConfigApiServer {
         plugin.getLogger().info("Auto-login attempt with token: " + (token != null ? token.substring(0, Math.min(8, token.length())) + "..." : "null"));
 
         if (token == null) {
-            sendResponse(exchange, 400, "{\"error\": \"Missing token\"}");
+            sendError(exchange, 400, "Bad Request", "Auto-login token is required in the request body");
             return;
         }
 
@@ -279,7 +444,9 @@ public class ConfigApiServer {
             plugin.getLogger().warning("Auto-login failed: Token not found in map. Active tokens: " + autoLoginTokens.size());
             // List all token prefixes for debugging
             autoLoginTokens.keySet().forEach(t -> plugin.getLogger().info("  - Token: " + t.substring(0, 8) + "..."));
-            sendResponse(exchange, 401, "{\"error\": \"Invalid or expired token\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("activeTokens", autoLoginTokens.size());
+            sendError(exchange, 401, "Authentication Failed", "The auto-login token is invalid or has expired. Please generate a new token using /shop editor", errorData);
             return;
         }
 
@@ -293,7 +460,10 @@ public class ConfigApiServer {
         if (tokenData.expiry < now) {
             plugin.getLogger().warning("Token has expired! Time left was: " + timeLeft + "ms");
             autoLoginTokens.remove(token);
-            sendResponse(exchange, 401, "{\"error\": \"Token has expired\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("expiredAt", tokenData.expiry);
+            errorData.put("timeExpiredMs", Math.abs(timeLeft));
+            sendError(exchange, 401, "Token Expired", "Your auto-login token has expired. Auto-login tokens are valid for 5 minutes. Please generate a new token using /shop editor", errorData);
             return;
         }
 
@@ -319,10 +489,75 @@ public class ConfigApiServer {
 
         // If player is connecting via localhost and request is from local network, allow it
         if (!ipMatches && !(playerIsLocalhost && requestIsLocal)) {
-            sendResponse(exchange, 403, "{\"error\": \"IP address mismatch\"}");
-            plugin.getLogger().warning("Auto-login IP mismatch for " + tokenData.username + " - Player IP: " + tokenData.ipAddress + ", Request IP: " + requestIp);
-            // Don't remove token - let it expire naturally
-            return;
+            // Check if IP bypass is enabled and user has permission
+            boolean allowBypass = plugin.getConfig().getBoolean("api.allow-ip-bypass", true);
+            Player player = Bukkit.getPlayerExact(tokenData.username);
+
+            if (allowBypass && player != null && player.hasPermission("geniusshop.login.ip.bypass")) {
+                // Check if this IP is already trusted
+                if (isIpTrusted(tokenData.username, requestIp)) {
+                    plugin.getLogger().info("IP mismatch allowed - " + requestIp + " is a trusted IP for " + tokenData.username);
+                } else {
+                    // Create pending confirmation
+                    String confirmToken = UUID.randomUUID().toString();
+                    long confirmExpiry = System.currentTimeMillis() + PENDING_CONFIRMATION_DURATION;
+                    pendingConfirmations.put(confirmToken, new PendingLoginConfirmation(
+                            tokenData.username, tokenData.ipAddress, requestIp, token, confirmExpiry
+                    ));
+
+                    // Send message to player with clickable confirmation
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                        player.sendMessage("§c§lSECURITY ALERT");
+                        player.sendMessage("");
+                        player.sendMessage("§7Someone is trying to access the shop editor from:");
+                        player.sendMessage("§e" + requestIp);
+                        player.sendMessage("");
+                        player.sendMessage("§7Your current IP: §a" + tokenData.ipAddress);
+                        player.sendMessage("");
+                        player.sendMessage("§7If this is you, click below to confirm:");
+
+                        // Create clickable confirmation button
+                        try {
+                            net.md_5.bungee.api.chat.TextComponent message = new net.md_5.bungee.api.chat.TextComponent(" [✓ CONFIRM LOGIN] ");
+                            message.setColor(net.md_5.bungee.api.ChatColor.GREEN);
+                            message.setBold(true);
+                            message.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(
+                                    net.md_5.bungee.api.chat.ClickEvent.Action.RUN_COMMAND,
+                                    "/shop confirmlogin " + confirmToken
+                            ));
+                            message.setHoverEvent(new net.md_5.bungee.api.chat.HoverEvent(
+                                    net.md_5.bungee.api.chat.HoverEvent.Action.SHOW_TEXT,
+                                    new net.md_5.bungee.api.chat.ComponentBuilder("§aClick to confirm and trust this IP").create()
+                            ));
+                            player.spigot().sendMessage(message);
+                        } catch (Exception e) {
+                            player.sendMessage("§aType: §e/shop confirmlogin " + confirmToken);
+                        }
+
+                        player.sendMessage("");
+                        player.sendMessage("§cThis request will expire in 3 minutes.");
+                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+                    });
+
+                    Map<String, String> response = new HashMap<>();
+                    response.put("status", "pending_confirmation");
+                    response.put("message", "Please confirm this login in-game");
+                    response.put("confirmToken", confirmToken);
+                    sendJsonResponse(exchange, 403, response);
+                    plugin.getLogger().warning("Auto-login IP mismatch for " + tokenData.username + " - Confirmation required. Player IP: " + tokenData.ipAddress + ", Request IP: " + requestIp);
+                    return;
+                }
+            } else {
+                Map<String, Object> errorData = new HashMap<>();
+                errorData.put("playerIp", tokenData.ipAddress);
+                errorData.put("requestIp", requestIp);
+                errorData.put("username", tokenData.username);
+                sendError(exchange, 403, "IP Address Mismatch", "The request is coming from a different IP address than the one used to generate the token. For security reasons, you must access the editor from the same network as your Minecraft client", errorData);
+                plugin.getLogger().warning("Auto-login IP mismatch for " + tokenData.username + " - Player IP: " + tokenData.ipAddress + ", Request IP: " + requestIp);
+                // Don't remove token - let it expire naturally
+                return;
+            }
         }
 
         plugin.getLogger().info("IP verification passed: Player=" + tokenData.ipAddress + ", Request=" + requestIp);
@@ -330,14 +565,19 @@ public class ConfigApiServer {
         // Verify player is still online
         Player player = Bukkit.getPlayerExact(tokenData.username);
         if (player == null || !player.isOnline()) {
-            sendResponse(exchange, 401, "{\"error\": \"Player is no longer online\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("username", tokenData.username);
+            sendError(exchange, 401, "Player Offline", "The player associated with this token is no longer online on the Minecraft server. Please log in and generate a new token", errorData);
             autoLoginTokens.remove(token);
             return;
         }
 
         // Verify permission
         if (!player.hasPermission("geniusshop.admin") && !player.hasPermission("shop.admin") && !player.isOp()) {
-            sendResponse(exchange, 403, "{\"error\": \"No admin permission\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("username", tokenData.username);
+            errorData.put("requiredPermissions", new String[]{"geniusshop.admin", "shop.admin", "OP"});
+            sendError(exchange, 403, "Insufficient Permissions", "Your player no longer has admin permission to access the editor. You need one of: geniusshop.admin, shop.admin, or OP status", errorData);
             autoLoginTokens.remove(token);
             return;
         }
@@ -504,9 +744,12 @@ public class ConfigApiServer {
 
     private void handleGetFile(HttpExchange exchange, String fileName) throws IOException {
         File file = resolveFile(fileName);
-        
+
         if (file == null || !file.exists()) {
-            sendResponse(exchange, 404, "{\"error\": \"File not found\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            errorData.put("reason", file == null ? "Invalid file path" : "File does not exist");
+            sendError(exchange, 404, "File Not Found", "The requested configuration file could not be found or is not accessible", errorData);
             return;
         }
 
@@ -518,9 +761,11 @@ public class ConfigApiServer {
 
     private void handleSaveFile(HttpExchange exchange, String fileName) throws IOException {
         File file = resolveFile(fileName);
-        
+
         if (file == null) {
-            sendResponse(exchange, 400, "{\"error\": \"Invalid file name\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            sendError(exchange, 400, "Invalid File Name", "The specified file name is invalid or contains illegal characters. File paths cannot contain '..' or reference files outside the allowed directories", errorData);
             return;
         }
 
@@ -530,7 +775,9 @@ public class ConfigApiServer {
         // Parse JSON to get content
         String fileContent = extractJsonField(content, "content");
         if (fileContent == null) {
-            sendResponse(exchange, 400, "{\"error\": \"Missing content field\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            sendError(exchange, 400, "Missing Content", "The request body must include a 'content' field with the file data to save", errorData);
             return;
         }
 
@@ -538,7 +785,11 @@ public class ConfigApiServer {
         try {
             YamlConfiguration.loadConfiguration(new StringReader(fileContent));
         } catch (Exception e) {
-            sendResponse(exchange, 400, "{\"error\": \"Invalid YAML: " + e.getMessage() + "\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            errorData.put("validationError", e.getMessage());
+            errorData.put("exception", e.getClass().getSimpleName());
+            sendError(exchange, 400, "Invalid YAML Syntax", "The file content contains invalid YAML syntax and cannot be saved. Please fix the syntax errors and try again", errorData);
             return;
         }
 
@@ -563,19 +814,26 @@ public class ConfigApiServer {
         File file = resolveFile(fileName);
 
         if (file == null) {
-            sendResponse(exchange, 400, "{\"error\": \"Invalid file name\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            sendError(exchange, 400, "Invalid File Name", "The specified file name is invalid or contains illegal characters. File paths cannot contain '..' or reference files outside the allowed directories", errorData);
             return;
         }
 
         // Don't allow deletion of main config files or menu files
         if (fileName.equals("discord.yml") || fileName.equals("config.yml") ||
             fileName.startsWith("menus/")) {
-            sendResponse(exchange, 403, "{\"error\": \"Cannot delete main config files\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            errorData.put("fileType", "protected");
+            sendError(exchange, 403, "Deletion Forbidden", "This file is a core configuration file and cannot be deleted through the API. Protected files include: config.yml, discord.yml, and all menu files", errorData);
             return;
         }
 
         if (!file.exists()) {
-            sendResponse(exchange, 404, "{\"error\": \"File not found\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            sendError(exchange, 404, "File Not Found", "The file you are trying to delete does not exist on the server", errorData);
             return;
         }
 
@@ -583,7 +841,10 @@ public class ConfigApiServer {
         try {
             boolean deleted = file.delete();
             if (!deleted) {
-                sendResponse(exchange, 500, "{\"error\": \"Failed to delete file\"}");
+                Map<String, Object> errorData = new HashMap<>();
+                errorData.put("fileName", fileName);
+                errorData.put("filePath", file.getAbsolutePath());
+                sendError(exchange, 500, "Deletion Failed", "The file could not be deleted. It may be locked by another process or the server may not have sufficient permissions", errorData);
                 return;
             }
 
@@ -597,7 +858,11 @@ public class ConfigApiServer {
             sendResponse(exchange, 200, "{\"success\": true}");
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Error deleting file: " + fileName, e);
-            sendResponse(exchange, 500, "{\"error\": \"Failed to delete file: " + e.getMessage() + "\"}");
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("fileName", fileName);
+            errorData.put("exception", e.getClass().getSimpleName());
+            errorData.put("exceptionMessage", e.getMessage());
+            sendError(exchange, 500, "Deletion Error", "An unexpected error occurred while attempting to delete the file", errorData);
         }
     }
 
@@ -773,6 +1038,25 @@ public class ConfigApiServer {
         }
     }
 
+    private void sendError(HttpExchange exchange, int statusCode, String error, String message) throws IOException {
+        sendError(exchange, statusCode, error, message, null);
+    }
+
+    private void sendError(HttpExchange exchange, int statusCode, String error, String message, Map<String, Object> additionalData) throws IOException {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("error", error);
+        errorResponse.put("status", statusCode);
+        errorResponse.put("message", message);
+        errorResponse.put("timestamp", System.currentTimeMillis());
+        errorResponse.put("path", exchange.getRequestURI().getPath());
+
+        if (additionalData != null) {
+            errorResponse.putAll(additionalData);
+        }
+
+        sendJsonResponse(exchange, statusCode, errorResponse);
+    }
+
     private void serveWebFile(HttpExchange exchange, String filename) throws IOException {
         try {
             // Try to load from plugin resources
@@ -782,14 +1066,9 @@ public class ConfigApiServer {
                 // Fall back to file in plugin data folder
                 File webFile = new File(plugin.getDataFolder(), "web/" + filename);
                 if (!webFile.exists()) {
-                    String response = "404 - File not found: " + filename;
-                    exchange.getResponseHeaders().add("Content-Type", "text/plain");
-                    exchange.getResponseHeaders().add("Cache-Control", "no-cache, no-store, must-revalidate");
-                    byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(404, bytes.length);
-                    try (OutputStream os = exchange.getResponseBody()) {
-                        os.write(bytes);
-                    }
+                    Map<String, Object> errorData = new HashMap<>();
+                    errorData.put("filename", filename);
+                    sendError(exchange, 404, "File Not Found", "The requested web file does not exist in resources or data folder", errorData);
                     return;
                 }
                 resourceStream = new FileInputStream(webFile);
@@ -808,6 +1087,10 @@ public class ConfigApiServer {
             } else if (filename.endsWith(".ico")) {
                 contentType = "image/x-icon";
                 isBinary = true;
+            } else if (filename.endsWith(".css")) {
+                contentType = "text/css; charset=UTF-8";
+            } else if (filename.endsWith(".js")) {
+                contentType = "application/javascript; charset=UTF-8";
             }
 
             byte[] bytes;
@@ -858,14 +1141,10 @@ public class ConfigApiServer {
             }
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Error serving web file: " + filename, e);
-            String response = "500 Internal Server Error";
-            exchange.getResponseHeaders().add("Content-Type", "text/plain");
-            exchange.getResponseHeaders().add("Cache-Control", "no-cache, no-store, must-revalidate");
-            byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(500, bytes.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(bytes);
-            }
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("filename", filename);
+            errorData.put("exception", e.getClass().getSimpleName());
+            sendError(exchange, 500, "Internal Server Error", "An error occurred while serving the requested file", errorData);
         }
     }
 }

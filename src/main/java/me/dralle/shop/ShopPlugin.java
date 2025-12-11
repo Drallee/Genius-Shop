@@ -38,6 +38,7 @@ public class ShopPlugin extends JavaPlugin {
     private MetricsWrapper metricsWrapper;
     private me.dralle.shop.util.DiscordWebhook discordWebhook;
     private me.dralle.shop.api.ConfigApiServer apiServer;
+    private UpdateChecker updateChecker;
 
     // Counters for metrics
     public int itemsBought = 0;
@@ -100,9 +101,9 @@ public class ShopPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SellMenu(this), this);
         getServer().getPluginManager().registerEvents(new SpawnerPlaceListener(), this);
 
-        UpdateChecker updater = new UpdateChecker(this, "genius-shop");
-        updater.checkForUpdates();
-        getServer().getPluginManager().registerEvents(updater, this);
+        this.updateChecker = new UpdateChecker(this, "genius-shop");
+        this.updateChecker.checkForUpdates();
+        getServer().getPluginManager().registerEvents(this.updateChecker, this);
 
         // command /shop
         getCommand("shop").setExecutor((sender, cmd, label, args) -> {
@@ -153,28 +154,45 @@ public class ShopPlugin extends JavaPlugin {
                 String token = apiServer.createAutoLoginToken(p);
                 int port = getConfig().getInt("api.port", 8080);
 
-                // Try to detect server IP
-                String serverHost = "localhost";
-                try {
-                    // Get server bind address from server.properties
-                    String serverIp = getServer().getIp();
-                    if (serverIp != null && !serverIp.isEmpty() && !serverIp.equals("0.0.0.0")) {
-                        serverHost = serverIp;
-                    } else {
-                        // Try to get external IP
-                        java.net.InetAddress addr = java.net.InetAddress.getLocalHost();
-                        String hostAddress = addr.getHostAddress();
-                        // Don't use 127.0.0.1
-                        if (!hostAddress.equals("127.0.0.1")) {
-                            serverHost = hostAddress;
+                // Check if custom domain is configured
+                String customDomain = getConfig().getString("api.domain", "");
+                String serverHost;
+
+                if (customDomain != null && !customDomain.trim().isEmpty()) {
+                    // Use custom domain if configured
+                    serverHost = customDomain.trim();
+                } else {
+                    // Try to detect server IP
+                    serverHost = "localhost";
+                    try {
+                        // Get server bind address from server.properties
+                        String serverIp = getServer().getIp();
+                        if (serverIp != null && !serverIp.isEmpty() && !serverIp.equals("0.0.0.0")) {
+                            serverHost = serverIp;
+                        } else {
+                            // Try to get external IP
+                            java.net.InetAddress addr = java.net.InetAddress.getLocalHost();
+                            String hostAddress = addr.getHostAddress();
+                            // Don't use 127.0.0.1
+                            if (!hostAddress.equals("127.0.0.1")) {
+                                serverHost = hostAddress;
+                            }
                         }
+                    } catch (Exception e) {
+                        // Fall back to localhost
+                        getLogger().warning("Could not detect server IP, using localhost");
                     }
-                } catch (Exception e) {
-                    // Fall back to localhost
-                    getLogger().warning("Could not detect server IP, using localhost");
                 }
 
-                String url = "http://" + serverHost + ":" + port + "/?token=" + token;
+                // Build URL - check if domain already includes port
+                String url;
+                if (customDomain != null && !customDomain.trim().isEmpty() && customDomain.contains(":")) {
+                    // Domain already includes port (e.g., "example.com:8080")
+                    url = "http://" + serverHost + "/?token=" + token;
+                } else {
+                    // Add port to the URL
+                    url = "http://" + serverHost + ":" + port + "/?token=" + token;
+                }
 
                 // Send messages
                 sender.sendMessage("§a§l[Shop Editor]");
@@ -205,6 +223,49 @@ public class ShopPlugin extends JavaPlugin {
                 if (!serverHost.equals("localhost")) {
                     sender.sendMessage("§7Server IP: §e" + serverHost);
                 }
+
+                return true;
+            }
+
+            // /shop confirmlogin <token>
+            if (args.length > 0 && args[0].equalsIgnoreCase("confirmlogin")) {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("§cOnly players can use this command.");
+                    return true;
+                }
+
+                if (args.length < 2) {
+                    sender.sendMessage("§cUsage: /shop confirmlogin <token>");
+                    return true;
+                }
+
+                Player player = (Player) sender;
+                String confirmToken = args[1];
+
+                if (apiServer == null) {
+                    sender.sendMessage("§cAPI server is not running.");
+                    return true;
+                }
+
+                me.dralle.shop.api.ConfigApiServer.PendingLoginConfirmation confirmation =
+                        apiServer.getPendingConfirmation(confirmToken);
+
+                if (confirmation == null) {
+                    sender.sendMessage("§cInvalid or expired confirmation token.");
+                    return true;
+                }
+
+                if (!confirmation.username.equalsIgnoreCase(player.getName())) {
+                    sender.sendMessage("§cThis confirmation is not for you.");
+                    return true;
+                }
+
+                // Trust the IP and complete the login
+                apiServer.addTrustedIp(confirmation.username, confirmation.requestIp);
+
+                player.sendMessage("§a§lLogin Confirmed!");
+                player.sendMessage("§7The IP §e" + confirmation.requestIp + " §7has been trusted.");
+                player.sendMessage("§7You can now access the shop editor from this IP.");
 
                 return true;
             }
@@ -418,6 +479,10 @@ public class ShopPlugin extends JavaPlugin {
 
     public me.dralle.shop.util.DiscordWebhook getDiscordWebhook() {
         return discordWebhook;
+    }
+
+    public UpdateChecker getUpdateChecker() {
+        return updateChecker;
     }
 
     /**

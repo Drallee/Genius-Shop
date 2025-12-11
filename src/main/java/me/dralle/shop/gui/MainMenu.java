@@ -91,7 +91,21 @@ public class MainMenu implements Listener {
                 }
                 
                 for (String line : loreRaw) {
-                    String processed = line.replace("%available-times%", availableTimes);
+                    String processed = line
+                            .replace("%available-times%", availableTimes)
+                            .replace("%version%", plugin.getDescription().getVersion());
+
+                    // Handle update-available placeholder
+                    if (processed.contains("%update-available%")) {
+                        if (plugin.getUpdateChecker() != null && plugin.getUpdateChecker().isUpdateAvailable()) {
+                            processed = processed.replace("%update-available%",
+                                    "&4&l⚠ &cNew version available: &e" + plugin.getUpdateChecker().getLatestVersion());
+                        } else {
+                            // Skip this line if no update is available
+                            continue;
+                        }
+                    }
+
                     lore.add(plugin.getMessages().color(processed));
                 }
 
