@@ -2,7 +2,7 @@ gui-name: '&d&lWeekend Market'
 rows: 4
 permission: ''
 available-times:
-  - "FRI-SUN"    # Only Friday, Saturday, Sunday
+  - "SATURDAY-SUNDAY"    # Only Friday, Saturday, Sunday
   - "10:00AM-10:00PM"  # Only between 10 AM and 10 PMs
   # Example date range (will be formatted per config.yml date-format):
   # - "2024-12-20 to 2024-12-26"

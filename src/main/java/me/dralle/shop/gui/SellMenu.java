@@ -109,7 +109,7 @@ public class SellMenu implements Listener {
         List<String> lore = new ArrayList<>();
         if (customLore != null) {
             for (String line : customLore) {
-                lore.add(ItemUtil.color(line));
+                lore.addAll(ItemUtil.splitAndColor(line));
             }
             lore.add("");
         }
@@ -233,7 +233,7 @@ public class SellMenu implements Listener {
         List<String> confirmLore = guiCfg.getStringList("buttons.confirm.lore");
         List<String> confirmLoreColored = new ArrayList<>();
         for (String line : confirmLore) {
-            confirmLoreColored.add(ItemUtil.color(line
+            confirmLoreColored.addAll(ItemUtil.splitAndColor(line
                     .replace("%shop%", shopName)
                     .replace("%page%", String.valueOf(shopPage))));
         }
@@ -244,7 +244,7 @@ public class SellMenu implements Listener {
             List<String> sellAllLore = guiCfg.getStringList("buttons.sell-all.lore");
             List<String> sellAllLoreColored = new ArrayList<>();
             for (String line : sellAllLore) {
-                sellAllLoreColored.add(ItemUtil.color(line
+                sellAllLoreColored.addAll(ItemUtil.splitAndColor(line
                         .replace("%shop%", shopName)
                         .replace("%page%", String.valueOf(shopPage))
                         .replace("%max%", String.valueOf(effectiveMax))));
@@ -256,7 +256,7 @@ public class SellMenu implements Listener {
         List<String> backLore = guiCfg.getStringList("buttons.back.lore");
         List<String> backLoreColored = new ArrayList<>();
         for (String line : backLore) {
-            backLoreColored.add(ItemUtil.color(line
+            backLoreColored.addAll(ItemUtil.splitAndColor(line
                     .replace("%shop%", shopName)
                     .replace("%page%", String.valueOf(shopPage))));
         }
@@ -266,7 +266,7 @@ public class SellMenu implements Listener {
         List<String> cancelLore = guiCfg.getStringList("buttons.cancel.lore");
         List<String> cancelLoreColored = new ArrayList<>();
         for (String line : cancelLore) {
-            cancelLoreColored.add(ItemUtil.color(line
+            cancelLoreColored.addAll(ItemUtil.splitAndColor(line
                     .replace("%shop%", shopName)
                     .replace("%page%", String.valueOf(shopPage))));
         }

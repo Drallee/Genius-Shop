@@ -92,7 +92,7 @@ public class PurchaseMenu implements Listener {
         List<String> lore = new ArrayList<>();
 
         if (customLore != null) {
-            for (String line : customLore) lore.add(ItemUtil.color(line));
+            for (String line : customLore) lore.addAll(ItemUtil.splitAndColor(line));
             lore.add("");
         }
 
@@ -612,31 +612,69 @@ public class PurchaseMenu implements Listener {
                 ItemUtil.applyEnchantments(item, enchantments);
             }
 
-            // Apply unstable TNT NBT if enabled
-            if (unstableTnt && material == Material.TNT) {
-                try {
-                    // Use NBT API to set BlockStateTag with unstable: true
-                    item = org.bukkit.Bukkit.getUnsafe().modifyItemStack(item,
-                        "{BlockStateTag:{unstable:true}}");
-                } catch (Exception e) {
-                    // Fallback: If NBT modification fails, log it
-                    ShopPlugin.getInstance().getLogger().warning("Failed to apply unstable TNT NBT: " + e.getMessage());
-                }
-            }
-
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 if (customName != null) meta.setDisplayName(ItemUtil.color(customName));
                 if (customLore != null && !customLore.isEmpty()) {
                     List<String> coloredLore = new ArrayList<>();
                     for (String line : customLore) {
-                        coloredLore.add(ItemUtil.color(line));
+                        if (line == null) continue;
+                        coloredLore.addAll(ItemUtil.splitAndColor(line));
                     }
                     meta.setLore(coloredLore);
                 }
                 if (hideAttr) meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
                 if (hideAdd) meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
                 item.setItemMeta(meta);
+            }
+
+            // Apply unstable TNT NBT/Components if enabled
+            if (unstableTnt && material == Material.TNT) {
+                try {
+                    // Method 1: Modern BlockData API (Available since 1.13)
+                    // This is the cleanest way and should work on most versions.
+                    ItemMeta currentMeta = item.getItemMeta();
+                    boolean appliedViaApi = false;
+                    
+                    if (currentMeta instanceof BlockStateMeta) {
+                        BlockStateMeta bsm = (BlockStateMeta) currentMeta;
+                        org.bukkit.block.BlockState state = bsm.getBlockState();
+                        try {
+                            org.bukkit.block.data.BlockData data = org.bukkit.Bukkit.createBlockData(Material.TNT);
+                            if (data instanceof org.bukkit.block.data.type.TNT) {
+                                ((org.bukkit.block.data.type.TNT) data).setUnstable(true);
+                                state.setBlockData(data);
+                                bsm.setBlockState(state);
+                                item.setItemMeta(bsm);
+                                appliedViaApi = true;
+                                ShopPlugin.getInstance().getLogger().info("[DEBUG] Applied unstable TNT via BlockData (1.13+ API)");
+                            }
+                        } catch (Throwable ignored) {
+                            // Silently fail and try NBT methods
+                        }
+                    }
+
+                    if (!appliedViaApi) {
+                        // Method 2: Modern Components (1.20.5+)
+                        // Syntax: item[minecraft:block_state={unstable:"true"}]
+                        try {
+                            // We try the modern component syntax first as it's what the user requested
+                            item = org.bukkit.Bukkit.getUnsafe().modifyItemStack(item, "minecraft:tnt[minecraft:block_state={unstable:\"true\"}]");
+                            ShopPlugin.getInstance().getLogger().info("[DEBUG] Applied unstable TNT via Modern Components (1.20.5+)");
+                        } catch (Throwable t1) {
+                            // Method 3: Legacy NBT (Pre-1.20.5)
+                            // Syntax: item{BlockStateTag:{unstable:true}}
+                            try {
+                                item = org.bukkit.Bukkit.getUnsafe().modifyItemStack(item, "minecraft:tnt{BlockStateTag:{unstable:true}}");
+                                ShopPlugin.getInstance().getLogger().info("[DEBUG] Applied unstable TNT via Legacy NBT");
+                            } catch (Throwable t2) {
+                                ShopPlugin.getInstance().getLogger().warning("Failed to apply unstable TNT via any method.");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    ShopPlugin.getInstance().getLogger().warning("Error while applying unstable property: " + e.getMessage());
+                }
             }
 
             // Try to add to inventory

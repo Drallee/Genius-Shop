@@ -82,7 +82,7 @@
                         </goals>
 
                         <configuration>
-                            <outputDirectory>E:/MC Server/plugins</outputDirectory>
+                            <outputDirectory>E:\MC Servers\plugins</outputDirectory>
 
                             <resources>
                                 <resource>
@@ -111,7 +111,7 @@
     <!-- Repositories -->
     <repositories>
 
-        <!-- Papermc -->
+        <!-- Papermc (includes Paper and Folia) -->
         <repository>
             <id>papermc-repo</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
@@ -128,11 +128,11 @@
     <!-- Dependencies -->
     <dependencies>
 
-        <!-- Paper API -->
+        <!-- Paper API (Minecraft 1.20.6+) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.10-R0.1-SNAPSHOT</version>
+            <version>1.20.6-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
 

@@ -26,6 +26,23 @@ public class ItemUtil {
     }
 
     /**
+     * Splits a string by \n and applies colors while inheriting colors from previous lines.
+     */
+    public static List<String> splitAndColor(String text) {
+        List<String> result = new ArrayList<>();
+        if (text == null) return result;
+
+        String[] lines = text.split("\n", -1); // -1 to keep trailing empty strings if any
+        String lastColors = "";
+        for (String line : lines) {
+            String coloredLine = lastColors + color(line);
+            result.add(coloredLine);
+            lastColors = ChatColor.getLastColors(coloredLine);
+        }
+        return result;
+    }
+
+    /**
      * Create an ItemStack with custom name, lore, and optional item flags.
      *
      * Now respects item-level config:
@@ -48,7 +65,8 @@ public class ItemUtil {
         if (lore != null && !lore.isEmpty()) {
             List<String> formatted = new ArrayList<>();
             for (String line : lore) {
-                formatted.add(color(line));
+                if (line == null) continue;
+                formatted.addAll(splitAndColor(line));
             }
             meta.setLore(formatted);
         }

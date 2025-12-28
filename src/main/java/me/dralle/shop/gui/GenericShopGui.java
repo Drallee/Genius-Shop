@@ -110,6 +110,8 @@ public class GenericShopGui implements Listener {
         int end = Math.min(start + usableSlots, allItems.size());
         int slot = 0;
 
+        String availableTimesStr = TimeRestrictionUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
+
         for (int i = start; i < end; i++) {
             ShopItem si = allItems.get(i);
 
@@ -118,12 +120,14 @@ public class GenericShopGui implements Listener {
             // Configurable price display lines
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-price", true) && si.getPrice() > 0) {
                 String buyPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-price-line", "&6Buy Price: &a%price%");
-                lore.add(ItemUtil.color(buyPriceLine.replace("%price%", currency + si.getPrice())));
+                String processed = buyPriceLine.replace("%price%", currency + si.getPrice());
+                lore.addAll(ItemUtil.splitAndColor(processed));
             }
 
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-price", true) && si.getSellPrice() != null && si.getSellPrice() > 0) {
                 String sellPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-price-line", "&cSell Price: &a%sell-price%");
-                lore.add(ItemUtil.color(sellPriceLine.replace("%sell-price%", currency + si.getSellPrice())));
+                String processed = sellPriceLine.replace("%sell-price%", currency + si.getSellPrice());
+                lore.addAll(ItemUtil.splitAndColor(processed));
             }
 
             // Check if item has special properties (spawner, potion, enchantments, or custom lore)
@@ -140,7 +144,8 @@ public class GenericShopGui implements Listener {
             // Add custom item lore from shop config
             if (si.getLore() != null && !si.getLore().isEmpty()) {
                 for (String loreLine : si.getLore()) {
-                    lore.add(ItemUtil.color(loreLine));
+                    String processed = loreLine.replace("%available-times%", availableTimesStr);
+                    lore.addAll(ItemUtil.splitAndColor(processed));
                 }
             }
 
@@ -158,11 +163,23 @@ public class GenericShopGui implements Listener {
             // Configurable hint lines
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-hint", true) && si.getPrice() > 0) {
                 String buyHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-hint-line", "&aLeft-click to buy");
-                lore.add(ItemUtil.color(buyHint.replace("%price%", currency + si.getPrice())));
+                String processed = buyHint.replace("%price%", currency + si.getPrice());
+                lore.addAll(ItemUtil.splitAndColor(processed));
             }
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-hint", true) && si.getSellPrice() != null) {
                 String sellHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-hint-line", "&eRight-click to sell");
-                lore.add(ItemUtil.color(sellHint.replace("%sell-price%", currency + si.getSellPrice())));
+                String processed = sellHint.replace("%sell-price%", currency + si.getSellPrice());
+                lore.addAll(ItemUtil.splitAndColor(processed));
+            }
+
+            // Time restriction display
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.time-restriction.show-on-items", false)) {
+                if (shop.getAvailableTimes() != null && !shop.getAvailableTimes().isEmpty()) {
+                    String format = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.time-restriction.format", "&7Available: &e%available-times%");
+                    String processed = format.replace("%available-times%", availableTimesStr);
+                    lore.add("");
+                    lore.addAll(ItemUtil.splitAndColor(processed));
+                }
             }
 
             ItemStack item = ItemUtil.create(si.getMaterial(), si.getAmount(), si.getName(), lore);

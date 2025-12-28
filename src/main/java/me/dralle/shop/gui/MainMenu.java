@@ -106,7 +106,8 @@ public class MainMenu implements Listener {
                         }
                     }
 
-                    lore.add(plugin.getMessages().color(processed));
+                    // Support multiple lines if \n is present (e.g. from %available-times%)
+                    lore.addAll(ItemUtil.splitAndColor(processed));
                 }
 
                 ItemStack item = ItemUtil.create(mat, 1, name, lore);

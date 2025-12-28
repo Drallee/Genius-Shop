@@ -1,5 +1,6 @@
 package me.dralle.shop;
 
+import me.dralle.shop.util.ItemUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -47,7 +48,7 @@ public class MessageManager {
         for (String line : raw) {
             if (line == null) continue;
             line = line.replace("%prefix%", getRaw("prefix"));
-            out.add(color(line));
+            out.addAll(ItemUtil.splitAndColor(line));
         }
 
         return out;
@@ -77,7 +78,7 @@ public class MessageManager {
             line = line.replace("%amount%", String.valueOf(amount));
             line = line.replace("%prefix%", getRaw("prefix"));
 
-            out.add(color(line));
+            out.addAll(ItemUtil.splitAndColor(line));
         }
 
         return out;

@@ -176,22 +176,7 @@ public class ConfigApiServer {
             server.createContext("/", exchange -> {
                 String path = exchange.getRequestURI().getPath();
 
-                // Handle root path
-                if (path.equals("/") || path.equals("/index.html")) {
-                    serveWebFile(exchange, "index.html");
-                } else if (path.equals("/login.html")) {
-                    serveWebFile(exchange, "login.html");
-                } else if (path.equals("/favicon.ico")) {
-                    serveWebFile(exchange, "favicon.ico");
-                } else if (path.equals("/style.css")) {
-                    serveWebFile(exchange, "style.css");
-                } else if (path.equals("/script.js")) {
-                    serveWebFile(exchange, "script.js");
-                } else if (path.equals("/login-style.css")) {
-                    serveWebFile(exchange, "login-style.css");
-                } else if (path.equals("/login-script.js")) {
-                    serveWebFile(exchange, "login-script.js");
-                } else if (path.startsWith("/api/")) {
+                if (path.startsWith("/api/")) {
                     // Handle API requests
                     exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
                     exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
@@ -204,15 +189,9 @@ public class ConfigApiServer {
 
                     handleRequest(exchange);
                 } else {
-                    // 404 for unknown paths - return detailed JSON error
-                    Map<String, Object> errorResponse = new HashMap<>();
-                    errorResponse.put("error", "Not Found");
-                    errorResponse.put("status", 404);
-                    errorResponse.put("path", path);
-                    errorResponse.put("message", "The requested resource was not found on this server");
-                    errorResponse.put("timestamp", System.currentTimeMillis());
-
-                    sendJsonResponse(exchange, 404, errorResponse);
+                    // Serve static files
+                    String filename = path.equals("/") ? "index.html" : path.substring(1);
+                    serveWebFile(exchange, filename);
                 }
             });
 
@@ -1107,13 +1086,6 @@ public class ConfigApiServer {
                 // Read text content and process
                 String content = new String(resourceStream.readAllBytes(), StandardCharsets.UTF_8);
                 resourceStream.close();
-
-                // Auto-configure API URL - use window.location.origin for correct URL
-                // This works for both localhost and remote access without needing to detect IP
-                String apiUrlReplacement = "window.location.protocol + '//' + window.location.host";
-
-                content = content.replace("const API_URL = 'http://localhost:8080';",
-                                         "const API_URL = " + apiUrlReplacement + ";");
 
                 // Send response with minimal caching for HTML files
                 exchange.getResponseHeaders().add("Content-Type", contentType);

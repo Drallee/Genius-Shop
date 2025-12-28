@@ -36,6 +36,10 @@ public class ShopManager {
             // Load time restrictions (optional)
             // ----------------------------------------------------------
             List<String> availableTimes = shopConfig.getStringList("available-times");
+            List<String> invalidTimes = me.dralle.shop.util.TimeRestrictionUtil.validateRestrictions(availableTimes);
+            for (String invalid : invalidTimes) {
+                plugin.getLogger().warning("Invalid 'available-times' in shop '" + shopKey + "': " + invalid);
+            }
 
             // ----------------------------------------------------------
             // Load shop items

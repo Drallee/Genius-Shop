@@ -1,8 +1,8 @@
 name: Genius-Shop
 main: me.dralle.shop.ShopPlugin
 version: ${project.version}
-api-version: 1.21
-author: you
+api-version: 1.20
+author: Dralle
 description: Data-driven shop with GUI, permissions and Vault
 depend: [Vault]
 commands:
