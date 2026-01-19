@@ -11,28 +11,57 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Drallee/Genius-Shop@main/src/main/resources/web/style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Mobile Menu Backdrop -->
     <div id="mobile-menu-backdrop" class="mobile-menu-backdrop" onclick="toggleMobileMenu()"></div>
 
+    <!-- Mobile Dropdown Menu -->
+    <div id="mobile-menu" class="mobile-menu">
+        <div class="mobile-menu-content">
+            <label class="toggle-switch mobile-toggle">
+                <input type="checkbox" id="auto-save-toggle-mobile" checked>
+                <span class="toggle-label">Auto-save</span>
+            </label>
+            <label class="toggle-switch mobile-toggle">
+                <input type="checkbox" id="animations-toggle-mobile" checked>
+                <span class="toggle-label">Animations</span>
+            </label>
+            <button onclick="openActivityLogModal(); toggleMobileMenu();" class="mobile-menu-item">
+                <span class="btn-icon">📋</span>
+                <span>History</span>
+            </button>
+            <button onclick="reloadCurrentConfig(); toggleMobileMenu();" class="mobile-menu-item">
+                <span class="btn-icon">🔄</span>
+                <span>Reload from Server</span>
+            </button>
+            <button onclick="manualSave(); toggleMobileMenu();" class="mobile-menu-item btn-primary">
+                <span class="btn-icon">💾</span>
+                <span>Save Current Tab</span>
+            </button>
+            <button onclick="publishChanges(); toggleMobileMenu();" class="mobile-menu-item" style="background: linear-gradient(135deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 100, 0.2)); border-color: rgba(0, 230, 118, 0.4);">
+                <span class="btn-icon">🚀</span>
+                <span>Publish All Changes</span>
+            </button>
+            <button onclick="logout();" class="mobile-menu-item btn-danger">
+                <span class="btn-icon">🚪</span>
+                <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
     <div class="container">
         <header>
-            <div class="header-top" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-                <div style="flex: 1;">
-                    <span id="user-info" style="color: #55ff55; font-size: 0.9em; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(85, 255, 85, 0.1); border: 1px solid rgba(85, 255, 85, 0.3); border-radius: 8px;">
-                        <span style="width: 8px; height: 8px; background: #55ff55; border-radius: 50%; box-shadow: 0 0 10px #55ff55; animation: pulse 2s ease-in-out infinite;"></span>
-                    </span>
-                </div>
+            <div class="header-top flex justify-between items-center mb-20">
+                <div id="user-info"></div>
 
                 <!-- Hamburger Menu Button (Mobile Only) -->
-                <button id="mobile-menu-toggle" class="mobile-menu-btn" onclick="toggleMobileMenu()" style="display: none;">
+                <button id="mobile-menu-toggle" class="mobile-menu-btn" onclick="toggleMobileMenu()">
                     <span class="hamburger-icon"></span>
                 </button>
 
-                <!-- Desktop Navigation -->
-                <div id="desktop-nav" class="desktop-navigation" style="display: flex; gap: 12px; align-items: center;">
+                <div id="desktop-nav" class="desktop-navigation flex gap-12 items-center">
                     <label class="toggle-switch">
                         <input type="checkbox" id="auto-save-toggle" checked>
                         <span class="toggle-label">Auto-save</span>
@@ -41,17 +70,21 @@
                         <input type="checkbox" id="animations-toggle" checked>
                         <span class="toggle-label">Animations</span>
                     </label>
-                    <button onclick="openActivityLogModal()" class="header-btn" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.3)); border: 1px solid rgba(255, 215, 0, 0.4);">
+                    <button onclick="openActivityLogModal()" class="header-btn btn-activity">
                         <span class="btn-icon">📋</span>
-                        <span>ACTIVITY</span>
+                        <span>HISTORY</span>
                     </button>
                     <button onclick="reloadCurrentConfig()" class="header-btn btn-secondary">
                         <span class="btn-icon">🔄</span>
-                        <span>SYNC</span>
+                        <span>RELOAD</span>
                     </button>
                     <button onclick="manualSave()" class="header-btn btn-primary">
                         <span class="btn-icon">💾</span>
-                        <span>SAVE</span>
+                        <span>SAVE TAB</span>
+                    </button>
+                    <button onclick="publishChanges()" class="header-btn btn-publish">
+                        <span class="btn-icon">🚀</span>
+                        <span>PUBLISH ALL</span>
                     </button>
                     <button onclick="logout()" class="header-btn btn-danger">
                         <span class="btn-icon">🚪</span>
@@ -60,359 +93,173 @@
                 </div>
             </div>
 
-            <!-- Mobile Dropdown Menu -->
-            <div id="mobile-menu" class="mobile-menu">
-                <div class="mobile-menu-content">
-                    <label class="toggle-switch mobile-toggle">
-                        <input type="checkbox" id="auto-save-toggle-mobile" checked>
-                        <span class="toggle-label">Auto-save</span>
-                    </label>
-                    <label class="toggle-switch mobile-toggle">
-                        <input type="checkbox" id="animations-toggle-mobile" checked>
-                        <span class="toggle-label">Animations</span>
-                    </label>
-                    <button onclick="openActivityLogModal(); toggleMobileMenu();" class="mobile-menu-item">
-                        <span class="btn-icon">📋</span>
-                        <span>Activity Log</span>
-                    </button>
-                    <button onclick="reloadCurrentConfig(); toggleMobileMenu();" class="mobile-menu-item">
-                        <span class="btn-icon">🔄</span>
-                        <span>Sync Changes</span>
-                    </button>
-                    <button onclick="manualSave(); toggleMobileMenu();" class="mobile-menu-item btn-primary">
-                        <span class="btn-icon">💾</span>
-                        <span>Save All</span>
-                    </button>
-                    <button onclick="logout();" class="mobile-menu-item btn-danger">
-                        <span class="btn-icon">🚪</span>
-                        <span>Logout</span>
-                    </button>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin: 30px 0;">
+            <div class="header-hero">
                 <h1>⛏️ GENIUS SHOP EDITOR</h1>
                 <p>Configure your shop with live Minecraft preview</p>
-                <div style="margin-top: 12px; margin-bottom: 8px;">
-                    <span style="color: #ffa500; font-size: 0.9em; font-weight: 600; padding: 6px 12px; background: rgba(255, 165, 0, 0.15); border: 1px solid rgba(255, 165, 0, 0.3); border-radius: 6px; display: inline-block;">
-                        ⚠️ BETA - Some features may be working and some might be missing
-                    </span>
+                <div class="beta-badge">
+                    ⚠️ BETA - Some features may be working and some might be missing
                 </div>
-                <div style="margin-top: 8px;">
-                    <a href="https://github.com/Drallee/Genius-Shop/issues" target="_blank" style="color: #fff; font-size: 0.9em; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(120, 119, 198, 0.6)); border: 1px solid rgba(120, 119, 198, 0.6); border-radius: 8px; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(120, 119, 198, 0.2);" onmouseover="this.style.background='linear-gradient(135deg, rgba(120, 119, 198, 0.6), rgba(120, 119, 198, 0.8))'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(120, 119, 198, 0.4)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(120, 119, 198, 0.6))'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(120, 119, 198, 0.2)';">
+                <div>
+                    <a href="https://github.com/Drallee/Genius-Shop/issues" target="_blank" class="bug-report-link">
                         🐛 Report bugs or missing features
                     </a>
                 </div>
-                <div style="margin-top: 16px;">
-                    <span id="save-status" style="color: #aaa; font-size: 0.95em; padding: 6px 16px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; display: inline-block; min-width: 120px;"></span>
-                </div>
+                <div id="save-status" class="save-status-indicator"></div>
             </div>
         </header>
 
-        <div class="main-content">
-            <!-- Editor Panel -->
-            <div class="editor-panel">
-                <h2 class="panel-title">⚙ SHOP EDITOR</h2>
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('mainmenu')">MAIN MENU</button>
+                <button class="tab" onclick="switchTab('shop')">SHOP</button>
+                <button class="tab" onclick="switchTab('purchase')">PURCHASE</button>
+                <button class="tab" onclick="switchTab('sell')">SELL</button>
+            </div>
+        </div>
 
-                <div class="tabs">
-                    <button class="tab active" onclick="switchTab('mainmenu')">MAIN MENU</button>
-                    <button class="tab" onclick="switchTab('shop')">SHOP</button>
-                    <button class="tab" onclick="switchTab('purchase')">PURCHASE</button>
-                    <button class="tab" onclick="switchTab('sell')">SELL</button>
+        <div class="main-content">
+            <!-- Unified Editor & Preview Panel -->
+            <div class="preview-panel unified-panel">
+                
+                <!-- Live Preview (Shared at top) -->
+                <div class="minecraft-preview-section">
+                    <div class="minecraft-gui" id="preview">
+                        <div class="gui-title" id="preview-title">Loading...</div>
+                        <div class="gui-grid" id="preview-grid"></div>
+                    </div>
+                    
+                    <!-- Page Navigation (Shop only) -->
+                    <div id="page-navigation" class="pagination">
+                        <button onclick="changePage(-1)" class="btn page-btn">
+                            <span style="font-size: 1.1em;">◀</span> PREV
+                        </button>
+                        <span id="page-indicator" class="page-indicator">Page 1/1</span>
+                        <button onclick="changePage(1)" class="btn page-btn">
+                            NEXT <span style="font-size: 1.1em;">▶</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Shop Settings Tab -->
-                <div id="shop-tab" class="tab-content">
-                    <div class="section-header" style="background: linear-gradient(135deg, rgba(120, 119, 198, 0.15), rgba(255, 0, 128, 0.15)); border: 1px solid rgba(120, 119, 198, 0.3); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 1.5em;">📁</span>
-                        <span style="font-weight: 700; font-size: 1.1em; letter-spacing: 0.5px;">SHOP FILE MANAGEMENT</span>
+                <!-- MAIN MENU TAB -->
+                <div id="mainmenu-tab" class="tab-content active">
+                    <div class="content-header flex justify-between items-center mb-30">
+                        <div class="flex items-center gap-12">
+                            <div class="icon-badge primary"><span style="font-size: 1.1em; color: white;">🏠</span></div>
+                            <span class="header-title">MAIN MENU EDITOR</span>
+                            <div id="mainmenu-buttons-count" class="count-badge">0 buttons</div>
+                        </div>
+                        <div class="flex gap-12">
+                            <button class="btn btn-secondary action-btn" onclick="openMainMenuSettings()" style="height: 54px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0 25px;">
+                                <span style="font-size: 1.2em; margin-right: 8px;">⚙️</span>
+                                <span style="font-weight: 700; letter-spacing: 1px;">SETTINGS</span>
+                            </button>
+                            <button class="btn btn-primary action-btn" onclick="addMainMenuShop()" style="height: 54px; padding: 0 25px; border-radius: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border: none; box-shadow: 0 4px 15px rgba(120, 119, 198, 0.3);">
+                                <span style="font-size: 1.2em; margin-right: 8px;">➕</span>
+                                <span style="font-weight: 700; letter-spacing: 0.5px;">ADD BUTTON</span>
+                            </button>
+                        </div>
                     </div>
+                    <div id="mainmenu-shops-container" class="grid-list"></div>
+                </div>
 
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-                            <span style="font-size: 1.1em;">🗂️</span>
-                            <span>Current Shop File</span>
-                        </label>
-                        <div style="display: flex; gap: 10px;">
-                            <select id="shop-selector" onchange="switchShop(this.value)" class="premium-select" style="flex: 1;">
-                                <option value="">Loading shops...</option>
-                            </select>
-                            <button class="btn btn-danger icon-btn" onclick="removeShopFile()" title="Delete Shop File" style="padding: 12px 20px; margin: 0; position: relative; overflow: hidden;">
+                <!-- SHOP TAB -->
+                <div id="shop-tab" class="tab-content">
+                    <div class="shop-file-bar flex items-center gap-20 mb-20 p-20" style="background: rgba(255,255,255,0.02); border-radius: 20px; border: 1px solid var(--border);">
+                        <div class="flex items-center gap-12 flex-1">
+                            <span style="font-size: 1.5em;">📁</span>
+                            <div class="flex-1">
+                                <label class="section-label" style="margin-bottom: 4px; display: block; font-size: 0.7em;">CURRENT SHOP FILE</label>
+                                <select id="shop-selector" onchange="switchShop(this.value)" class="premium-select w-full">
+                                    <option value="">Loading shops...</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-danger icon-btn" onclick="removeShopFile()" title="Delete Shop File" style="margin-top: 18px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
                                 <span style="font-size: 1.2em;">🗑️</span>
                             </button>
                         </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 8px;">
-                        <button class="btn btn-success action-btn" onclick="createNewShop()" style="width: 100%; padding: 16px; font-size: 0.95em; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <span style="font-size: 1.3em;">📄</span>
-                            <span style="letter-spacing: 1px;">CREATE NEW SHOP FILE</span>
+                        <button class="btn btn-success action-btn" onclick="createNewShop()" style="height: 54px; padding: 0 25px; border-radius: 14px; margin-top: 18px;">
+                            <span style="font-size: 1.2em; margin-right: 8px;">📄</span>
+                            <span style="font-weight: 700; letter-spacing: 0.5px;">CREATE NEW SHOP</span>
                         </button>
                     </div>
 
-                    <!-- Divider -->
-                    <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(120, 119, 198, 0.3), transparent); margin: 28px 0;"></div>
-
-                    <!-- Shop Content Actions -->
-                    <div style="margin-bottom: 24px;">
-                        <div style="color: rgba(200, 210, 225, 0.8); font-size: 0.85em; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px;">
-                            <span style="font-size: 1.1em;">✏️</span>
-                            <span>SHOP CONTENT</span>
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div class="icon-badge primary">✏️</div>
+                            <span class="header-title">SHOP CONTENT</span>
+                            <div id="items-count-display" class="count-badge">0 items</div>
                         </div>
-                        <div style="display: flex; gap: 12px;">
-                            <button class="btn btn-primary action-btn" onclick="addItem()" style="flex: 1; padding: 16px; font-size: 0.95em; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <span style="font-size: 1.2em;">➕</span>
-                                <span>ADD ITEM</span>
-                            </button>
-                            <button class="btn action-btn" onclick="openShopSettings()" style="flex: 1; padding: 16px; font-size: 0.95em; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <span style="font-size: 1.2em;">⚙️</span>
-                                <span>SETTINGS</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="info-card" style="background: linear-gradient(135deg, rgba(120, 119, 198, 0.08), rgba(255, 0, 128, 0.08)); border: 1px solid rgba(120, 119, 198, 0.25); border-radius: 14px; padding: 20px; line-height: 1.6; backdrop-filter: blur(10px); margin-top: 20px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; cursor: pointer;" onclick="this.parentElement.querySelector('.info-content').style.display = this.parentElement.querySelector('.info-content').style.display === 'none' ? 'block' : 'none'; this.querySelector('.toggle-icon').textContent = this.querySelector('.toggle-icon').textContent === '▼' ? '▲' : '▼';">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.3em;">🛒</span>
-                                <h3 style="color: rgba(220, 230, 245, 0.95); margin: 0; font-size: 0.95em; font-weight: 700; letter-spacing: 0.5px;">SHOP INFO</h3>
+                        
+                        <div class="flex gap-12 items-center">
+                            <!-- Search Bar -->
+                            <div class="search-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="item-search" placeholder="Search by name or material..." oninput="handleItemSearch()">
                             </div>
-                            <span class="toggle-icon" style="font-size: 0.8em; color: rgba(200, 210, 225, 0.7);">▼</span>
-                        </div>
-                        <div class="info-content" style="display: block;">
-                            <p style="color: rgba(180, 190, 210, 0.85); margin-bottom: 16px; font-size: 0.85em;">
-                                👆 Click items in the <strong>Live Preview</strong> to edit them
-                            </p>
-                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 12px; border: 1px solid rgba(120, 119, 198, 0.15);">
-                                <div style="color: rgba(200, 210, 225, 0.9); font-weight: 600; margin-bottom: 8px; font-size: 0.85em; display: flex; align-items: center; gap: 6px;">
-                                    <span>📊</span> <span>Current Configuration</span>
-                                </div>
-                                <div style="color: rgba(180, 190, 210, 0.8); font-size: 0.85em; display: flex; flex-direction: column; gap: 6px;">
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Title:</span>
-                                        <span id="gui-name-display" style="color: rgba(220, 230, 245, 0.9); font-weight: 600;">Loading...</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Rows:</span>
-                                        <span id="rows-display" style="color: rgba(220, 230, 245, 0.9); font-weight: 600;">3</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Items:</span>
-                                        <span id="items-count-display" style="color: rgba(220, 230, 245, 0.9); font-weight: 600;">0</span>
-                                    </div>
-                                </div>
-                            </div>
+                            
+                            <button class="btn btn-secondary action-btn" onclick="openShopSettings()" style="height: 54px; width: 54px; padding: 0; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;" title="Shop Settings">
+                                <span style="font-size: 1.4em;">⚙️</span>
+                            </button>
+                            <button class="btn btn-primary action-btn" onclick="addItem()" style="height: 54px; padding: 0 25px; border-radius: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border: none; box-shadow: 0 4px 15px rgba(120, 119, 198, 0.3);">
+                                <span style="font-size: 1.2em; margin-right: 8px;">➕</span>
+                                <span style="font-weight: 700; letter-spacing: 0.5px;">ADD ITEM</span>
+                            </button>
                         </div>
                     </div>
-
-                    <!-- Hidden inputs for settings (accessed via modal) -->
-                    <div style="display: none;">
-                        <input type="text" id="gui-name" value="&8Example Shop">
-                        <input type="number" id="rows" min="1" max="5" value="3">
-                        <input type="text" id="permission" placeholder="shop.example">
-                        <textarea id="available-times" placeholder=""></textarea>
-                        <input type="checkbox" id="shop-show-buy-price" checked>
-                        <input type="text" id="shop-buy-price-line" value="&6Buy Price: &a%price%">
-                        <input type="checkbox" id="shop-show-sell-price" checked>
-                        <input type="text" id="shop-sell-price-line" value="&cSell Price: &a%sell-price%">
-                        <input type="checkbox" id="shop-show-buy-hint" checked>
-                        <input type="text" id="shop-buy-hint-line" value="&eLeft-click to buy for %price%">
-                        <input type="checkbox" id="shop-show-sell-hint" checked>
-                        <input type="text" id="shop-sell-hint-line" value="&aRight-click to sell">
-                    </div>
+                    <div id="items-container" class="grid-list"></div>
                 </div>
 
-                <!-- Main Menu Tab -->
-                <div id="mainmenu-tab" class="tab-content active">
-                    <div style="margin-bottom: 24px;">
-                        <div style="color: rgba(200, 210, 225, 0.8); font-size: 0.85em; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px;">
-                            <span style="font-size: 1.1em;">🏠</span>
-                            <span>MENU BUTTONS</span>
-                        </div>
-                        <div style="display: flex; gap: 12px;">
-                            <button class="btn btn-primary action-btn" onclick="addMainMenuShop()" style="flex: 1; padding: 16px; font-size: 0.95em; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <span style="font-size: 1.2em;">➕</span>
-                                <span>ADD BUTTON</span>
-                            </button>
-                            <button class="btn action-btn" onclick="openMainMenuSettings()" style="flex: 1; padding: 16px; font-size: 0.95em; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <span style="font-size: 1.2em;">⚙️</span>
-                                <span>SETTINGS</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="info-card" style="background: linear-gradient(135deg, rgba(120, 119, 198, 0.08), rgba(0, 184, 217, 0.08)); border: 1px solid rgba(0, 184, 217, 0.25); border-radius: 14px; padding: 20px; line-height: 1.6; backdrop-filter: blur(10px); margin-top: 20px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; cursor: pointer;" onclick="this.parentElement.querySelector('.info-content').style.display = this.parentElement.querySelector('.info-content').style.display === 'none' ? 'block' : 'none'; this.querySelector('.toggle-icon').textContent = this.querySelector('.toggle-icon').textContent === '▼' ? '▲' : '▼';">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.3em;">🏠</span>
-                                <h3 style="color: rgba(220, 230, 245, 0.95); margin: 0; font-size: 0.95em; font-weight: 700; letter-spacing: 0.5px;">MAIN MENU INFO</h3>
-                            </div>
-                            <span class="toggle-icon" style="font-size: 0.8em; color: rgba(200, 210, 225, 0.7);">▼</span>
-                        </div>
-                        <div class="info-content" style="display: block;">
-                            <p style="color: rgba(180, 190, 210, 0.85); margin-bottom: 16px; font-size: 0.85em;">
-                                👆 Click buttons in the <strong>Live Preview</strong> to edit them
-                            </p>
-                            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 12px; border: 1px solid rgba(0, 184, 217, 0.15);">
-                                <div style="color: rgba(200, 210, 225, 0.9); font-weight: 600; margin-bottom: 8px; font-size: 0.85em; display: flex; align-items: center; gap: 6px;">
-                                    <span>📊</span> <span>Current Configuration</span>
-                                </div>
-                                <div style="color: rgba(180, 190, 210, 0.8); font-size: 0.85em; display: flex; flex-direction: column; gap: 6px;">
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Title:</span>
-                                        <span id="mainmenu-title-display" style="color: rgba(220, 230, 245, 0.9); font-weight: 600;">Loading...</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Rows:</span>
-                                        <span id="mainmenu-rows-display" style="color: rgba(220, 230, 245, 0.9); font-weight: 600;">3</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span>Buttons:</span>
-                                        <span id="mainmenu-buttons-count" style="color: rgba(220, 230, 245, 0.9); font-weight: 600;">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Hidden inputs -->
-                    <div style="display: none;">
-                        <input type="text" id="mainmenu-title" value="&8Shop Menu">
-                        <input type="number" id="mainmenu-rows" min="1" max="6" value="3">
-                    </div>
-
-                    <div id="mainmenu-shops-list" style="display: none;"></div>
-                </div>
-
-                <!-- Purchase Tab -->
+                <!-- PURCHASE TAB -->
                 <div id="purchase-tab" class="tab-content">
-                    <div style="margin-bottom: 24px;">
-                        <div style="color: rgba(200, 210, 225, 0.8); font-size: 0.85em; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px;">
-                            <span style="font-size: 1.1em;">💰</span>
-                            <span>PURCHASE CONFIGURATION</span>
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div class="icon-badge warning"><span style="font-size: 1.1em; color: white;">💰</span></div>
+                            <span class="header-title">PURCHASE CONFIGURATION</span>
                         </div>
-                        <button class="btn action-btn" onclick="openPurchaseSettings()" style="width: 100%; padding: 16px; font-size: 0.95em; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            <span style="font-size: 1.2em;">⚙️</span>
-                            <span style="letter-spacing: 1px;">MENU SETTINGS</span>
+                        <button class="btn btn-secondary action-btn" onclick="openPurchaseSettings()" style="height: 54px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0 25px;">
+                            <span style="font-size: 1.2em; margin-right: 8px;">⚙️</span>
+                            <span style="font-weight: 700; letter-spacing: 1px;">MENU SETTINGS</span>
                         </button>
                     </div>
-
-                    <div class="info-card" style="background: linear-gradient(135deg, rgba(120, 119, 198, 0.08), rgba(0, 184, 217, 0.08)); border: 1px solid rgba(0, 184, 217, 0.25); border-radius: 14px; padding: 20px; line-height: 1.6; backdrop-filter: blur(10px);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                            <span style="font-size: 1.3em;">💰</span>
-                            <h3 style="color: rgba(220, 230, 245, 0.95); margin: 0; font-size: 0.95em; font-weight: 700; letter-spacing: 0.5px;">PURCHASE MENU</h3>
-                        </div>
-                        <p style="color: rgba(180, 190, 210, 0.85); margin: 0; font-size: 0.85em;">
-                            Click <strong>⚙️ SETTINGS</strong> to configure or click buttons in preview to edit them
-                        </p>
-                    </div>
-
-                    <!-- Hidden inputs -->
-                    <div style="display: none;">
-                        <input type="text" id="purchase-display-material" value="BOOK">
-                        <input type="text" id="purchase-title-prefix" value="&8Buying ">
-                        <input type="number" id="purchase-display-slot" value="22">
-                        <input type="number" id="purchase-max-amount" value="2304">
-                        <input type="checkbox" id="purchase-show-buy-line" checked>
-                        <input type="text" id="purchase-buy-line" value="&7Price: &c$%price%">
-                        <input type="checkbox" id="purchase-show-sell-line" checked>
-                        <input type="text" id="purchase-sell-line" value="&7Sell for: &a$%sell-price%">
-                        <input type="text" id="purchase-lore-amount" value="&eAmount: &7">
-                        <input type="text" id="purchase-lore-total" value="&eTotal: &7">
-                        <input type="text" id="purchase-lore-spawner" value="&7Spawner: &e">
-                    </div>
-
-                    <div id="purchase-buttons-list"></div>
+                    <div id="purchase-buttons-list" class="flex-list"></div>
                 </div>
 
-                <!-- Sell Tab -->
+                <!-- SELL TAB -->
                 <div id="sell-tab" class="tab-content">
-                    <div style="margin-bottom: 24px;">
-                        <div style="color: rgba(200, 210, 225, 0.8); font-size: 0.85em; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px;">
-                            <span style="font-size: 1.1em;">💵</span>
-                            <span>SELL CONFIGURATION</span>
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div class="icon-badge success"><span style="font-size: 1.1em; color: white;">💵</span></div>
+                            <span class="header-title">SELL CONFIGURATION</span>
                         </div>
-                        <button class="btn action-btn" onclick="openSellSettings()" style="width: 100%; padding: 16px; font-size: 0.95em; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            <span style="font-size: 1.2em;">⚙️</span>
-                            <span style="letter-spacing: 1px;">MENU SETTINGS</span>
+                        <button class="btn btn-secondary action-btn" onclick="openSellSettings()" style="height: 54px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0 25px;">
+                            <span style="font-size: 1.2em; margin-right: 8px;">⚙️</span>
+                            <span style="font-weight: 700; letter-spacing: 1px;">MENU SETTINGS</span>
                         </button>
                     </div>
-
-                    <div class="info-card" style="background: linear-gradient(135deg, rgba(120, 119, 198, 0.08), rgba(0, 184, 217, 0.08)); border: 1px solid rgba(0, 184, 217, 0.25); border-radius: 14px; padding: 20px; line-height: 1.6; backdrop-filter: blur(10px);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                            <span style="font-size: 1.3em;">💵</span>
-                            <h3 style="color: rgba(220, 230, 245, 0.95); margin: 0; font-size: 0.95em; font-weight: 700; letter-spacing: 0.5px;">SELL MENU</h3>
-                        </div>
-                        <p style="color: rgba(180, 190, 210, 0.85); margin: 0; font-size: 0.85em;">
-                            Click <strong>⚙️ SETTINGS</strong> to configure or click buttons in preview to edit them
-                        </p>
-                    </div>
-
-                    <!-- Hidden inputs -->
-                    <div style="display: none;">
-                        <input type="text" id="sell-display-material" value="BOOK">
-                        <input type="text" id="sell-title-prefix" value="&8Selling ">
-                        <input type="number" id="sell-display-slot" value="22">
-                        <input type="number" id="sell-max-amount" value="2304">
-                        <input type="checkbox" id="sell-show-buy-line" checked>
-                        <input type="text" id="sell-buy-line" value="&7Price: &c$%price%">
-                        <input type="checkbox" id="sell-show-sell-line" checked>
-                        <input type="text" id="sell-sell-line" value="&7Sell for: &a$%sell-price%">
-                        <input type="text" id="sell-lore-selected-amount" value="&eSelected amount: &7">
-                        <input type="text" id="sell-lore-sell-price" value="&eSell price: &7">
-                        <input type="text" id="sell-lore-you-own" value="&eYou own: &7">
-                        <input type="text" id="sell-lore-spawner" value="&7Spawner: &e">
-                    </div>
-
-                    <div id="sell-buttons-list"></div>
+                    <div id="sell-buttons-list" class="flex-list"></div>
                 </div>
 
-                <!-- Hidden export output for YAML generation -->
+                <!-- Hidden state store -->
                 <div style="display: none;">
                     <pre id="export-output"></pre>
+                    <span id="mainmenu-title-display"></span>
+                    <span id="mainmenu-rows-display"></span>
                 </div>
 
-            </div>
-
-            <!-- Preview Panel -->
-            <div class="preview-panel">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
-                    <h2 class="panel-title" style="background: linear-gradient(135deg, rgba(0, 184, 217, 0.15), rgba(120, 119, 198, 0.15)); border: 1px solid rgba(0, 184, 217, 0.3); border-radius: 12px; padding: 12px 20px; margin: 0; display: inline-flex; align-items: center; gap: 10px; flex: 1;">
-                        <span style="font-size: 1.3em;">👁</span>
-                        <span style="font-weight: 700; letter-spacing: 0.5px;">LIVE PREVIEW</span>
-                    </h2>
-                </div>
-
-                <!-- Page Navigation -->
-                <div id="page-navigation" style="display: none; margin-bottom: 20px; text-align: center; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 10px; border: 1px solid rgba(120, 119, 198, 0.2);">
-                    <button onclick="changePage(-1)" class="btn action-btn" style="padding: 10px 18px; font-size: 0.85em; width: auto; margin: 0 8px; background: linear-gradient(135deg, rgba(120, 119, 198, 0.3), rgba(255, 0, 128, 0.3));">
-                        <span style="font-size: 1.1em;">◀</span> PREV
-                    </button>
-                    <span id="page-indicator" style="font-weight: 700; font-size: 0.9em; color: #fff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); margin: 0 16px; padding: 8px 16px; background: rgba(120, 119, 198, 0.2); border-radius: 8px; display: inline-block;">Page 1/1</span>
-                    <button onclick="changePage(1)" class="btn action-btn" style="padding: 10px 18px; font-size: 0.85em; width: auto; margin: 0 8px; background: linear-gradient(135deg, rgba(120, 119, 198, 0.3), rgba(255, 0, 128, 0.3));">
-                        NEXT <span style="font-size: 1.1em;">▶</span>
-                    </button>
-                </div>
-
-                <div class="minecraft-gui" id="preview" style="position: relative;">
-                    <div class="gui-title" id="preview-title" style="position: relative; z-index: 1;">Loading...</div>
-                    <div class="gui-grid" id="preview-grid"></div>
-                </div>
-
-                <div class="info-box" style="margin-top: 24px; background: linear-gradient(135deg, rgba(120, 119, 198, 0.08), rgba(0, 184, 217, 0.08)); border: 1px solid rgba(120, 119, 198, 0.25); backdrop-filter: blur(10px);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; cursor: pointer;" onclick="this.parentElement.querySelector('ul').style.display = this.parentElement.querySelector('ul').style.display === 'none' ? 'block' : 'none'; this.querySelector('.toggle-icon').textContent = this.querySelector('.toggle-icon').textContent === '▼' ? '▲' : '▼';">
-                        <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                <div class="info-box" style="margin-top: 40px;">
+                    <div class="flex justify-between items-center mb-12 cursor-pointer" onclick="toggleQuickTips()">
+                        <h3 class="flex items-center gap-8 m-0">
                             <span style="font-size: 1.2em;">💡</span>
                             <span style="font-size: 0.9em; font-weight: 700; letter-spacing: 0.5px;">QUICK TIPS</span>
                         </h3>
-                        <span class="toggle-icon" style="font-size: 0.8em; color: rgba(200, 210, 225, 0.7);">▼</span>
+                        <span id="tips-toggle-icon" class="toggle-icon" style="font-size: 0.8em; color: rgba(200, 210, 225, 0.7);">▼</span>
                     </div>
-                    <ul style="display: block;">
-                        <li style="padding: 4px 0;">✨ Click items in preview to edit properties</li>
-                        <li style="padding: 4px 0;">🎨 Real Minecraft textures displayed</li>
-                        <li style="padding: 4px 0;">💾 Auto-save keeps your changes safe</li>
-                        <li style="padding: 4px 0;">🔄 Use SYNC to reload from server</li>
-                        <li style="padding: 4px 0;">📄 Create multiple shop files</li>
+                    <ul id="quick-tips-list" style="display: block;">
+                        <li>✨ Click items in preview to edit properties</li>
+                        <li>🎨 Real Minecraft textures displayed</li>
+                        <li>💾 Auto-save keeps your changes safe</li>
+                        <li>🔄 Use SYNC to reload from server</li>
+                        <li>📄 Create multiple shop files</li>
                     </ul>
                 </div>
             </div>
@@ -420,179 +267,171 @@
     </div>
 
     <!-- Minecraft-style tooltip -->
-    <div class="minecraft-tooltip" id="item-tooltip"></div>
+    <div class="minecraft-tooltip" id="minecraft-tooltip"></div>
 
     <!-- Edit Modal -->
-    <div id="edit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10000; justify-content: center; align-items: center;">
-        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 650px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(102, 126, 234, 0.3); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid rgba(102, 126, 234, 0.2);">
-                <h2 style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.3em; font-weight: 700; color: #fff;" id="modal-title">Edit Item</h2>
-                <button onclick="closeEditModal()" style="background: rgba(255, 107, 107, 0.2); border: 1px solid rgba(255, 107, 107, 0.4); color: #ff6b6b; font-size: 1.3em; cursor: pointer; width: 38px; height: 38px; border-radius: 10px; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255, 107, 107, 0.3)'" onmouseout="this.style.background='rgba(255, 107, 107, 0.2)'">✕</button>
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Edit Item</h2>
+                <button onclick="closeEditModal()" class="modal-close">✕</button>
             </div>
-            <div id="modal-content" style="color: #e8eef5;">
+            <div id="modal-content">
                 <!-- Content will be dynamically inserted here -->
             </div>
-            <div style="display: flex; gap: 12px; margin-top: 30px; justify-content: space-between;">
-                <button id="modal-delete-btn" onclick="deleteFromModal()" class="btn btn-danger" style="padding: 13px 28px; margin: 0; display: none;">🗑️ Delete</button>
-                <div style="display: flex; gap: 12px;">
-                    <button onclick="closeEditModal()" class="btn" style="padding: 13px 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: rgba(200, 210, 225, 0.95); cursor: pointer; font-weight: 600; font-size: 0.95em; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'Inter', sans-serif; box-shadow: none; margin: 0;" onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">Cancel</button>
-                    <button onclick="saveEditModal()" class="btn btn-success" style="padding: 13px 32px; margin: 0;">Save</button>
+            <div class="modal-footer">
+                <button id="modal-delete-btn" onclick="deleteFromModal()" class="btn-base btn-danger" style="display: none;">🗑️ Delete</button>
+                <div class="flex gap-12">
+                    <button onclick="closeEditModal()" class="btn-base btn-secondary">Cancel</button>
+                    <button onclick="saveEditModal()" class="btn-base btn-success">Save</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Activity Log Modal -->
-    <div id="activity-log-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10000; justify-content: center; align-items: center;">
-        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 1000px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(255, 215, 0, 0.3); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 215, 0, 0.2);">
-                <h2 style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.3em; font-weight: 700; color: #fff;">
-                    <span style="font-size: 0.9em; margin-right: 8px;">📋</span>
-                    <span>ACTIVITY LOG</span>
-                </h2>
-                <button onclick="closeActivityLogModal()" style="background: rgba(255, 107, 107, 0.2); border: 1px solid rgba(255, 107, 107, 0.4); color: #ff6b6b; font-size: 1.3em; cursor: pointer; width: 38px; height: 38px; border-radius: 10px; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255, 107, 107, 0.3)'" onmouseout="this.style.background='rgba(255, 107, 107, 0.2)'">✕</button>
+    <div id="activity-log-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2 class="modal-title">📋 HISTORY LOG</h2>
+                <button onclick="closeActivityLogModal()" class="modal-close">✕</button>
             </div>
 
-            <div style="margin-bottom: 20px; display: flex; gap: 12px;">
-                <button class="btn action-btn" onclick="refreshActivityLog()" style="flex: 1; padding: 14px; font-size: 0.9em; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0;">
-                    <span style="font-size: 1.2em;">🔄</span>
-                    <span>REFRESH</span>
+            <div class="flex gap-12 mb-20">
+                <button class="btn-base btn-primary flex-1" onclick="refreshActivityLog()">
+                    <span>🔄 REFRESH</span>
                 </button>
-                <button class="btn action-btn" onclick="clearActivityLog()" style="flex: 1; padding: 14px; font-size: 0.9em; background: linear-gradient(135deg, rgba(255, 107, 107, 0.3), rgba(255, 0, 128, 0.3)); display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0;">
-                    <span style="font-size: 1.2em;">🗑️</span>
-                    <span>CLEAR ALL</span>
+                <button class="btn-base btn-danger flex-1" onclick="clearActivityLog()">
+                    <span>🗑️ CLEAR ALL</span>
                 </button>
             </div>
 
-            <div class="info-card" style="background: linear-gradient(135deg, rgba(120, 119, 198, 0.08), rgba(255, 215, 0, 0.08)); border: 1px solid rgba(255, 215, 0, 0.25); border-radius: 14px; padding: 20px; line-height: 1.6; backdrop-filter: blur(10px); margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                    <span style="font-size: 1.3em;">ℹ️</span>
-                    <h3 style="color: rgba(220, 230, 245, 0.95); margin: 0; font-size: 0.95em; font-weight: 700; letter-spacing: 0.5px;">ABOUT ACTIVITY LOG</h3>
+            <div class="info-box mb-20">
+                <div class="flex items-center gap-8 mb-8">
+                    <span>ℹ️</span>
+                    <h3 class="m-0">ABOUT HISTORY LOG</h3>
                 </div>
-                <p style="color: rgba(180, 190, 210, 0.85); margin: 0; font-size: 0.85em;">
+                <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
                     Track all changes made by users. Click any entry to view detailed before/after comparison.
                 </p>
             </div>
 
-            <div id="activity-log-container" style="display: flex; flex-direction: column; gap: 12px; max-height: 500px; overflow-y: auto; padding-right: 8px;">
+            <div id="activity-log-container" class="scroll-y" style="max-height: 500px; display: flex; flex-direction: column; gap: 0.75rem;">
                 <!-- Activity entries will be inserted here -->
             </div>
 
-            <div id="activity-log-empty" style="text-align: center; padding: 60px 20px; color: rgba(180, 190, 210, 0.6);">
-                <div style="font-size: 3em; margin-bottom: 16px; opacity: 0.5;">📋</div>
-                <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 8px;">No Activity Yet</div>
-                <div style="font-size: 0.9em;">Changes will appear here when users edit the shop</div>
+            <div id="activity-log-empty" class="text-center" style="padding: 4rem 0;">
+                <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">📋</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-muted);">No Activity Yet</div>
             </div>
         </div>
     </div>
 
     <!-- Universal Alert Modal -->
-    <div id="alert-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10003; justify-content: center; align-items: center;">
-        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 500px; width: 90%; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(120, 119, 198, 0.3); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 id="alert-modal-title" style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.2em; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px;">
-                    <span id="alert-modal-icon" style="font-size: 1.3em;">ℹ️</span>
+    <div id="alert-modal" class="modal-overlay" style="z-index: 10003;">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="alert-modal-title" class="modal-title flex items-center gap-12">
+                    <span id="alert-modal-icon">ℹ️</span>
                     <span id="alert-modal-title-text">Message</span>
                 </h2>
             </div>
-            <div id="alert-modal-content" style="color: rgba(220, 230, 245, 0.9); font-size: 0.95em; line-height: 1.6; margin-bottom: 24px; white-space: pre-wrap;">
+            <div id="alert-modal-content" class="mb-24" style="line-height: 1.6; white-space: pre-wrap;">
                 <!-- Content will be dynamically inserted here -->
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closeAlertModal()" class="btn action-btn" style="padding: 13px 28px; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); border: 1px solid rgba(120, 119, 198, 0.4); margin: 0;">OK</button>
+            <div class="modal-footer">
+                <button onclick="closeAlertModal()" class="btn-base btn-primary">OK</button>
             </div>
         </div>
     </div>
 
     <!-- Universal Confirm Modal -->
-    <div id="confirm-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10003; justify-content: center; align-items: center;">
-        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 500px; width: 90%; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(255, 215, 0, 0.3); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 id="confirm-modal-title" style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.2em; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 1.3em;">⚠️</span>
+    <div id="confirm-modal" class="modal-overlay" style="z-index: 10003;">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title flex items-center gap-12">
+                    <span>⚠️</span>
                     <span>Confirm Action</span>
                 </h2>
             </div>
-            <div id="confirm-modal-content" style="color: rgba(220, 230, 245, 0.9); font-size: 0.95em; line-height: 1.6; margin-bottom: 24px; white-space: pre-wrap;">
+            <div id="confirm-modal-content" class="mb-24" style="line-height: 1.6; white-space: pre-wrap;">
                 <!-- Content will be dynamically inserted here -->
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closeConfirmModal(false)" class="btn action-btn" style="padding: 13px 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); margin: 0;">Cancel</button>
-                <button onclick="closeConfirmModal(true)" class="btn action-btn" style="padding: 13px 28px; background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.3)); border: 1px solid rgba(255, 215, 0, 0.4); margin: 0;">Confirm</button>
+            <div class="modal-footer">
+                <button onclick="closeConfirmModal(false)" class="btn-base btn-secondary">Cancel</button>
+                <button onclick="closeConfirmModal(true)" class="btn-base btn-warning">Confirm</button>
             </div>
         </div>
     </div>
 
     <!-- Prompt Modal -->
-    <div id="prompt-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10003; justify-content: center; align-items: center;">
-        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 500px; width: 90%; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(120, 119, 198, 0.3); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 id="prompt-modal-title" style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.2em; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px;">
-                    <span id="prompt-modal-icon" style="font-size: 1.3em;">✏️</span>
+    <div id="prompt-modal" class="modal-overlay" style="z-index: 10003;">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="prompt-modal-title" class="modal-title flex items-center gap-12">
+                    <span id="prompt-modal-icon">✏️</span>
                     <span id="prompt-modal-title-text">Enter Value</span>
                 </h2>
             </div>
-            <div id="prompt-modal-content" style="color: rgba(220, 230, 245, 0.9); font-size: 0.95em; line-height: 1.6; margin-bottom: 16px;">
+            <div id="prompt-modal-content" class="mb-16">
                 <!-- Content will be dynamically inserted here -->
             </div>
-            <div style="margin-bottom: 24px;">
-                <input type="text" id="prompt-modal-input" style="width: 100%; padding: 15px 20px; border: 1px solid rgba(120, 119, 198, 0.2); background: rgba(15, 15, 25, 0.6); color: #f0f0f5; font-size: 0.95em; border-radius: 12px; font-family: 'Consolas', 'Monaco', monospace; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03);" placeholder="Enter value...">
+            <div class="mb-24">
+                <input type="text" id="prompt-modal-input" class="input-base" placeholder="Enter value...">
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closePromptModal(null)" class="btn action-btn" style="padding: 13px 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); margin: 0;">Cancel</button>
-                <button onclick="submitPromptModal()" class="btn action-btn" style="padding: 13px 28px; background: linear-gradient(135deg, rgba(120, 119, 198, 0.4), rgba(0, 184, 217, 0.4)); border: 1px solid rgba(120, 119, 198, 0.4); margin: 0;">OK</button>
+            <div class="modal-footer">
+                <button onclick="closePromptModal(null)" class="btn-base btn-secondary">Cancel</button>
+                <button onclick="submitPromptModal()" class="btn-base btn-primary">OK</button>
             </div>
         </div>
     </div>
 
     <!-- Save Confirmation Modal -->
-    <div id="save-confirmation-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10002; justify-content: center; align-items: center;">
-        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 650px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(255, 215, 0, 0.3); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 215, 0, 0.2);">
-                <h2 style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.3em; font-weight: 700; color: #fff;">
-                    <span style="font-size: 0.9em; margin-right: 8px;">💾</span>
+    <div id="save-confirmation-modal" class="modal-overlay" style="z-index: 10002;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 class="modal-title flex items-center gap-12">
+                    <span>💾</span>
                     <span>Confirm Save</span>
                 </h2>
-                <button onclick="closeSaveConfirmationModal()" style="background: rgba(255, 107, 107, 0.2); border: 1px solid rgba(255, 107, 107, 0.4); color: #ff6b6b; font-size: 1.3em; cursor: pointer; width: 38px; height: 38px; border-radius: 10px; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255, 107, 107, 0.3)'" onmouseout="this.style.background='rgba(255, 107, 107, 0.2)'">✕</button>
+                <button onclick="closeSaveConfirmationModal()" class="modal-close">✕</button>
             </div>
 
-            <div id="save-confirmation-content" style="color: #e8eef5;">
+            <div id="save-confirmation-content">
                 <!-- Content will be dynamically inserted here -->
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 30px;">
-                <button onclick="closeSaveConfirmationModal()" class="btn action-btn" style="padding: 13px 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); margin: 0;">Cancel</button>
-                <button onclick="confirmSave()" class="btn action-btn" style="padding: 13px 28px; background: linear-gradient(135deg, rgba(0, 230, 118, 0.3), rgba(0, 200, 100, 0.3)); border: 1px solid rgba(0, 230, 118, 0.4); margin: 0;">
-                    <span style="font-size: 1.1em; margin-right: 6px;">💾</span>
-                    <span>SAVE</span>
+            <div class="modal-footer">
+                <button onclick="closeSaveConfirmationModal()" class="btn-base btn-secondary">Cancel</button>
+                <button onclick="confirmSave()" class="btn-base btn-success">
+                    <span>💾 SAVE CURRENT TAB</span>
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Activity Detail Modal -->
-    <div id="activity-detail-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 10001; justify-content: center; align-items: center;">
-        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%), rgba(15, 17, 25, 0.95); border-radius: 20px; padding: 35px; max-width: 900px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid rgba(102, 126, 234, 0.3); backdrop-filter: blur(20px);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid rgba(102, 126, 234, 0.2);">
-                <h2 style="margin: 0; font-family: 'Inter', sans-serif; font-size: 1.3em; font-weight: 700; color: #fff;">
-                    <span style="font-size: 0.9em; margin-right: 8px;">📋</span>
+    <div id="activity-detail-modal" class="modal-overlay" style="z-index: 10001;">
+        <div class="modal-box" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title flex items-center gap-12">
+                    <span>📋</span>
                     <span id="activity-detail-title">Change Details</span>
                 </h2>
-                <button onclick="closeActivityDetailModal()" style="background: rgba(255, 107, 107, 0.2); border: 1px solid rgba(255, 107, 107, 0.4); color: #ff6b6b; font-size: 1.3em; cursor: pointer; width: 38px; height: 38px; border-radius: 10px; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255, 107, 107, 0.3)'" onmouseout="this.style.background='rgba(255, 107, 107, 0.2)'">✕</button>
+                <button onclick="closeActivityDetailModal()" class="modal-close">✕</button>
             </div>
-            <div id="activity-detail-content" style="color: #e8eef5;">
+            <div id="activity-detail-content">
                 <!-- Diff content will be dynamically inserted here -->
             </div>
-            <div style="display: flex; justify-content: space-between; gap: 12px; margin-top: 30px;">
-                <button id="rollback-btn" onclick="rollbackChange()" class="btn action-btn" style="padding: 13px 28px; background: linear-gradient(135deg, rgba(255, 165, 0, 0.3), rgba(255, 69, 0, 0.3)); border: 1px solid rgba(255, 165, 0, 0.4); margin: 0; display: none;">
-                    <span style="font-size: 1.1em; margin-right: 6px;">⏮️</span>
-                    <span>ROLLBACK</span>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button id="rollback-btn" onclick="rollbackChange()" class="btn-base btn-warning" style="display: none;">
+                    <span>⏮️ ROLLBACK</span>
                 </button>
-                <button onclick="closeActivityDetailModal()" class="btn action-btn" style="padding: 13px 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); margin: 0;">Close</button>
+                <button onclick="closeActivityDetailModal()" class="btn-base btn-secondary">Close</button>
             </div>
         </div>
     </div>
-    <footer style="margin-top: 60px; padding: 30px 0 25px 0; text-align: center; border-top: 1px solid rgba(120, 119, 198, 0.15); position: relative; z-index: 10;">
+    <footer style="margin-top: 40px; padding: 30px 0 25px 0; text-align: center; border-top: 1px solid rgba(120, 119, 198, 0.15); position: relative; z-index: 10;">
         <div style="max-width: 600px; margin: 0 auto;">
             <div style="font-size: 0.85em; color: rgba(150, 160, 180, 0.6); line-height: 1.8;">
                 <p style="margin: 0 0 12px 0;">A powerful configuration editor for Minecraft shop plugins with live preview</p>
@@ -614,6 +453,14 @@
             </div>
         </div>
     </footer>
-    <script src="https://cdn.jsdelivr.net/gh/Drallee/Genius-Shop@main/src/main/resources/web/script.js"></script>
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="js/core.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/modals.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/events.js"></script>
 </body>
 </html>

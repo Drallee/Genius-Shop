@@ -89,7 +89,6 @@ public class MessageManager {
     // ===================================================
 
     public String color(String text) {
-        if (text == null) return "";
-        return ChatColor.translateAlternateColorCodes('&', text);
+        return ItemUtil.color(text);
     }
 }

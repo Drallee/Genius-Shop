@@ -33,6 +33,15 @@ public class ShopItem {
     // NEW: unstable TNT flag
     private final boolean unstableTnt;
 
+    // NEW: player limit
+    private final int limit;
+
+    // NEW: dynamic pricing
+    private final boolean dynamicPricing;
+    private final double minPrice;
+    private final double maxPrice;
+    private final double priceChange;
+
     public ShopItem(
             Material material,
             double price,
@@ -48,7 +57,12 @@ public class ShopItem {
             boolean hideAdditional,
             boolean requireName,
             boolean requireLore,
-            boolean unstableTnt
+            boolean unstableTnt,
+            int limit,
+            boolean dynamicPricing,
+            double minPrice,
+            double maxPrice,
+            double priceChange
     ) {
         this.material = material;
         this.price = price;
@@ -65,6 +79,11 @@ public class ShopItem {
         this.requireName = requireName;
         this.requireLore = requireLore;
         this.unstableTnt = unstableTnt;
+        this.limit = limit;
+        this.dynamicPricing = dynamicPricing;
+        this.minPrice = minPrice;
+        this.maxPrice = maxPrice;
+        this.priceChange = priceChange;
     }
 
     public Material getMaterial() {
@@ -140,5 +159,33 @@ public class ShopItem {
 
     public boolean isUnstableTnt() {
         return unstableTnt;
+    }
+
+    public int getLimit() {
+        return limit;
+    }
+
+    public boolean isDynamicPricing() {
+        return dynamicPricing;
+    }
+
+    public double getMinPrice() {
+        return minPrice;
+    }
+
+    public double getMaxPrice() {
+        return maxPrice;
+    }
+
+    public double getPriceChange() {
+        return priceChange;
+    }
+
+    public String getUniqueKey() {
+        StringBuilder sb = new StringBuilder(material.name());
+        if (spawnerType != null) sb.append("_").append(spawnerType);
+        if (potionType != null) sb.append("_").append(potionType).append("_").append(potionLevel);
+        if (name != null) sb.append("_").append(name.hashCode());
+        return sb.toString();
     }
 }

@@ -1,6 +1,11 @@
 package me.dralle.shop.api;
 
 import me.dralle.shop.ShopPlugin;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.bukkit.Bukkit;
@@ -24,6 +29,7 @@ public class ConfigApiServer {
     private HttpServer server;
     private final int port;
     private final String apiKey;
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final Map<String, SessionData> sessions = new ConcurrentHashMap<>();
     private final Map<String, AutoLoginToken> autoLoginTokens = new ConcurrentHashMap<>();
     private final Map<String, PendingLoginConfirmation> pendingConfirmations = new ConcurrentHashMap<>();
@@ -180,7 +186,7 @@ public class ConfigApiServer {
                     // Handle API requests
                     exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
                     exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token, Cache-Control, Pragma");
 
                     if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
                         exchange.sendResponseHeaders(204, -1);
@@ -659,19 +665,22 @@ public class ConfigApiServer {
 
         // List shop files
         File shopsDir = new File(plugin.getDataFolder(), "shops");
-        plugin.getLogger().info("[API] shops directory: " + shopsDir.getAbsolutePath() + " (exists: " + shopsDir.exists() + ")");
         if (shopsDir.exists() && shopsDir.isDirectory()) {
             File[] shopFiles = shopsDir.listFiles((dir, name) -> name.endsWith(".yml"));
             if (shopFiles != null) {
-                plugin.getLogger().info("[API] Found " + shopFiles.length + " shop files");
                 Map<String, String> shops = new HashMap<>();
                 for (File file : shopFiles) {
-                    String content = Files.readString(file.toPath());
-                    shops.put(file.getName(), content);
-                    plugin.getLogger().info("[API] Loaded shop: " + file.getName() + " (" + content.length() + " chars)");
+                    try {
+                        String content = Files.readString(file.toPath());
+                        shops.put(file.getName(), content);
+                    } catch (IOException e) {
+                        plugin.getLogger().warning("Failed to read shop file: " + file.getName());
+                    }
                 }
                 response.put("shops", shops);
             }
+        } else {
+            response.put("shops", new HashMap<>());
         }
 
         // Get menu files from menus/ folder
@@ -906,8 +915,9 @@ public class ConfigApiServer {
             }
         }
 
-        // Handle main config files (gui.yml kept for legacy but not editable via API)
-        if (fileName.equals("discord.yml") || fileName.equals("config.yml")) {
+        // Handle main config files
+        if (fileName.equals("discord.yml") || fileName.equals("config.yml") || 
+            fileName.equals("messages.yml") || fileName.equals("gui.yml")) {
             return new File(plugin.getDataFolder(), fileName);
         }
 
@@ -915,76 +925,18 @@ public class ConfigApiServer {
     }
 
     private String extractJsonField(String json, String field) {
-        // Simple JSON parser for content field
-        String searchFor = "\"" + field + "\":";
-        int start = json.indexOf(searchFor);
-        if (start == -1) return null;
-        
-        start += searchFor.length();
-        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
-        
-        if (start >= json.length() || json.charAt(start) != '"') return null;
-        start++; // Skip opening quote
-        
-        StringBuilder result = new StringBuilder();
-        boolean escaped = false;
-        for (int i = start; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (escaped) {
-                if (c == 'n') result.append('\n');
-                else if (c == 't') result.append('\t');
-                else if (c == 'r') result.append('\r');
-                else if (c == '"') result.append('"');
-                else if (c == '\\') result.append('\\');
-                else result.append(c);
-                escaped = false;
-            } else if (c == '\\') {
-                escaped = true;
-            } else if (c == '"') {
-                return result.toString();
-            } else {
-                result.append(c);
+        try {
+            JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
+            if (jsonObject.has(field)) {
+                return jsonObject.get(field).getAsString();
             }
-        }
+        } catch (Exception ignored) {}
         return null;
     }
 
-    private void sendJsonResponse(HttpExchange exchange, int statusCode, Map<String, ?> data) throws IOException {
-        StringBuilder json = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, ?> entry : data.entrySet()) {
-            if (!first) json.append(",");
-            first = false;
-            json.append("\"").append(entry.getKey()).append("\":");
-            if (entry.getValue() instanceof Map) {
-                json.append(mapToJson((Map<?, ?>) entry.getValue()));
-            } else {
-                json.append("\"").append(escapeJson(String.valueOf(entry.getValue()))).append("\"");
-            }
-        }
-        json.append("}");
-        sendResponse(exchange, statusCode, json.toString());
-    }
-
-    private String mapToJson(Map<?, ?> map) {
-        StringBuilder json = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<?, ?> entry : map.entrySet()) {
-            if (!first) json.append(",");
-            first = false;
-            json.append("\"").append(entry.getKey()).append("\":\"");
-            json.append(escapeJson(String.valueOf(entry.getValue()))).append("\"");
-        }
-        json.append("}");
-        return json.toString();
-    }
-
-    private String escapeJson(String str) {
-        return str.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+    private void sendJsonResponse(HttpExchange exchange, int statusCode, Object data) throws IOException {
+        String json = GSON.toJson(data);
+        sendResponse(exchange, statusCode, json);
     }
 
     private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
@@ -1037,6 +989,10 @@ public class ConfigApiServer {
     }
 
     private void serveWebFile(HttpExchange exchange, String filename) throws IOException {
+        if (filename.contains("..") || filename.contains("//") || filename.startsWith("/") || filename.startsWith("\\")) {
+            sendError(exchange, 400, "Invalid Path", "The requested path contains illegal characters");
+            return;
+        }
         try {
             // Try to load from plugin resources
             InputStream resourceStream = plugin.getResource("web/" + filename);

@@ -1,6 +1,4 @@
-        // API Configuration - dynamically determine based on how page was accessed
-        const API_URL = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '8080'}`;
-
+(function() {
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -14,7 +12,7 @@
             loginBtn.textContent = 'Logging in...';
 
             try {
-                const response = await fetch(`${API_URL}/api/login`, {
+                const response = await fetch(`api/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -73,7 +71,7 @@
                             }
 
                             try {
-                                const retryResponse = await fetch(`${API_URL}/api/login`, {
+                                const retryResponse = await fetch(`api/login`, {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json'
@@ -132,3 +130,4 @@
         if (localStorage.getItem('sessionToken')) {
             window.location.href = 'index.html';
         }
+})();

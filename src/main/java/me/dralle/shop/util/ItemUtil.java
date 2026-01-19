@@ -14,14 +14,27 @@ import org.bukkit.potion.PotionType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ItemUtil {
 
+    private static final Pattern HEX_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
+
     /**
-     * Apply color codes (& → §)
+     * Apply color codes (& → §) and HEX support (&#RRGGBB → §x§R§R§G§G§B§B)
      */
     public static String color(String text) {
         if (text == null) return "";
+
+        Matcher matcher = HEX_PATTERN.matcher(text);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(buffer, net.md_5.bungee.api.ChatColor.of("#" + matcher.group(1)).toString());
+        }
+        matcher.appendTail(buffer);
+        text = buffer.toString();
+
         return ChatColor.translateAlternateColorCodes('&', text);
     }
 

@@ -1,5 +1,6 @@
 package me.dralle.shop;
 
+import me.dralle.shop.data.DataManager;
 import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.gui.GenericShopGui;
 import me.dralle.shop.gui.MainMenu;
@@ -32,6 +33,7 @@ public class ShopPlugin extends JavaPlugin {
     private MenuManager menuManager;  // New menu system
     private MessageManager messages;
     private ShopFileManager shopFileManager;
+    private DataManager dataManager;
     private ShopManager shopManager;
     private GenericShopGui genericShopGui;
     private EconomyHook economy;
@@ -88,6 +90,7 @@ public class ShopPlugin extends JavaPlugin {
 
         // managers
         this.messages = new MessageManager(this);
+        this.dataManager = new DataManager(this);
         this.shopFileManager = new ShopFileManager(this); // Initialize before ShopManager
         this.shopManager = new ShopManager(this);
         this.economy = new EconomyHook(this);
@@ -459,6 +462,10 @@ public class ShopPlugin extends JavaPlugin {
 
     public MessageManager getMessages() {
         return messages;
+    }
+
+    public DataManager getDataManager() {
+        return dataManager;
     }
 
     public ShopFileManager getShopFileManager() {

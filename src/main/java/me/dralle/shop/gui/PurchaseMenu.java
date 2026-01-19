@@ -35,9 +35,10 @@ public class PurchaseMenu implements Listener {
      * OPEN FROM SHOP ITEM
      * ============================================================ */
     public static void open(Player player, ShopItem item, String shopKey, int shopPage) {
+        double currentPrice = calculatePrice(item);
         open(player,
                 item.getMaterial(),
-                item.getPrice(),
+                currentPrice,
                 item.getAmount(),
                 item.getSpawnerType(),
                 item.getPotionType(),
@@ -51,8 +52,26 @@ public class PurchaseMenu implements Listener {
                 item.requiresLore(),
                 item.isUnstableTnt(),
                 shopKey,
-                shopPage
+                shopPage,
+                item.getUniqueKey(),
+                item.getLimit(),
+                item.isDynamicPricing(),
+                item.getMinPrice(),
+                item.getMaxPrice(),
+                item.getPriceChange()
         );
+    }
+
+    private static double calculatePrice(ShopItem item) {
+        if (!item.isDynamicPricing()) return item.getPrice();
+
+        int globalCount = ShopPlugin.getInstance().getDataManager().getGlobalCount(item.getUniqueKey());
+        double currentPrice = item.getPrice() + (globalCount * item.getPriceChange());
+
+        if (item.getMinPrice() > 0 && currentPrice < item.getMinPrice()) currentPrice = item.getMinPrice();
+        if (item.getMaxPrice() > 0 && currentPrice > item.getMaxPrice()) currentPrice = item.getMaxPrice();
+
+        return currentPrice;
     }
 
     /* ============================================================
@@ -74,7 +93,13 @@ public class PurchaseMenu implements Listener {
                             boolean requireLore,
                             boolean unstableTnt,
                             String shopKey,
-                            int shopPage) {
+                            int shopPage,
+                            String itemKey,
+                            int limit,
+                            boolean dynamicPricing,
+                            double minPrice,
+                            double maxPrice,
+                            double priceChange) {
 
         ShopPlugin plugin = ShopPlugin.getInstance();
         String currency = plugin.getCurrencySymbol();
@@ -107,6 +132,12 @@ public class PurchaseMenu implements Listener {
         if (potionType != null) {
             lore.add(ItemUtil.color("&7Potion: &d" + potionType));
         }
+
+        if (limit > 0 && itemKey != null) {
+            int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
+            lore.add(ItemUtil.color("&eLimit: &7" + current + "/" + limit));
+        }
+
         lore.add("");
 
         // Display item with a proper count (max 64 for display, actual amount shown in lore)
@@ -281,6 +312,14 @@ public class PurchaseMenu implements Listener {
         player.setMetadata("buy.requireLore", new FixedMetadataValue(plugin, requireLore));
         player.setMetadata("buy.unstableTnt", new FixedMetadataValue(plugin, unstableTnt));
 
+        // New fields
+        if (itemKey != null) player.setMetadata("buy.itemKey", new FixedMetadataValue(plugin, itemKey));
+        player.setMetadata("buy.limit", new FixedMetadataValue(plugin, limit));
+        player.setMetadata("buy.dynamicPricing", new FixedMetadataValue(plugin, dynamicPricing));
+        player.setMetadata("buy.minPrice", new FixedMetadataValue(plugin, minPrice));
+        player.setMetadata("buy.maxPrice", new FixedMetadataValue(plugin, maxPrice));
+        player.setMetadata("buy.priceChange", new FixedMetadataValue(plugin, priceChange));
+
         if (customLore != null && !customLore.isEmpty()) {
             player.setMetadata("buy.customLore",
                     new FixedMetadataValue(plugin, String.join("\n", customLore)));
@@ -318,8 +357,8 @@ public class PurchaseMenu implements Listener {
 
         // Load metadata
         String matName = meta(player, "buy.material", "DIRT");
-        double price = metaDouble(player);
-        int amount = metaInt(player);
+        double price = metaDouble(player, "buy.price", 0);
+        int amount = metaInt(player, "buy.amount", 1);
         String spawnerType = meta(player, "buy.spawnerType", null);
         String potionType = meta(player, "buy.potionType", null);
         int potionLevel = player.hasMetadata("buy.potionLevel") ? player.getMetadata("buy.potionLevel").get(0).asInt() : 0;
@@ -329,6 +368,14 @@ public class PurchaseMenu implements Listener {
         boolean requireName = metaBool(player, "buy.requireName");
         boolean requireLore = metaBool(player, "buy.requireLore");
         boolean unstableTnt = metaBool(player, "buy.unstableTnt");
+
+        // New fields
+        String itemKey = meta(player, "buy.itemKey", null);
+        int limit = metaInt(player, "buy.limit", 0);
+        boolean dynamicPricing = metaBool(player, "buy.dynamicPricing");
+        double minPrice = metaDouble(player, "buy.minPrice", 0);
+        double maxPrice = metaDouble(player, "buy.maxPrice", 0);
+        double priceChange = metaDouble(player, "buy.priceChange", 0);
 
         // Restore lore if present
         List<String> customLore = null;
@@ -391,7 +438,7 @@ public class PurchaseMenu implements Listener {
                         String buttonName = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.add." + key + ".name", "&aAdd " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             amount = Math.min(amount + value, maxAmount);
-                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
+                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage, itemKey, limit, dynamicPricing, minPrice, maxPrice, priceChange);
                             return;
                         }
                     } catch (NumberFormatException ignored) {
@@ -411,7 +458,7 @@ public class PurchaseMenu implements Listener {
                         String buttonName = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.remove." + key + ".name", "&cRemove " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             amount = Math.max(1, amount - value);
-                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
+                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage, itemKey, limit, dynamicPricing, minPrice, maxPrice, priceChange);
                             return;
                         }
                     } catch (NumberFormatException ignored) {
@@ -431,7 +478,7 @@ public class PurchaseMenu implements Listener {
                         String buttonName = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.set." + key + ".name", "&aSet to " + value);
                         if (name.equals(ItemUtil.color(buttonName))) {
                             amount = Math.max(1, Math.min(value, maxAmount));
-                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
+                            open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage, itemKey, limit, dynamicPricing, minPrice, maxPrice, priceChange);
                             return;
                         }
                     } catch (NumberFormatException ignored) {
@@ -444,7 +491,7 @@ public class PurchaseMenu implements Listener {
         if (clicked.getType() == confirmMaterial &&
                 name.equals(ItemUtil.color(confirm))) {
 
-            finalizePurchase(player, material, amount, price, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt);
+            finalizePurchase(player, material, amount, price, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, itemKey, limit, dynamicPricing, minPrice, maxPrice, priceChange);
             return;
         }
 
@@ -489,7 +536,13 @@ public class PurchaseMenu implements Listener {
                                   boolean hideAdd,
                                   boolean requireName,
                                   boolean requireLore,
-                                  boolean unstableTnt) {
+                                  boolean unstableTnt,
+                                  String itemKey,
+                                  int limit,
+                                  boolean dynamicPricing,
+                                  double minPrice,
+                                  double maxPrice,
+                                  double priceChange) {
 
         ShopPlugin plugin = ShopPlugin.getInstance();
         EconomyHook eco = plugin.getEconomy();
@@ -497,6 +550,15 @@ public class PurchaseMenu implements Listener {
         if (!eco.isReady()) {
             player.sendMessage(plugin.getMessages().getMessage("economy-not-ready"));
             return;
+        }
+
+        // Check limit
+        if (limit > 0 && itemKey != null) {
+            int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
+            if (current + amount > limit) {
+                player.sendMessage(ItemUtil.color("&cYou have reached the purchase limit for this item! (" + current + "/" + limit + ")"));
+                return;
+            }
         }
 
         double total = price * amount;
@@ -523,6 +585,14 @@ public class PurchaseMenu implements Listener {
 
         giveItemSafe(player, material, amount, spawnerType, potionType, potionLevel, nameToApply, loreToApply, enchantments, hideAttr, hideAdd, unstableTnt);
 
+        // Update counts
+        if (itemKey != null) {
+            plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), itemKey, amount);
+            if (dynamicPricing) {
+                plugin.getDataManager().incrementGlobalCount(itemKey, amount);
+            }
+        }
+
         plugin.itemsBought += amount;
         plugin.debug("Purchase successful: " + player.getName() + " bought " + amount + "x " + material + " for $" + total);
 
@@ -544,11 +614,38 @@ public class PurchaseMenu implements Listener {
 
         player.sendMessage(msg);
 
+        // Recalculate price for next open
+        double nextPrice = price;
+        if (dynamicPricing && itemKey != null) {
+            int globalCount = plugin.getDataManager().getGlobalCount(itemKey);
+            // This is a simplified recalculation. In a real scenario, we might want to look up the original base price.
+            // But since we have all the info here:
+            // We assume 'price' was the current dynamic price.
+            // Actually, we should use the same formula as in open()
+            // We don't have the original base price here easily unless we look it up.
+            // Let's try to look it up if we have shopKey
+            String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
+            if (shopKey != null) {
+                ShopData shop = plugin.getShopManager().getShop(shopKey);
+                if (shop != null) {
+                    for (ShopItem si : shop.getItems()) {
+                        if (si.getUniqueKey().equals(itemKey)) {
+                            double p = si.getPrice() + (globalCount * si.getPriceChange());
+                            if (si.getMinPrice() > 0 && p < si.getMinPrice()) p = si.getMinPrice();
+                            if (si.getMaxPrice() > 0 && p > si.getMaxPrice()) p = si.getMaxPrice();
+                            nextPrice = p;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         // Instead of closing, we just re-open the menu to refresh it (e.g., update lore if we had dynamic lore)
         // or simply do nothing to keep it open. reopening is safer to ensure state consistency if we add dynamic elements later.
         String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
         int shopPage = player.hasMetadata("buy.shopPage") ? player.getMetadata("buy.shopPage").getFirst().asInt() : 1;
-        open(player, material, price, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage);
+        open(player, material, nextPrice, amount, spawnerType, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, shopKey, shopPage, itemKey, limit, dynamicPricing, minPrice, maxPrice, priceChange);
     }
 
     /* ============================================================
@@ -695,12 +792,12 @@ public class PurchaseMenu implements Listener {
         return p.hasMetadata(key) ? p.getMetadata(key).getFirst().asString() : def;
     }
 
-    private static int metaInt(Player p) {
-        return p.hasMetadata("buy.amount") ? p.getMetadata("buy.amount").getFirst().asInt() : 1;
+    private static int metaInt(Player p, String key, int def) {
+        return p.hasMetadata(key) ? p.getMetadata(key).getFirst().asInt() : def;
     }
 
-    private static double metaDouble(Player p) {
-        return p.hasMetadata("buy.price") ? p.getMetadata("buy.price").getFirst().asDouble() : (double) 0;
+    private static double metaDouble(Player p, String key, double def) {
+        return p.hasMetadata(key) ? p.getMetadata(key).getFirst().asDouble() : def;
     }
 
     private static boolean metaBool(Player p, String key) {

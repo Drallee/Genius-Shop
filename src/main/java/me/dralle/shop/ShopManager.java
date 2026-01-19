@@ -158,6 +158,36 @@ public class ShopManager {
             if (map.containsKey("unstable-tnt"))
                 unstableTnt = Boolean.parseBoolean(String.valueOf(map.get("unstable-tnt")));
 
+            // -----------------------------------------------------
+            // Player limit
+            // -----------------------------------------------------
+            int limit = 0;
+            Object limitObj = map.get("limit");
+            if (limitObj instanceof Number)
+                limit = ((Number) limitObj).intValue();
+
+            // -----------------------------------------------------
+            // Dynamic Pricing
+            // -----------------------------------------------------
+            boolean dynamicPricing = false;
+            if (map.containsKey("dynamic-pricing"))
+                dynamicPricing = Boolean.parseBoolean(String.valueOf(map.get("dynamic-pricing")));
+
+            double minPrice = 0;
+            Object minPriceObj = map.get("min-price");
+            if (minPriceObj instanceof Number)
+                minPrice = ((Number) minPriceObj).doubleValue();
+
+            double maxPrice = 0;
+            Object maxPriceObj = map.get("max-price");
+            if (maxPriceObj instanceof Number)
+                maxPrice = ((Number) maxPriceObj).doubleValue();
+
+            double priceChange = 0;
+            Object priceChangeObj = map.get("price-change");
+            if (priceChangeObj instanceof Number)
+                priceChange = ((Number) priceChangeObj).doubleValue();
+
             // Create shop item
             items.add(new ShopItem(
                     mat,
@@ -174,7 +204,12 @@ public class ShopManager {
                     hideAdditional,
                     requireName,
                     requireLore,
-                    unstableTnt
+                    unstableTnt,
+                    limit,
+                    dynamicPricing,
+                    minPrice,
+                    maxPrice,
+                    priceChange
             ));
         }
 
