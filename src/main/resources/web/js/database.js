@@ -12,7 +12,6 @@ function parseShopYaml(yamlContent) {
     let inLore = false;
     let inItemsSection = false;
     let inAvailableTimes = false;
-    let inShopItemLore = false;
     let availableTimesList = [];
 
     console.log('Parsing shop YAML, total lines:', lines.length);
@@ -25,30 +24,6 @@ function parseShopYaml(yamlContent) {
 
         const indent = line.search(/\S/);
 
-        // Parse shop-level item-lore settings (indent 2)
-        if (!inItemsSection && inShopItemLore && indent === 2) {
-            const [key, ...valueParts] = trimmed.split(':');
-            const value = valueParts.join(':').trim().replace(/['"]/g, '');
-
-            if (key.trim() === 'shop-show-buy-price') {
-                currentShopSettings.itemLore.showBuyPrice = value === 'true';
-            } else if (key.trim() === 'shop-buy-price-line') {
-                currentShopSettings.itemLore.buyPriceLine = value;
-            } else if (key.trim() === 'shop-show-buy-hint') {
-                currentShopSettings.itemLore.showBuyHint = value === 'true';
-            } else if (key.trim() === 'shop-buy-hint-line') {
-                currentShopSettings.itemLore.buyHintLine = value;
-            } else if (key.trim() === 'shop-show-sell-price') {
-                currentShopSettings.itemLore.showSellPrice = value === 'true';
-            } else if (key.trim() === 'shop-sell-price-line') {
-                currentShopSettings.itemLore.sellPriceLine = value;
-            } else if (key.trim() === 'shop-show-sell-hint') {
-                currentShopSettings.itemLore.showSellHint = value === 'true';
-            } else if (key.trim() === 'shop-sell-hint-line') {
-                currentShopSettings.itemLore.sellHintLine = value;
-            }
-        }
-
         // Parse shop-level properties (before items section)
         if (!inItemsSection && indent === 0 && trimmed.includes(':') && !trimmed.startsWith('-')) {
             const [key, ...valueParts] = trimmed.split(':');
@@ -57,22 +32,15 @@ function parseShopYaml(yamlContent) {
             if (key.trim() === 'gui-name') {
                 currentShopSettings.guiName = value;
                 inAvailableTimes = false;
-                inShopItemLore = false;
             } else if (key.trim() === 'rows') {
                 currentShopSettings.rows = parseInt(value) || 3;
                 inAvailableTimes = false;
-                inShopItemLore = false;
             } else if (key.trim() === 'permission') {
                 currentShopSettings.permission = value;
                 inAvailableTimes = false;
-                inShopItemLore = false;
             } else if (key.trim() === 'available-times') {
                 inAvailableTimes = true;
-                inShopItemLore = false;
                 availableTimesList = [];
-            } else if (key.trim() === 'item-lore') {
-                inShopItemLore = true;
-                inAvailableTimes = false;
             }
         }
 
@@ -86,7 +54,6 @@ function parseShopYaml(yamlContent) {
         if (indent === 0 && trimmed === 'items:') {
             inItemsSection = true;
             inAvailableTimes = false;
-            inShopItemLore = false;
             // Set available-times state
             currentShopSettings.availableTimes = availableTimesList.join('\n');
             console.log('Found items section at line', i);
@@ -115,7 +82,10 @@ function parseShopYaml(yamlContent) {
                 hideAdditional: false,
                 requireName: false,
                 requireLore: false,
-                unstableTnt: false
+                unstableTnt: false,
+                spawnerType: null,
+                potionType: null,
+                potionLevel: 0
             };
             inLore = false;
         } else if (inItemsSection && trimmed === '-') {
@@ -135,7 +105,10 @@ function parseShopYaml(yamlContent) {
                 hideAdditional: false,
                 requireName: false,
                 requireLore: false,
-                unstableTnt: false
+                unstableTnt: false,
+                spawnerType: null,
+                potionType: null,
+                potionLevel: 0
             };
             inLore = false;
         } else if (currentItem && indent >= 2) {
@@ -192,6 +165,18 @@ function parseShopYaml(yamlContent) {
             } else if (key.trim() === 'price-change') {
                 currentItem.priceChange = parseFloat(value) || 0;
                 inLore = false;
+            } else if (key.trim() === 'spawner-type') {
+                currentItem.spawnerType = value.toUpperCase();
+                inLore = false;
+            } else if (key.trim() === 'potion-type') {
+                currentItem.potionType = value.toUpperCase();
+                inLore = false;
+            } else if (key.trim() === 'potion-level') {
+                currentItem.potionLevel = parseInt(value) || 0;
+                inLore = false;
+            } else if (key.trim() === 'slot') {
+                currentItem.slot = parseInt(value);
+                inLore = false;
             } else if (trimmed.startsWith('-') && inLore) {
                 const loreLine = trimmed.substring(1).trim().replace(/['"]/g, '');
                 currentItem.lore.push(loreLine);
@@ -201,7 +186,11 @@ function parseShopYaml(yamlContent) {
                     const [subKey, subVal] = trimmed.split(':');
                     // Handle enchantments
                     if (currentItem.enchantments) {
-                        currentItem.enchantments[subKey.trim().toUpperCase()] = parseInt(subVal.trim()) || 1;
+                        const cleanKey = subKey.trim().toUpperCase();
+                        // Filter out keys that might have been incorrectly put here or are known fields
+                        if (!['SPAWNER-TYPE', 'POTION-TYPE', 'POTION-LEVEL', 'PRICE', 'SELL-PRICE', 'AMOUNT', 'LIMIT'].includes(cleanKey)) {
+                            currentItem.enchantments[cleanKey] = parseInt(subVal.trim()) || 1;
+                        }
                     }
                 }
             }
@@ -211,6 +200,29 @@ function parseShopYaml(yamlContent) {
     if (currentItem) {
         items.push(currentItem);
     }
+
+    initializeShopItemSlots();
+}
+
+function initializeShopItemSlots() {
+    const explicitSlots = new Set();
+    items.forEach(item => {
+        if (item.slot !== undefined && item.slot !== null) {
+            explicitSlots.add(item.slot);
+        }
+    });
+
+    let nextSlot = 0;
+    items.forEach(item => {
+        if (item.slot === undefined || item.slot === null) {
+            while (explicitSlots.has(nextSlot)) {
+                nextSlot++;
+            }
+            item.slot = nextSlot;
+            explicitSlots.add(nextSlot);
+            nextSlot++;
+        }
+    });
 }
 
 function parseMainMenuYaml(yamlContent) {
@@ -473,18 +485,7 @@ function updateExport() {
             }
         });
     }
-
-    // Add item-lore settings
-    yaml += `item-lore:\n`;
-    yaml += `  shop-show-buy-price: ${currentShopSettings.itemLore.showBuyPrice}\n`;
-    yaml += `  shop-buy-price-line: '${currentShopSettings.itemLore.buyPriceLine}'\n`;
-    yaml += `  shop-show-buy-hint: ${currentShopSettings.itemLore.showBuyHint}\n`;
-    yaml += `  shop-buy-hint-line: '${currentShopSettings.itemLore.buyHintLine}'\n`;
-    yaml += `  shop-show-sell-price: ${currentShopSettings.itemLore.showSellPrice}\n`;
-    yaml += `  shop-sell-price-line: '${currentShopSettings.itemLore.sellPriceLine}'\n`;
-    yaml += `  shop-show-sell-hint: ${currentShopSettings.itemLore.showSellHint}\n`;
-    yaml += `  shop-sell-hint-line: '${currentShopSettings.itemLore.sellHintLine}'\n`;
-
+    
     yaml += `items:\n`;
 
     items.forEach(item => {
@@ -518,9 +519,128 @@ function updateExport() {
         if (item.minPrice > 0) yaml += `    min-price: ${item.minPrice}\n`;
         if (item.maxPrice > 0) yaml += `    max-price: ${item.maxPrice}\n`;
         if (item.priceChange !== 0) yaml += `    price-change: ${item.priceChange}\n`;
+        
+        if (item.spawnerType) yaml += `    spawner-type: ${item.spawnerType}\n`;
+        if (item.potionType) yaml += `    potion-type: ${item.potionType}\n`;
+        if (item.potionLevel !== undefined && item.potionLevel !== 0) yaml += `    potion-level: ${item.potionLevel}\n`;
+        if (item.slot !== undefined && item.slot !== null) yaml += `    slot: ${item.slot}\n`;
     });
 
     document.getElementById('export-output').textContent = yaml;
+}
+
+function parseGuiSettingsYaml(yamlContent) {
+    const lines = yamlContent.split('\n');
+    let inGui = false;
+    let inItemLore = false;
+    let inBackButton = false;
+    let inPrevButton = false;
+    let inNextButton = false;
+    let inLore = false;
+    let currentLoreArray = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        const indent = line.search(/\S/);
+
+        if (indent === 0 && trimmed === 'gui:') {
+            inGui = true;
+            continue;
+        }
+
+        if (inGui) {
+            if (indent === 2) {
+                inItemLore = trimmed === 'item-lore:';
+                inBackButton = trimmed === 'back-button:';
+                inPrevButton = trimmed === 'prev-button:';
+                inNextButton = trimmed === 'next-button:';
+                inLore = false;
+                continue;
+            }
+
+            if (indent === 4) {
+                
+                const [key, ...valueParts] = trimmed.split(':');
+                const value = valueParts.join(':').trim().replace(/['"]/g, '');
+
+                if (inItemLore) {
+                    if (key === 'show-buy-price') guiSettings.itemLore.showBuyPrice = value === 'true';
+                    else if (key === 'buy-price-line') guiSettings.itemLore.buyPriceLine = value;
+                    else if (key === 'show-sell-price') guiSettings.itemLore.showSellPrice = value === 'true';
+                    else if (key === 'sell-price-line') guiSettings.itemLore.sellPriceLine = value;
+                    else if (key === 'show-buy-hint') guiSettings.itemLore.showBuyHint = value === 'true';
+                    else if (key === 'buy-hint-line') guiSettings.itemLore.buyHintLine = value;
+                    else if (key === 'show-sell-hint') guiSettings.itemLore.showSellHint = value === 'true';
+                    else if (key === 'sell-hint-line') guiSettings.itemLore.sellHintLine = value;
+                    else if (key === 'amount-line') guiSettings.itemLore.amountLine = value;
+                    else if (key === 'total-line') guiSettings.itemLore.totalLine = value;
+                } else if (inBackButton || inPrevButton || inNextButton) {
+                    const btn = inBackButton ? guiSettings.backButton : (inPrevButton ? guiSettings.prevButton : guiSettings.nextButton);
+                    if (key === 'name') btn.name = value;
+                    else if (key === 'lore') {
+                        inLore = true;
+                        btn.lore = [];
+                        currentLoreArray = btn.lore;
+                    }
+                }
+                continue;
+            }
+
+            if (indent === 6 && inLore && trimmed.startsWith('-')) {
+                const loreLine = trimmed.substring(1).trim().replace(/['"]/g, '');
+                currentLoreArray.push(loreLine);
+            }
+        }
+    }
+}
+
+function generateGuiSettingsYaml() {
+    let yaml = `# Common GUI settings shared across all menus\n`;
+    yaml += `# This file contains buttons and settings used in shop pages\n\n`;
+    yaml += `gui:\n`;
+    
+    const writeButton = (key, btn) => {
+        yaml += `  ${key}:\n`;
+        yaml += `    name: '${btn.name}'\n`;
+        yaml += `    lore:\n`;
+        if (btn.lore && btn.lore.length > 0) {
+            btn.lore.forEach(line => {
+                yaml += `      - '${line}'\n`;
+            });
+        } else {
+            yaml += `      []\n`;
+        }
+    };
+
+    writeButton('back-button', guiSettings.backButton);
+    yaml += `\n`;
+    writeButton('prev-button', guiSettings.prevButton);
+    yaml += `\n`;
+    writeButton('next-button', guiSettings.nextButton);
+    yaml += `\n`;
+
+    yaml += `  # Controls lore lines on shop items\n`;
+    yaml += `  item-lore:\n`;
+    yaml += `    # Price display lines (shown at top of item lore)\n`;
+    yaml += `    show-buy-price: ${guiSettings.itemLore.showBuyPrice}\n`;
+    yaml += `    buy-price-line: '${guiSettings.itemLore.buyPriceLine}'\n`;
+    yaml += `    show-sell-price: ${guiSettings.itemLore.showSellPrice}\n`;
+    yaml += `    sell-price-line: '${guiSettings.itemLore.sellPriceLine}'\n`;
+    yaml += `\n`;
+    yaml += `    # Hint lines (shown at bottom of item lore)\n`;
+    yaml += `    show-buy-hint: ${guiSettings.itemLore.showBuyHint}\n`;
+    yaml += `    buy-hint-line: '${guiSettings.itemLore.buyHintLine}'\n`;
+    yaml += `    show-sell-hint: ${guiSettings.itemLore.showSellHint}\n`;
+    yaml += `    sell-hint-line: '${guiSettings.itemLore.sellHintLine}'\n`;
+    yaml += `\n`;
+    yaml += `    # Purchase menu amount and total lines\n`;
+    yaml += `    amount-line: '${guiSettings.itemLore.amountLine}'\n`;
+    yaml += `    total-line: '${guiSettings.itemLore.totalLine}'\n`;
+
+    return yaml;
 }
 
 function parseTransactionSettings(yamlContent) {

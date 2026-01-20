@@ -41,6 +41,7 @@ public class ShopItem {
     private final double minPrice;
     private final double maxPrice;
     private final double priceChange;
+    private Integer slot;
 
     public ShopItem(
             Material material,
@@ -62,7 +63,8 @@ public class ShopItem {
             boolean dynamicPricing,
             double minPrice,
             double maxPrice,
-            double priceChange
+            double priceChange,
+            Integer slot
     ) {
         this.material = material;
         this.price = price;
@@ -84,6 +86,7 @@ public class ShopItem {
         this.minPrice = minPrice;
         this.maxPrice = maxPrice;
         this.priceChange = priceChange;
+        this.slot = slot;
     }
 
     public Material getMaterial() {
@@ -179,6 +182,14 @@ public class ShopItem {
 
     public double getPriceChange() {
         return priceChange;
+    }
+
+    public Integer getSlot() {
+        return slot;
+    }
+
+    public void setSlot(Integer slot) {
+        this.slot = slot;
     }
 
     public String getUniqueKey() {

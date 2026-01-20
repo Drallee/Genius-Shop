@@ -114,6 +114,7 @@
                 <button class="tab" onclick="switchTab('shop')">SHOP</button>
                 <button class="tab" onclick="switchTab('purchase')">PURCHASE</button>
                 <button class="tab" onclick="switchTab('sell')">SELL</button>
+                <button class="tab" onclick="switchTab('guisettings')">GUI SETTINGS</button>
             </div>
         </div>
 
@@ -237,6 +238,23 @@
                         </button>
                     </div>
                     <div id="sell-buttons-list" class="flex-list"></div>
+                </div>
+
+                <!-- GUI SETTINGS TAB -->
+                <div id="guisettings-tab" class="tab-content">
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div class="icon-badge primary"><span style="font-size: 1.1em; color: white;">🎨</span></div>
+                            <span class="header-title">GUI GLOBAL SETTINGS</span>
+                        </div>
+                        <button class="btn btn-primary action-btn" onclick="saveGuiSettingsYaml()" style="height: 54px; padding: 0 25px; border-radius: 14px;">
+                            <span style="font-size: 1.2em; margin-right: 8px;">💾</span>
+                            <span style="font-weight: 700; letter-spacing: 0.5px;">SAVE GUI SETTINGS</span>
+                        </button>
+                    </div>
+                    <div id="gui-settings-container" class="settings-grid">
+                        <!-- GUI settings will be rendered here -->
+                    </div>
                 </div>
 
                 <!-- Hidden state store -->

@@ -80,8 +80,8 @@ public class UpdateChecker implements Listener {
             String currentVersion = plugin.getDescription().getVersion();
             this.latestVersion = latestVersionStr;
 
-            // Simple string comparison (works if semantic versioning is strictly followed)
-            if (currentVersion.equalsIgnoreCase(latestVersionStr)) {
+            // Use smarter version comparison
+            if (!isVersionNewer(currentVersion, latestVersionStr)) {
                 this.updateAvailable = false;
                 return;
             }
@@ -107,7 +107,7 @@ public class UpdateChecker implements Listener {
 
         getVersion(latestVersion -> {
             String currentVersion = plugin.getDescription().getVersion();
-            if (currentVersion.equalsIgnoreCase(latestVersion)) return;
+            if (!isVersionNewer(currentVersion, latestVersion)) return;
 
             String msg = plugin.getMessages().getMessage("update-available")
                     .replace("%current%", currentVersion)
@@ -115,5 +115,65 @@ public class UpdateChecker implements Listener {
             
             player.sendMessage(msg);
         });
+    }
+
+    /**
+     * Compares two version strings to see if the latest is newer than the current.
+     * Supports semantic versioning (1.4.0 < 1.4.1) and pre-release tags (1.4.0-BETA < 1.4.0).
+     */
+    public static boolean isVersionNewer(String current, String latest) {
+        if (current == null || latest == null) return false;
+        if (current.equalsIgnoreCase(latest)) return false;
+
+        // Clean versions (remove leading 'v' or spaces and convert to lowercase)
+        String cVersion = current.toLowerCase().trim();
+        if (cVersion.startsWith("v")) cVersion = cVersion.substring(1);
+        String lVersion = latest.toLowerCase().trim();
+        if (lVersion.startsWith("v")) lVersion = lVersion.substring(1);
+
+        // Split by dots, dashes and underscores
+        String[] currentParts = cVersion.split("[\\.\\-\\_]");
+        String[] latestParts = lVersion.split("[\\.\\-\\_]");
+
+        int length = Math.max(currentParts.length, latestParts.length);
+        for (int i = 0; i < length; i++) {
+            if (i < currentParts.length && i < latestParts.length) {
+                String cP = currentParts[i];
+                String lP = latestParts[i];
+
+                if (cP.equalsIgnoreCase(lP)) continue;
+
+                boolean cIsNum = cP.matches("\\d+");
+                boolean lIsNum = lP.matches("\\d+");
+
+                if (cIsNum && lIsNum) {
+                    int cN = Integer.parseInt(cP);
+                    int lN = Integer.parseInt(lP);
+                    if (lN > cN) return true;
+                    if (cN > lN) return false;
+                } else if (lIsNum) {
+                    // latest is a number, current is a string (e.g., 1.4.0 vs 1.4.0-BETA)
+                    // Release version is newer than pre-release if all previous parts match
+                    return true;
+                } else if (cIsNum) {
+                    // current is a number, latest is a string (e.g., 1.4.0-BETA vs 1.4.0)
+                    return false;
+                } else {
+                    // Both are strings (e.g., BETA vs ALPHA)
+                    return lP.compareToIgnoreCase(cP) > 0;
+                }
+            } else if (i < latestParts.length) {
+                // latest has more parts (e.g., 1.4 vs 1.4.1)
+                String lP = latestParts[i];
+                // 1.4.1 is newer than 1.4, but 1.4-BETA is older than 1.4
+                return lP.matches("\\d+");
+            } else {
+                // current has more parts (e.g., 1.4.1 vs 1.4)
+                String cP = currentParts[i];
+                // 1.4.1 is newer than 1.4, but 1.4-BETA is older than 1.4
+                return !cP.matches("\\d+");
+            }
+        }
+        return false;
     }
 }

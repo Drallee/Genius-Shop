@@ -540,6 +540,7 @@ function openShopItemModal(itemId) {
     const fields = [
         { id: 'modal-material', label: 'Material', value: item.material, hint: 'Minecraft material name (e.g. DIAMOND_SWORD)' },
         { id: 'modal-name', label: 'Display Name', value: item.name, hint: 'Supports & color codes' },
+        { id: 'modal-slot', label: 'Slot', type: 'number', value: item.slot, min: 0, hint: 'Position in the GUI (absolute index)' },
         { id: 'modal-price', label: 'Buy Price', type: 'number', value: item.price, hint: '0 = cannot buy' },
         { id: 'modal-sellPrice', label: 'Sell Price', type: 'number', value: item.sellPrice || 0, hint: '0 = cannot sell' },
         { id: 'modal-amount', label: 'Amount', type: 'number', value: item.amount, min: 1, max: 64 },
@@ -582,6 +583,7 @@ function openShopItemModal(itemId) {
             item.sellPrice = parseFloat(data['modal-sellPrice']) || 0;
             item.amount = parseInt(data['modal-amount']) || 1;
             item.lore = data['modal-lore'].split('\n');
+            item.slot = parseInt(data['modal-slot']) || 0;
 
             const enchantments = {};
             if (data['modal-enchantments'].trim()) {
@@ -867,6 +869,27 @@ function openActivityDetailModal(entryId) {
 }
 
 function generateChangeSummary(before, after) {
+    if (JSON.stringify(before) === JSON.stringify(after)) return '';
+
+    if (Array.isArray(before) && Array.isArray(after)) {
+        let html = '';
+        for (let i = 0; i < Math.max(before.length, after.length); i++) {
+            const b = before[i];
+            const a = after[i];
+            if (JSON.stringify(b) !== JSON.stringify(a)) {
+                const name = (a && (a.name || a.material)) || (b && (b.name || b.material)) || `Index ${i}`;
+                const cleanName = name.toString().replace(/&[0-9a-fk-or]/gi, '').replace(/&#[0-9a-fA-F]{6}/gi, '');
+                html += `
+                    <div style="margin-top: 12px; border-top: 1px solid rgba(255, 215, 0, 0.2); padding-top: 8px;">
+                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px; font-size: 0.9em;">${cleanName}</div>
+                        <div style="padding-left: 12px;">${generateChangeSummary(b, a)}</div>
+                    </div>
+                `;
+            }
+        }
+        return html;
+    }
+
     const changes = [];
     const allKeys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
 
@@ -875,21 +898,45 @@ function generateChangeSummary(before, after) {
         const afterVal = after?.[key];
 
         if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+            let beforeText, afterText;
+
+            if (beforeVal !== null && typeof beforeVal === 'object') {
+                beforeText = Array.isArray(beforeVal) ? `Array(${beforeVal.length})` : 'Object';
+            } else {
+                beforeText = escapeHtml(JSON.stringify(beforeVal));
+            }
+
+            if (afterVal !== null && typeof afterVal === 'object') {
+                afterText = Array.isArray(afterVal) ? `Array(${afterVal.length})` : 'Object';
+            } else {
+                afterText = escapeHtml(JSON.stringify(afterVal));
+            }
+
+            // If both are simple objects/arrays, we could show a bit more
+            if (typeof beforeVal === 'object' && typeof afterVal === 'object') {
+                const bStr = JSON.stringify(beforeVal);
+                const aStr = JSON.stringify(afterVal);
+                if (bStr.length < 40 && aStr.length < 40) {
+                    beforeText = escapeHtml(bStr);
+                    afterText = escapeHtml(aStr);
+                }
+            }
+
             changes.push(`
-                <div style="padding: 8px 0; border-bottom: 1px solid rgba(255, 215, 0, 0.2); display: grid; grid-template-columns: auto 1fr 1fr; gap: 12px; align-items: start;">
-                    <div style="font-weight: 600; color: rgba(220, 230, 245, 0.95); min-width: 80px;">${key}:</div>
-                    <div style="color: rgba(255, 107, 107, 0.8); font-size: 0.85em; word-break: break-word;">
-                        <span style="text-decoration: line-through; opacity: 0.7;">${escapeHtml(JSON.stringify(beforeVal))}</span>
+                <div style="padding: 4px 0; border-bottom: 1px solid rgba(255, 215, 0, 0.05); display: grid; grid-template-columns: 100px 1fr 1fr; gap: 12px; align-items: start;">
+                    <div style="font-weight: 600; color: rgba(220, 230, 245, 0.6); font-size: 0.8em;">${key}:</div>
+                    <div style="color: rgba(255, 107, 107, 0.7); font-size: 0.8em; word-break: break-word;">
+                        <span style="text-decoration: line-through; opacity: 0.5;">${beforeText}</span>
                     </div>
-                    <div style="color: rgba(0, 230, 118, 0.9); font-size: 0.85em; word-break: break-word;">
-                        ${escapeHtml(JSON.stringify(afterVal))}
+                    <div style="color: rgba(0, 230, 118, 0.8); font-size: 0.8em; word-break: break-word;">
+                        ${afterText}
                     </div>
                 </div>
             `);
         }
     });
 
-    return changes.length > 0 ? changes.join('') : '<div style="color: rgba(180, 190, 210, 0.7); font-size: 0.9em;">No property changes detected</div>';
+    return changes.length > 0 ? changes.join('') : '<div style="color: rgba(180, 190, 210, 0.7); font-size: 0.8em;">No specific property changes</div>';
 }
 
 function closeActivityDetailModal() {
@@ -916,15 +963,7 @@ function openShopSettings() {
             { id: 'gui-name', label: 'GUI Name', value: currentShopSettings.guiName },
             { id: 'rows', label: 'Rows (1-6)', type: 'number', value: currentShopSettings.rows, min: 1, max: 6 },
             { id: 'permission', label: 'Permission', value: currentShopSettings.permission },
-            { id: 'available-times', label: 'Available Times (one per line)', type: 'textarea', value: currentShopSettings.availableTimes },
-            { id: 'shop-show-buy-price', label: 'Show Buy Price', type: 'checkbox', value: currentShopSettings.itemLore.showBuyPrice },
-            { id: 'shop-buy-price-line', label: 'Buy Price Line', value: currentShopSettings.itemLore.buyPriceLine },
-            { id: 'shop-show-buy-hint', label: 'Show Buy Hint', type: 'checkbox', value: currentShopSettings.itemLore.showBuyHint },
-            { id: 'shop-buy-hint-line', label: 'Buy Hint Line', value: currentShopSettings.itemLore.buyHintLine },
-            { id: 'shop-show-sell-price', label: 'Show Sell Price', type: 'checkbox', value: currentShopSettings.itemLore.showSellPrice },
-            { id: 'shop-sell-price-line', label: 'Sell Price Line', value: currentShopSettings.itemLore.sellPriceLine },
-            { id: 'shop-show-sell-hint', label: 'Show Sell Hint', type: 'checkbox', value: currentShopSettings.itemLore.showSellHint },
-            { id: 'shop-sell-hint-line', label: 'Sell Hint Line', value: currentShopSettings.itemLore.sellHintLine }
+            { id: 'available-times', label: 'Available Times (one per line)', type: 'textarea', value: currentShopSettings.availableTimes }
         ],
         onSave: (data) => {
             const beforeData = JSON.parse(JSON.stringify(currentShopSettings));
@@ -932,15 +971,6 @@ function openShopSettings() {
             currentShopSettings.rows = parseInt(data['rows']);
             currentShopSettings.permission = data['permission'];
             currentShopSettings.availableTimes = data['available-times'];
-            
-            currentShopSettings.itemLore.showBuyPrice = data['shop-show-buy-price'];
-            currentShopSettings.itemLore.buyPriceLine = data['shop-buy-price-line'];
-            currentShopSettings.itemLore.showBuyHint = data['shop-show-buy-hint'];
-            currentShopSettings.itemLore.buyHintLine = data['shop-buy-hint-line'];
-            currentShopSettings.itemLore.showSellPrice = data['shop-show-sell-price'];
-            currentShopSettings.itemLore.sellPriceLine = data['shop-sell-price-line'];
-            currentShopSettings.itemLore.showSellHint = data['shop-show-sell-hint'];
-            currentShopSettings.itemLore.sellHintLine = data['shop-sell-hint-line'];
             
             addActivityEntry('updated', 'shop-settings', beforeData, JSON.parse(JSON.stringify(currentShopSettings)), {
                 shopFile: currentShopFile
@@ -1064,12 +1094,19 @@ async function rollbackChange() {
         switch (entry.target) {
             case 'shop-item':
                 if (entry.action === 'updated') {
-                    const item = items.find(i => i.id === entry.afterData.id);
-                    if (item) {
-                        Object.assign(item, JSON.parse(JSON.stringify(entry.beforeData)));
+                    const rollbackItem = (before, after) => {
+                        const item = items.find(i => i.id === after.id);
+                        if (item) {
+                            Object.assign(item, JSON.parse(JSON.stringify(before)));
+                        } else {
+                            // Item might have been deleted, add it back
+                            items.push(JSON.parse(JSON.stringify(before)));
+                        }
+                    };
+                    if (Array.isArray(entry.afterData)) {
+                        entry.afterData.forEach((after, idx) => rollbackItem(entry.beforeData[idx], after));
                     } else {
-                        // Item might have been deleted, add it back
-                        items.push(JSON.parse(JSON.stringify(entry.beforeData)));
+                        rollbackItem(entry.beforeData, entry.afterData);
                     }
                 } else if (entry.action === 'created') {
                     // Remove created item
@@ -1084,9 +1121,16 @@ async function rollbackChange() {
 
             case 'main-menu-button':
                 if (entry.action === 'updated') {
-                    const shop = loadedGuiShops.find(s => s.key === entry.afterData.key);
-                    if (shop) {
-                        Object.assign(shop, JSON.parse(JSON.stringify(entry.beforeData)));
+                    const rollbackShop = (before, after) => {
+                        const shop = loadedGuiShops.find(s => s.key === after.key);
+                        if (shop) {
+                            Object.assign(shop, JSON.parse(JSON.stringify(before)));
+                        }
+                    };
+                    if (Array.isArray(entry.afterData)) {
+                        entry.afterData.forEach((after, idx) => rollbackShop(entry.beforeData[idx], after));
+                    } else {
+                        rollbackShop(entry.beforeData, entry.afterData);
                     }
                 } else if (entry.action === 'created') {
                     loadedGuiShops = loadedGuiShops.filter(s => s.key !== entry.afterData.key);
@@ -1102,22 +1146,32 @@ async function rollbackChange() {
             case 'sell-menu-button':
                 {
                     const type = entry.details.type; // 'purchase' or 'sell'
-                    const group = entry.details.group; // 'main', 'add', 'remove', 'set'
-                    const key = entry.details.key;
                     
-                    if (entry.action === 'updated') {
-                        if (group === 'main') {
-                            transactionSettings[type].buttons[key] = JSON.parse(JSON.stringify(entry.beforeData));
+                    const rollbackBtn = (before, details) => {
+                        const group = details.group; // 'main', 'add', 'remove', 'set'
+                        const key = details.key;
+                        if (group === 'display') {
+                            transactionSettings[type].displaySlot = before.slot;
+                        } else if (group === 'main') {
+                            transactionSettings[type].buttons[key] = JSON.parse(JSON.stringify(before));
                         } else {
-                            transactionSettings[type][group].buttons[key] = JSON.parse(JSON.stringify(entry.beforeData));
+                            transactionSettings[type][group].buttons[key] = JSON.parse(JSON.stringify(before));
+                        }
+                    };
+
+                    if (entry.action === 'updated') {
+                        if (Array.isArray(entry.afterData)) {
+                            entry.afterData.forEach((after, idx) => rollbackBtn(entry.beforeData[idx], entry.details.batch[idx]));
+                        } else {
+                            rollbackBtn(entry.beforeData, entry.details);
                         }
                     } else if (entry.action === 'created') {
-                        if (group !== 'main') {
-                            delete transactionSettings[type][group].buttons[key];
+                        if (entry.details.group !== 'main') {
+                            delete transactionSettings[type][entry.details.group].buttons[entry.details.key];
                         }
                     } else if (entry.action === 'deleted') {
-                        if (group !== 'main') {
-                            transactionSettings[type][group].buttons[key] = JSON.parse(JSON.stringify(entry.beforeData));
+                        if (entry.details.group !== 'main') {
+                            transactionSettings[type][entry.details.group].buttons[entry.details.key] = JSON.parse(JSON.stringify(entry.beforeData));
                         }
                     }
                     

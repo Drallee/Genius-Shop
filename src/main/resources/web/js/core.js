@@ -27,21 +27,35 @@ let isSaving = false;
 let currentPreviewPage = 0; // Current page being previewed
 let itemSearchQuery = ''; // Filter for items list
 
+// Drag and drop state
+let draggedSlotIndex = null;
+let draggedItemSource = null; // 'shop' or 'mainmenu'
+let draggedFromPage = null;
+let pageFlipTimeout = null;
+
 // Current Shop Metadata State
 let currentShopSettings = {
     guiName: '&8Shop',
     rows: 3,
     permission: '',
-    availableTimes: '',
+    availableTimes: ''
+};
+
+let guiSettings = {
+    backButton: { name: '&9Back', lore: [] },
+    prevButton: { name: '&e<- Previous', lore: [] },
+    nextButton: { name: '&eNext ->', lore: [] },
     itemLore: {
         showBuyPrice: true,
-        buyPriceLine: '&aBuy: &6$%price%',
-        showBuyHint: true,
-        buyHintLine: '&7Click to buy',
+        buyPriceLine: '&6Buy Price: &a%price%',
         showSellPrice: true,
-        sellPriceLine: '&cSell: &6$%price%',
+        sellPriceLine: '&cSell Price: &a%sell-price%',
+        showBuyHint: true,
+        buyHintLine: '&eLeft-click to buy',
         showSellHint: true,
-        sellHintLine: '&7Click to sell'
+        sellHintLine: '&aRight-click to sell',
+        amountLine: '&eAmount: &7%amount%',
+        totalLine: '&eTotal: &7%total%'
     }
 };
 
@@ -214,19 +228,43 @@ function getActivitySummary(entry) {
         'purchase-menu-settings': 'Purchase Menu Settings',
         'sell-menu-settings': 'Sell Menu Settings',
         'main-menu-settings': 'Main Menu Settings',
-        'shop-settings': 'Shop Settings'
+        'shop-settings': 'Shop Settings',
+        'gui-settings': 'GUI Settings'
     };
+
+    const stripColors = (text) => {
+        if (!text) return '';
+        return text.toString().replace(/&[0-9a-fk-or]/gi, '').replace(/&#[0-9a-fA-F]{6}/gi, '');
+    };
+
+    const getDisplayName = (data) => {
+        if (!data) return '';
+        return data.name || data.material || data.key || data.title || data.guiName || '';
+    };
+
+    if (entry.details && entry.details.isSwap && Array.isArray(entry.afterData)) {
+        const name1 = stripColors(getDisplayName(entry.afterData[0]));
+        const name2 = stripColors(getDisplayName(entry.afterData[1]));
+        const rollbackSuffix = entry.details.isRollback ? ' (Rollback)' : '';
+        return `Swapped ${name1} and ${name2}${rollbackSuffix}`;
+    }
     
     let name = '';
     if (entry.afterData) {
-        name = entry.afterData.name || entry.afterData.material || entry.afterData.key || entry.afterData.title || entry.afterData.guiName || '';
+        if (Array.isArray(entry.afterData)) {
+            name = entry.afterData.length + ' items';
+        } else {
+            name = getDisplayName(entry.afterData);
+        }
     } else if (entry.beforeData) {
-        name = entry.beforeData.name || entry.beforeData.material || entry.beforeData.key || entry.beforeData.title || entry.beforeData.guiName || '';
+        if (Array.isArray(entry.beforeData)) {
+            name = entry.beforeData.length + ' items';
+        } else {
+            name = getDisplayName(entry.beforeData);
+        }
     }
 
-    // Strip color codes from name for summary
-    name = name.replace(/&[0-9a-fk-or]/gi, '');
-    name = name.replace(/&#[0-9a-fA-F]{6}/gi, '');
+    name = stripColors(name);
 
     const actionText = entry.action.charAt(0).toUpperCase() + entry.action.slice(1);
     const targetText = targetNames[entry.target] || entry.target;

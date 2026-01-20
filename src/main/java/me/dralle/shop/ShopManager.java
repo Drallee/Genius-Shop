@@ -188,6 +188,12 @@ public class ShopManager {
             if (priceChangeObj instanceof Number)
                 priceChange = ((Number) priceChangeObj).doubleValue();
 
+            // Slot (optional)
+            Integer slot = null;
+            Object slotObj = map.get("slot");
+            if (slotObj instanceof Number)
+                slot = ((Number) slotObj).intValue();
+
             // Create shop item
             items.add(new ShopItem(
                     mat,
@@ -209,11 +215,36 @@ public class ShopManager {
                     dynamicPricing,
                     minPrice,
                     maxPrice,
-                    priceChange
+                    priceChange,
+                    slot
             ));
         }
 
+        // Assign slots to items that don't have them
+        assignMissingSlots(items);
+
         return items;
+    }
+
+    private void assignMissingSlots(List<ShopItem> items) {
+        Set<Integer> takenSlots = new HashSet<>();
+        for (ShopItem item : items) {
+            if (item.getSlot() != null) {
+                takenSlots.add(item.getSlot());
+            }
+        }
+
+        int nextSlot = 0;
+        for (ShopItem item : items) {
+            if (item.getSlot() == null) {
+                while (takenSlots.contains(nextSlot)) {
+                    nextSlot++;
+                }
+                item.setSlot(nextSlot);
+                takenSlots.add(nextSlot);
+                nextSlot++;
+            }
+        }
     }
 
     public ShopData getShop(String key) {

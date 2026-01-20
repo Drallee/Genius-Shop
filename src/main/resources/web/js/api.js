@@ -65,13 +65,24 @@ async function loadAllFiles() {
             renderSellButtons();
         }
 
+        if (data.guiSettings) {
+            parseGuiSettingsYaml(data.guiSettings);
+        }
+
         // Update preview based on current active tab
+        const previewSection = document.querySelector('.minecraft-preview-section');
+        if (previewSection) {
+            previewSection.style.display = currentTab === 'guisettings' ? 'none' : 'block';
+        }
+
         if (currentTab === 'mainmenu') {
             updateGuiPreview();
         } else if (currentTab === 'purchase') {
             updatePurchasePreview();
         } else if (currentTab === 'sell') {
             updateSellPreview();
+        } else if (currentTab === 'guisettings') {
+            renderGuiSettings();
         }
 
         updateSaveStatus('✓ Loaded', '#55ff55');
@@ -343,6 +354,41 @@ async function saveSellMenuYaml(isSilent = false) {
         if (!isSilent) {
             updateSaveStatus('✗ Save failed', '#ff5555');
             showAlert('Failed to save sell-menu.yml: ' + error.message);
+        }
+        throw error;
+    }
+}
+
+async function saveGuiSettingsYaml(isSilent = false) {
+    if (isLoadingFiles) return;
+    if (!isSilent) updateSaveStatus('Saving GUI Settings...', '#ffaa00');
+
+    try {
+        const yamlContent = generateGuiSettingsYaml();
+
+        const response = await fetch(`api/file/menus/gui-settings.yml`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Token': sessionToken
+            },
+            body: JSON.stringify({ content: yamlContent })
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        if (!isSilent) {
+            unsavedChanges = unsavedChanges.filter(c => c.target !== 'gui-settings');
+            updateSaveStatus('✓ Saved', '#55ff55');
+            showToast('GUI Settings saved', 'success');
+            setTimeout(() => updateSaveStatus(''), 2000);
+        }
+        return true;
+    } catch (error) {
+        console.error('Failed to save gui-settings.yml:', error);
+        if (!isSilent) {
+            updateSaveStatus('✗ Save failed', '#ff5555');
+            showAlert('Failed to save gui-settings.yml: ' + error.message);
         }
         throw error;
     }

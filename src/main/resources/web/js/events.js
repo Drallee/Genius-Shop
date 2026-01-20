@@ -69,6 +69,11 @@ function setupInputListeners() {
 }
 
 function addItem() {
+    // Find first free slot
+    const occupiedSlots = new Set(items.map(it => it.slot));
+    let slot = 0;
+    while (occupiedSlots.has(slot)) slot++;
+
     const newItem = {
         id: itemIdCounter++,
         material: 'STONE',
@@ -82,7 +87,11 @@ function addItem() {
         hideAdditional: false,
         requireName: false,
         requireLore: false,
-        unstableTnt: false
+        unstableTnt: false,
+        spawnerType: null,
+        potionType: null,
+        potionLevel: 0,
+        slot: slot
     };
     items.push(newItem);
     renderItems();
@@ -128,6 +137,8 @@ function scheduleAutoSave() {
             savePurchaseMenuYaml();
         } else if (currentTab === 'sell') {
             saveSellMenuYaml();
+        } else if (currentTab === 'guisettings') {
+            saveGuiSettingsYaml();
         }
     }, 2000);
 }
