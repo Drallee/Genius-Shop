@@ -26,6 +26,7 @@ let autoSaveTimeout = null;
 let isSaving = false;
 let currentPreviewPage = 0; // Current page being previewed
 let itemSearchQuery = ''; // Filter for items list
+let currentSort = 'slot'; // Default sort by slot
 
 // Drag and drop state
 let draggedSlotIndex = null;
@@ -69,6 +70,156 @@ let currentModalData = null;
 
 // Minecraft texture API base URL
 const TEXTURE_API = 'https://mc.nerothe.com/img/1.21.8/minecraft_';
+
+let translations = {};
+let currentLanguage = localStorage.getItem('preferredLanguage');
+
+async function loadTranslations() {
+    try {
+        const langParam = currentLanguage ? `?lang=${currentLanguage}` : '';
+        const response = await fetch(`${API_URL}/api/language${langParam}`);
+        if (response.ok) {
+            const data = await response.json();
+            translations = data;
+            
+            // If the server returned a different language than we expected (e.g. fallback)
+            if (data.language && !currentLanguage) {
+                currentLanguage = data.language;
+            }
+            
+            applyTranslations();
+            
+            // Also load available languages list if we haven't yet
+            loadLanguages();
+        }
+    } catch (error) {
+        console.error('Failed to load translations:', error);
+    }
+}
+
+async function loadLanguages() {
+    try {
+        const response = await fetch(`${API_URL}/api/languages`);
+        if (response.ok) {
+            const languages = await response.json();
+            const selectors = [document.getElementById('language-selector'), document.getElementById('language-selector-mobile')];
+            
+            selectors.forEach(selector => {
+                if (!selector) return;
+                selector.innerHTML = '';
+                languages.forEach(lang => {
+                    const option = document.createElement('option');
+                    option.value = lang;
+                    // Prettier names for defaults
+                    const names = {
+                        'en_US': 'English (US)',
+                        'en_GB': 'English (UK)',
+                        'ru_RU': 'Русский',
+                        'de_DE': 'Deutsch',
+                        'fr_FR': 'Français',
+                        'tr_TR': 'Türkçe',
+                        'ro_RO': 'Română',
+                        'es_MX': 'Español (MX)',
+                        'es_ES': 'Español (ES)',
+                        'es_AR': 'Español (AR)',
+                        'pt_BR': 'Português (BR)',
+                        'pt_PT': 'Português (PT)',
+                        'vi_VN': 'Tiếng Việt',
+                        'nl_NL': 'Nederlands',
+                        'fi_FI': 'Suomi',
+                        'pl_PL': 'Polski',
+                        'da_DK': 'Dansk'
+                    };
+                    option.textContent = names[lang] || lang;
+                    selector.appendChild(option);
+                });
+                if (currentLanguage) {
+                    selector.value = currentLanguage;
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load languages list:', error);
+    }
+}
+
+async function changeEditorLanguage(lang) {
+    localStorage.setItem('preferredLanguage', lang);
+    currentLanguage = lang;
+    
+    // Update all selectors to match
+    const selectors = [document.getElementById('language-selector'), document.getElementById('language-selector-mobile')];
+    selectors.forEach(s => { if(s) s.value = lang; });
+    
+    await loadTranslations();
+    showToast(t('web-editor.modals.reload-success', 'Configuration reloaded from server'), 'success');
+}
+
+function t(key, replacements = {}) {
+    if (!translations) return key;
+    
+    // Try full path
+    let text = key.split('.').reduce((obj, k) => obj && obj[k], translations);
+    
+    // If not found and key starts with web-editor., try looking inside web-editor object
+    // (Handles case where translations might be the web-editor section itself)
+    if ((text === undefined || text === null) && key.startsWith('web-editor.')) {
+        const subKey = key.substring('web-editor.'.length);
+        text = subKey.split('.').reduce((obj, k) => obj && obj[k], translations);
+    }
+    
+    // If still not found and translations has web-editor key, try looking there
+    // (Handles case where root web-editor might be missing in some parts of the code)
+    if ((text === undefined || text === null) && translations['web-editor']) {
+        text = key.split('.').reduce((obj, k) => obj && obj[k], translations['web-editor']);
+    }
+    
+    if (text === undefined || text === null) {
+        if (typeof replacements === 'string') return replacements;
+        return key;
+    }
+    
+    if (typeof text !== 'string') return key;
+
+    if (typeof replacements === 'object' && replacements !== null) {
+        for (const [placeholder, value] of Object.entries(replacements)) {
+            text = text.replace(new RegExp(`%${placeholder}%`, 'g'), value);
+        }
+    }
+    return text;
+}
+
+function applyTranslations() {
+    document.querySelectorAll('[data-i18n], [data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n') || el.getAttribute('data-i18n-title');
+        const translated = t(key);
+        if (translated !== key) {
+            if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'password' || el.type === 'search')) {
+                el.placeholder = translated;
+            } else if (el.hasAttribute('data-i18n-title')) {
+                el.setAttribute('title', translated);
+            } else {
+                el.innerHTML = translated;
+            }
+        }
+    });
+    
+    // Update page title
+    const pageTitle = t('web-editor.title');
+    if (pageTitle !== 'web-editor.title') {
+        document.title = pageTitle;
+    }
+
+    // Update transaction settings
+    transactionSettings.purchase.titlePrefix = t('web-editor.modals.buying-title', transactionSettings.purchase.titlePrefix);
+    transactionSettings.sell.titlePrefix = t('web-editor.modals.selling-title', transactionSettings.sell.titlePrefix);
+    transactionSettings.purchase.buttons.confirm.name = t('web-editor.modals.confirm-purchase', transactionSettings.purchase.buttons.confirm.name);
+    transactionSettings.sell.buttons.confirm.name = t('web-editor.modals.confirm-sell', transactionSettings.sell.buttons.confirm.name);
+    transactionSettings.sell.buttons.sellAll.name = t('web-editor.modals.sell-all', transactionSettings.sell.buttons.sellAll.name);
+}
+
+// Start loading translations immediately
+loadTranslations();
 
 // Initialize animations toggle from localStorage
 const animationsEnabled = localStorage.getItem('animationsEnabled') !== 'false'; // default true

@@ -124,7 +124,7 @@ public class ShopManager {
                 Map<String, Object> enchMap = (Map<String, Object>) enchObj;
                 for (Map.Entry<String, Object> entry : enchMap.entrySet()) {
                     try {
-                        enchantments.put(entry.getKey().toUpperCase(), Integer.parseInt(String.valueOf(entry.getValue())));
+                        enchantments.put(entry.getKey(), Integer.parseInt(String.valueOf(entry.getValue())));
                     } catch (NumberFormatException ignored) {}
                 }
             }

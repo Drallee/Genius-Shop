@@ -726,7 +726,7 @@ public class SellMenu implements Listener {
             String enchantName = entry.getKey();
             int requiredLevel = entry.getValue();
 
-            org.bukkit.enchantments.Enchantment enchant = org.bukkit.enchantments.Enchantment.getByName(enchantName.toUpperCase());
+            org.bukkit.enchantments.Enchantment enchant = ItemUtil.getEnchantment(enchantName);
             if (enchant == null) continue;
 
             int itemLevel = meta.getEnchantLevel(enchant);

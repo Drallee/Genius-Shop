@@ -47,19 +47,19 @@ function showAlert(message, type = 'info') {
     // Set icon and title based on type
     if (type === 'error') {
         icon.textContent = '❌';
-        titleText.textContent = 'Error';
+        titleText.textContent = t('web-editor.modals.error-title', 'Error');
         modal.querySelector('.modal-box').style.borderColor = 'rgba(255, 107, 107, 0.3)';
     } else if (type === 'success') {
         icon.textContent = '✅';
-        titleText.textContent = 'Success';
+        titleText.textContent = t('web-editor.modals.success-title', 'Success');
         modal.querySelector('.modal-box').style.borderColor = 'rgba(0, 230, 118, 0.3)';
     } else if (type === 'warning') {
         icon.textContent = '⚠️';
-        titleText.textContent = 'Warning';
+        titleText.textContent = t('web-editor.modals.warning-title', 'Warning');
         modal.querySelector('.modal-box').style.borderColor = 'rgba(255, 215, 0, 0.3)';
     } else {
         icon.textContent = 'ℹ️';
-        titleText.textContent = 'Message';
+        titleText.textContent = t('web-editor.modals.alert-title', 'Message');
         modal.querySelector('.modal-box').style.borderColor = 'rgba(120, 119, 198, 0.3)';
     }
 
@@ -538,41 +538,41 @@ function openShopItemModal(itemId) {
     if (!item) return;
 
     const fields = [
-        { id: 'modal-material', label: 'Material', value: item.material, hint: 'Minecraft material name (e.g. DIAMOND_SWORD)' },
-        { id: 'modal-name', label: 'Display Name', value: item.name, hint: 'Supports & color codes' },
-        { id: 'modal-slot', label: 'Slot', type: 'number', value: item.slot, min: 0, hint: 'Position in the GUI (absolute index)' },
-        { id: 'modal-price', label: 'Buy Price', type: 'number', value: item.price, hint: '0 = cannot buy' },
-        { id: 'modal-sellPrice', label: 'Sell Price', type: 'number', value: item.sellPrice || 0, hint: '0 = cannot sell' },
-        { id: 'modal-amount', label: 'Amount', type: 'number', value: item.amount, min: 1, max: 64 },
-        { id: 'modal-lore', label: 'Lore (one per line)', type: 'textarea', value: (item.lore || []).join('\n') },
-        { id: 'modal-enchantments', label: 'Enchantments', type: 'textarea', value: Object.entries(item.enchantments || {}).map(([k, v]) => `${k}:${v}`).join('\n'), hint: 'Format: ENCHANTMENT:LEVEL (e.g. SHARPNESS:5)' }
+        { id: 'modal-material', label: t('web-editor.modals.fields.material'), value: item.material, hint: t('web-editor.modals.fields.material-hint') },
+        { id: 'modal-name', label: t('web-editor.modals.fields.display-name'), value: item.name, hint: t('web-editor.modals.fields.display-name-hint') },
+        { id: 'modal-slot', label: t('web-editor.modals.fields.slot'), type: 'number', value: item.slot, min: 0, hint: t('web-editor.modals.fields.slot-hint') },
+        { id: 'modal-price', label: t('web-editor.modals.fields.buy-price'), type: 'number', value: item.price, hint: t('web-editor.modals.fields.buy-price-hint') },
+        { id: 'modal-sellPrice', label: t('web-editor.modals.fields.sell-price'), type: 'number', value: item.sellPrice || 0, hint: t('web-editor.modals.fields.sell-price-hint') },
+        { id: 'modal-amount', label: t('web-editor.modals.fields.amount'), type: 'number', value: item.amount, min: 1, max: 64 },
+        { id: 'modal-lore', label: t('web-editor.modals.fields.lore'), type: 'textarea', value: (item.lore || []).join('\n') },
+        { id: 'modal-enchantments', label: t('web-editor.modals.fields.enchantments'), type: 'textarea', value: Object.entries(item.enchantments || {}).map(([k, v]) => `${k}:${v}`).join('\n'), hint: t('web-editor.modals.fields.enchantments-hint') }
     ];
 
     // Spawner specific
     if (item.material === 'SPAWNER' || item.spawnerType) {
-        fields.push({ id: 'modal-spawnerType', label: 'Spawner Type', value: item.spawnerType || 'ZOMBIE', hint: 'Entity type for the spawner' });
+        fields.push({ id: 'modal-spawnerType', label: t('web-editor.modals.fields.spawner-type'), value: item.spawnerType || 'ZOMBIE', hint: t('web-editor.modals.fields.spawner-type-hint') });
     }
 
     // Potion specific
     if (item.material.includes('POTION') || item.potionType) {
-        fields.push({ id: 'modal-potionType', label: 'Potion Type', value: item.potionType || 'SWIFTNESS', hint: 'Base potion effect' });
-        fields.push({ id: 'modal-potionLevel', label: 'Potion Level', type: 'number', value: item.potionLevel || 0, min: 0, max: 255, hint: '0 = default, 1+ = custom amplifier' });
+        fields.push({ id: 'modal-potionType', label: t('web-editor.modals.fields.potion-type'), value: item.potionType || 'SWIFTNESS', hint: t('web-editor.modals.fields.potion-type-hint') });
+        fields.push({ id: 'modal-potionLevel', label: t('web-editor.modals.fields.potion-level'), type: 'number', value: item.potionLevel || 0, min: 0, max: 255, hint: t('web-editor.modals.fields.potion-level-hint') });
     }
 
-    fields.push({ id: 'modal-hideAttributes', label: 'Hide Attributes', type: 'checkbox', value: item.hideAttributes });
-    fields.push({ id: 'modal-hideAdditional', label: 'Hide Additional Info', type: 'checkbox', value: item.hideAdditional });
-    fields.push({ id: 'modal-requireName', label: 'Require Name', type: 'checkbox', value: item.requireName, hint: 'Exact name match required for selling' });
-    fields.push({ id: 'modal-requireLore', label: 'Require Lore', type: 'checkbox', value: item.requireLore, hint: 'Exact lore match required for selling' });
-    fields.push({ id: 'modal-unstableTnt', label: 'Unstable TNT', type: 'checkbox', value: item.unstableTnt });
+    fields.push({ id: 'modal-hideAttributes', label: t('web-editor.modals.fields.hide-attributes'), type: 'checkbox', value: item.hideAttributes });
+    fields.push({ id: 'modal-hideAdditional', label: t('web-editor.modals.fields.hide-additional'), type: 'checkbox', value: item.hideAdditional });
+    fields.push({ id: 'modal-requireName', label: t('web-editor.modals.fields.require-name'), type: 'checkbox', value: item.requireName, hint: t('web-editor.modals.fields.require-name-hint') });
+    fields.push({ id: 'modal-requireLore', label: t('web-editor.modals.fields.require-lore'), type: 'checkbox', value: item.requireLore, hint: t('web-editor.modals.fields.require-lore-hint') });
+    fields.push({ id: 'modal-unstableTnt', label: t('web-editor.modals.fields.unstable-tnt'), type: 'checkbox', value: item.unstableTnt });
 
-    fields.push({ id: 'modal-limit', label: 'Player Limit', type: 'number', value: item.limit || 0, hint: 'Total amount a player can buy/sell (0 = unlimited)' });
-    fields.push({ id: 'modal-dynamicPricing', label: 'Dynamic Pricing', type: 'checkbox', value: item.dynamicPricing });
-    fields.push({ id: 'modal-minPrice', label: 'Min Price', type: 'number', value: item.minPrice || 0, hint: 'Minimum dynamic price' });
-    fields.push({ id: 'modal-maxPrice', label: 'Max Price', type: 'number', value: item.maxPrice || 0, hint: 'Maximum dynamic price' });
-    fields.push({ id: 'modal-priceChange', label: 'Price Change', type: 'number', value: item.priceChange || 0, step: '0.01', hint: 'Price change per item bought/sold' });
+    fields.push({ id: 'modal-limit', label: t('web-editor.modals.fields.player-limit'), type: 'number', value: item.limit || 0, hint: t('web-editor.modals.fields.player-limit-hint') });
+    fields.push({ id: 'modal-dynamicPricing', label: t('web-editor.modals.fields.dynamic-pricing'), type: 'checkbox', value: item.dynamicPricing });
+    fields.push({ id: 'modal-minPrice', label: t('web-editor.modals.fields.min-price'), type: 'number', value: item.minPrice || 0, hint: t('web-editor.modals.fields.min-price-hint') });
+    fields.push({ id: 'modal-maxPrice', label: t('web-editor.modals.fields.max-price'), type: 'number', value: item.maxPrice || 0, hint: t('web-editor.modals.fields.max-price-hint') });
+    fields.push({ id: 'modal-priceChange', label: t('web-editor.modals.fields.price-change'), type: 'number', value: item.priceChange || 0, step: '0.01', hint: t('web-editor.modals.fields.price-change-hint') });
 
     openEditModal({
-        title: `Edit Shop Item: ${item.material}`,
+        title: `${t('web-editor.modals.edit-item')}: ${item.material}`,
         fields: fields,
         onSave: (data) => {
             const beforeData = JSON.parse(JSON.stringify(item));
@@ -588,9 +588,12 @@ function openShopItemModal(itemId) {
             const enchantments = {};
             if (data['modal-enchantments'].trim()) {
                 data['modal-enchantments'].split('\n').forEach(line => {
-                    const parts = line.trim().split(':');
-                    if (parts.length === 2) {
-                        enchantments[parts[0].toUpperCase()] = parseInt(parts[1]) || 1;
+                    const trimmedLine = line.trim();
+                    const lastColonIndex = trimmedLine.lastIndexOf(':');
+                    if (lastColonIndex !== -1) {
+                        const enchKey = trimmedLine.substring(0, lastColonIndex).trim();
+                        const enchLevel = parseInt(trimmedLine.substring(lastColonIndex + 1).trim()) || 1;
+                        enchantments[enchKey] = enchLevel;
                     }
                 });
             }
@@ -618,13 +621,13 @@ function openShopItemModal(itemId) {
 
             renderItems();
             updateAll();
-            showToast('Item updated', 'success');
+            showToast(t('web-editor.modals.item-updated'), 'success');
         },
         onDelete: () => {
-            showConfirm(`Are you sure you want to remove this ${item.material}?`).then(confirmed => {
+            showConfirm(t('web-editor.modals.remove-confirm', {item: item.material})).then(confirmed => {
                 if (confirmed) {
                     removeItem(item.id);
-                    showToast('Item removed', 'warning');
+                    showToast(t('web-editor.modals.item-removed'), 'warning');
                 }
             });
         }
@@ -1225,10 +1228,10 @@ async function rollbackChange() {
 
         closeActivityDetailModal();
         closeActivityLogModal();
-        showToast('Rollback successful', 'success');
+        showToast(t('web-editor.modals.rollback-success', 'Action rolled back successfully'), 'success');
     } catch (error) {
         console.error('Rollback failed:', error);
-        showAlert('Rollback failed: ' + error.message, 'error');
+        showAlert(t('web-editor.modals.rollback-failed', 'Rollback failed') + ': ' + error.message, 'error');
     }
 }
 

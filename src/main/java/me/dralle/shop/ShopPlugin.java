@@ -69,16 +69,62 @@ public class ShopPlugin extends JavaPlugin {
         // Generate/update README.md in shops folder
         generateShopsReadme();
 
+        // Create languages folder
+        File langFolder = new File(getDataFolder(), "languages");
+        if (!langFolder.exists()) {
+            langFolder.mkdirs();
+        }
+
+        // Migrate old messages.yml if it exists
+        File oldMessages = new File(getDataFolder(), "messages.yml");
+        if (oldMessages.exists()) {
+            File enUsFile = new File(langFolder, "en_US.yml");
+            if (!enUsFile.exists()) {
+                oldMessages.renameTo(enUsFile);
+                getLogger().info("Migrated messages.yml to languages/en_US.yml");
+            } else {
+                // If en_US already exists, just delete the old one or leave it?
+                // Better to rename it to something else to be safe or just delete if it's identical
+                oldMessages.delete();
+            }
+        }
+
         // create default files (only if missing)
         saveDefaultConfig();
-        saveDefaultResourceIfNotExists("messages.yml");
-        // gui.yml is deprecated - menu files are now in menus/ folder
-        // shops.yml removed - shops are in shops/ folder (see shops/README.md)
+        saveDefaultResourceIfNotExists("languages/en_US.yml");
+        saveDefaultResourceIfNotExists("languages/ru_RU.yml");
+        saveDefaultResourceIfNotExists("languages/de_DE.yml");
+        saveDefaultResourceIfNotExists("languages/fr_FR.yml");
+        saveDefaultResourceIfNotExists("languages/tr_TR.yml");
+        saveDefaultResourceIfNotExists("languages/ro_RO.yml");
+        saveDefaultResourceIfNotExists("languages/es_MX.yml");
+        saveDefaultResourceIfNotExists("languages/es_ES.yml");
+        saveDefaultResourceIfNotExists("languages/es_AR.yml");
+        saveDefaultResourceIfNotExists("languages/pt_BR.yml");
+        saveDefaultResourceIfNotExists("languages/pt_PT.yml");
+        saveDefaultResourceIfNotExists("languages/vi_VN.yml");
+        saveDefaultResourceIfNotExists("languages/en_GB.yml");
+        saveDefaultResourceIfNotExists("languages/nl_NL.yml");
+        saveDefaultResourceIfNotExists("languages/fi_FI.yml");
+        saveDefaultResourceIfNotExists("languages/pl_PL.yml");
+        saveDefaultResourceIfNotExists("languages/da_DK.yml");
         saveDefaultResourceIfNotExists("discord.yml");
 
-        // run smart updater once on startup
+        // run smart updater on config first to get the language setting
         ConfigUpdater.update(this, "config.yml");
-        ConfigUpdater.update(this, "messages.yml");
+        reloadConfig();
+        
+        // Load language from config
+        String lang = getConfig().getString("language", "en_US");
+        String langPath = "languages/" + lang + ".yml";
+        
+        // Ensure the configured language file exists (if we have it in resources)
+        if (getResource(langPath) != null) {
+            saveDefaultResourceIfNotExists(langPath);
+        }
+        
+        // Update language file
+        ConfigUpdater.update(this, langPath);
         ConfigUpdater.update(this, "discord.yml");
 
         // Initialize menu manager (handles migration from gui.yml)
@@ -299,6 +345,11 @@ public class ShopPlugin extends JavaPlugin {
                         economy.getProviderName()
                 ));
 
+                // SimplePie: plugin language
+                metrics.addCustomChart(new SimplePie("language", () ->
+                        getConfig().getString("language", "en_US")
+                ));
+
                 // SimplePie: currency symbol (from economy or config fallback)
                 metrics.addCustomChart(new SimplePie("currency_symbol", this::getCurrencySymbol));
 
@@ -338,13 +389,13 @@ public class ShopPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Stop API server
         if (apiServer != null) {
             apiServer.stop();
         }
         
         try {
-            getMessagesConfig().save(new File(getDataFolder(), "messages.yml"));
+            String lang = getConfig().getString("language", "en_US");
+            getMessagesConfig().save(new File(getDataFolder(), "languages/" + lang + ".yml"));
             // gui.yml is deprecated - menu configs are now in menus/ folder
             getDiscordConfig().save(new File(getDataFolder(), "discord.yml"));
         } catch (IOException e) {
@@ -366,7 +417,10 @@ public class ShopPlugin extends JavaPlugin {
     public void reloadPlugin() {
         // smart updater
         ConfigUpdater.update(this, "config.yml");
-        ConfigUpdater.update(this, "messages.yml");
+        reloadConfig();
+        
+        String lang = getConfig().getString("language", "en_US");
+        ConfigUpdater.update(this, "languages/" + lang + ".yml");
         ConfigUpdater.update(this, "discord.yml");
 
         // Reload menu configurations
@@ -390,7 +444,13 @@ public class ShopPlugin extends JavaPlugin {
     }
 
     public void reloadAllConfigs() {
-        this.messagesConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "messages.yml"));
+        String lang = getConfig().getString("language", "en_US");
+        File langFile = new File(getDataFolder(), "languages/" + lang + ".yml");
+        if (!langFile.exists()) {
+            // Fallback to en_US if configured language is missing
+            langFile = new File(getDataFolder(), "languages/en_US.yml");
+        }
+        this.messagesConfig = YamlConfiguration.loadConfiguration(langFile);
 
         // Load gui.yml only if it exists (legacy support - menu configs are now in menus/ folder)
         File guiFile = new File(getDataFolder(), "gui.yml");

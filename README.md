@@ -11,7 +11,8 @@ A powerful, data-driven economy shop plugin with GUI, permissions, and Vault int
 - Multi-page support - Shops automatically paginate based on content
 - Time restrictions - Create limited-time or scheduled shops with natural language display
 - Customizable GUI - Full control over titles, colors, and layouts via `menus/` configuration
-- Potion & Spawner support - Full support for potions, tipped arrows, and mob spawners
+- Multiple language support - Easily translate all messages and GUI text via `languages/` folder
+- Potion, Spawner & Enchantments & Custom Enchantments support - Full support for potions, tipped arrows, mob spawners
 - Player Limits - Set per-item purchase limits for players
 - Dynamic Pricing - Prices that change based on supply and demand
 - Item Guard - Require specific names or lore for selling items
@@ -103,7 +104,7 @@ Access the visual editor at `http://your-server:8080` after enabling the API in 
 ✅ Web-based configuration editor with live preview  
 ✅ Modular configuration (shops/ and menus/ folders)  
 ✅ Buy and sell mechanics with Dynamic Pricing  
-✅ Potion, Spawner, and Tipped Arrow support  
+✅ Potion, Spawner, Tipped Arrow and Custom Enchantment support  
 ✅ Player purchase limits and item-specific restrictions  
 ✅ Permission-based shop restrictions  
 ✅ Time-restricted shops with scheduling  

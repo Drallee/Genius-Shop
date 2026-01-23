@@ -241,6 +241,26 @@ public class ConfigApiServer {
                 return;
             }
 
+            // Language endpoint
+            if (path.equals("/api/language")) {
+                if (method.equals("GET")) {
+                    handleGetLanguage(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
+                }
+                return;
+            }
+
+            // Languages list endpoint
+            if (path.equals("/api/languages")) {
+                if (method.equals("GET")) {
+                    handleListLanguages(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
+                }
+                return;
+            }
+
             // All other endpoints require valid session
             if (!validateSession(exchange)) {
                 sendError(exchange, 401, "Unauthorized", "Invalid or expired session token");
@@ -867,6 +887,69 @@ public class ConfigApiServer {
         sendResponse(exchange, 200, content);
     }
 
+    private void handleGetLanguage(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        String lang = null;
+        if (query != null && query.contains("lang=")) {
+            // Very basic query param parsing
+            String[] params = query.split("&");
+            for (String param : params) {
+                if (param.startsWith("lang=")) {
+                    lang = param.substring(5);
+                    break;
+                }
+            }
+        }
+
+        if (lang == null || lang.isEmpty() || lang.contains("..") || lang.contains("/") || lang.contains("\\")) {
+            lang = plugin.getConfig().getString("language", "en_US");
+        }
+
+        File langFile = new File(plugin.getDataFolder(), "languages" + File.separator + lang + ".yml");
+        if (!langFile.exists()) {
+            langFile = new File(plugin.getDataFolder(), "languages" + File.separator + "en_US.yml");
+        }
+
+        if (!langFile.exists()) {
+            sendError(exchange, 404, "Not Found", "Language file not found");
+            return;
+        }
+
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(langFile);
+        Map<String, Object> response = new HashMap<>();
+
+        // Only send web-editor section
+        if (config.contains("web-editor")) {
+            response.put("web-editor", recursiveSectionToMap(config.getConfigurationSection("web-editor")));
+        } else {
+            // Fallback to en_US if current doesn't have web-editor
+            File enFile = new File(plugin.getDataFolder(), "languages" + File.separator + "en_US.yml");
+            if (enFile.exists()) {
+                YamlConfiguration enConfig = YamlConfiguration.loadConfiguration(enFile);
+                if (enConfig.contains("web-editor")) {
+                    response.put("web-editor", recursiveSectionToMap(enConfig.getConfigurationSection("web-editor")));
+                }
+            }
+        }
+
+        response.put("language", lang);
+
+        sendJsonResponse(exchange, 200, response);
+    }
+
+    private void handleListLanguages(HttpExchange exchange) throws IOException {
+        File langFolder = new File(plugin.getDataFolder(), "languages");
+        String[] langFiles = langFolder.list((dir, name) -> name.endsWith(".yml"));
+        java.util.List<String> languages = new java.util.ArrayList<>();
+        if (langFiles != null) {
+            java.util.Arrays.sort(langFiles);
+            for (String file : langFiles) {
+                languages.add(file.replace(".yml", ""));
+            }
+        }
+        sendJsonResponse(exchange, 200, languages);
+    }
+
     private void handleSaveActivityLog(HttpExchange exchange) throws IOException {
         // Read request body
         String content = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
@@ -915,9 +998,18 @@ public class ConfigApiServer {
             }
         }
 
+        // Handle language files in languages/ directory
+        if (fileName.startsWith("languages/") || fileName.startsWith("languages\\")) {
+            String langFile = fileName.substring(10); // Remove "languages/"
+            if (langFile.contains("..") || langFile.contains("/") || langFile.contains("\\")) {
+                return null;
+            }
+            return new File(plugin.getDataFolder(), "languages" + File.separator + langFile);
+        }
+
         // Handle main config files
         if (fileName.equals("discord.yml") || fileName.equals("config.yml") || 
-            fileName.equals("messages.yml") || fileName.equals("gui.yml")) {
+            fileName.equals("gui.yml")) {
             return new File(plugin.getDataFolder(), fileName);
         }
 
@@ -934,6 +1026,30 @@ public class ConfigApiServer {
         return null;
     }
 
+    private Map<String, Object> recursiveSectionToMap(org.bukkit.configuration.ConfigurationSection section) {
+        Map<String, Object> map = new HashMap<>();
+        if (section == null) return map;
+        for (String key : section.getKeys(false)) {
+            Object value = section.get(key);
+            if (value instanceof org.bukkit.configuration.ConfigurationSection) {
+                map.put(key, recursiveSectionToMap((org.bukkit.configuration.ConfigurationSection) value));
+            } else if (value instanceof java.util.List) {
+                java.util.List<Object> newList = new java.util.ArrayList<>();
+                for (Object item : (java.util.List<?>) value) {
+                    if (item instanceof org.bukkit.configuration.ConfigurationSection) {
+                        newList.add(recursiveSectionToMap((org.bukkit.configuration.ConfigurationSection) item));
+                    } else {
+                        newList.add(item);
+                    }
+                }
+                map.put(key, newList);
+            } else {
+                map.put(key, value);
+            }
+        }
+        return map;
+    }
+
     private void sendJsonResponse(HttpExchange exchange, int statusCode, Object data) throws IOException {
         String json = GSON.toJson(data);
         sendResponse(exchange, statusCode, json);
@@ -942,12 +1058,10 @@ public class ConfigApiServer {
     private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
         exchange.getResponseHeaders().add("Content-Type", "application/json");
 
-        // Add caching headers for successful responses
-        if (statusCode == 200) {
-            exchange.getResponseHeaders().add("Cache-Control", "public, max-age=300"); // 5 minutes
-        } else {
-            exchange.getResponseHeaders().add("Cache-Control", "no-cache, no-store, must-revalidate");
-        }
+        // API responses should not be cached to ensure the editor always has the latest data
+        exchange.getResponseHeaders().add("Cache-Control", "no-cache, no-store, must-revalidate");
+        exchange.getResponseHeaders().add("Pragma", "no-cache");
+        exchange.getResponseHeaders().add("Expires", "0");
 
         byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
 

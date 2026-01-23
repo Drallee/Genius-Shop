@@ -3,6 +3,7 @@ package me.dralle.shop.util;
 import me.dralle.shop.ShopPlugin;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -261,6 +262,35 @@ public class ItemUtil {
     }
 
     /**
+     * Get an Enchantment by its key or name.
+     * Supports NamespacedKey (namespace:key) and legacy Bukkit names.
+     */
+    public static Enchantment getEnchantment(String key) {
+        if (key == null) return null;
+
+        Enchantment enchantment = null;
+
+        // Try NamespacedKey (modern way, e.g. "minecraft:sharpness" or "custom:my_enchant")
+        if (key.contains(":")) {
+            enchantment = Enchantment.getByKey(NamespacedKey.fromString(key.toLowerCase()));
+        } else {
+            // Try as minecraft namespace first
+            try {
+                enchantment = Enchantment.getByKey(NamespacedKey.minecraft(key.toLowerCase()));
+            } catch (IllegalArgumentException ignored) {
+                // Not a valid NamespacedKey name
+            }
+        }
+
+        // Fallback to legacy Bukkit name (e.g. "DAMAGE_ALL")
+        if (enchantment == null) {
+            enchantment = Enchantment.getByName(key.toUpperCase());
+        }
+
+        return enchantment;
+    }
+
+    /**
      * Apply enchantments to an ItemStack.
      * @param item The ItemStack to enchant
      * @param enchantments Map of enchantment names to levels
@@ -269,18 +299,21 @@ public class ItemUtil {
         if (item == null || enchantments == null || enchantments.isEmpty()) return;
 
         for (Map.Entry<String, Integer> entry : enchantments.entrySet()) {
+            String key = entry.getKey();
+            int level = entry.getValue();
             try {
-                Enchantment enchantment = Enchantment.getByName(entry.getKey().toUpperCase());
+                Enchantment enchantment = getEnchantment(key);
+
                 if (enchantment != null) {
-                    item.addUnsafeEnchantment(enchantment, entry.getValue());
+                    item.addUnsafeEnchantment(enchantment, level);
                 } else {
                     ShopPlugin.getInstance().getLogger().warning(
-                        "Invalid enchantment: " + entry.getKey()
+                        "Invalid enchantment: " + key
                     );
                 }
             } catch (Exception e) {
                 ShopPlugin.getInstance().getLogger().warning(
-                    "Failed to apply enchantment " + entry.getKey() + ": " + e.getMessage()
+                    "Failed to apply enchantment " + key + ": " + e.getMessage()
                 );
             }
         }

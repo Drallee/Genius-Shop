@@ -24,6 +24,10 @@ send-update-message-ingame: true
 # Useful for troubleshooting issues.
 debug: false
 
+# Language file to use (located in languages/ folder)
+# Example: "en_US", "ru_RU"
+language: "en_US"
+
 # ==========================================================
 # Metrics (bStats)
 # ==========================================================

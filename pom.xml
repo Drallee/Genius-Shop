@@ -7,7 +7,7 @@
 
     <groupId>me.dralle</groupId>
     <artifactId>Shop</artifactId>
-    <version>1.4.2-BETA</version>
+    <version>1.4.3-BETA</version>
     <packaging>jar</packaging>
 
     <name>Shop</name>

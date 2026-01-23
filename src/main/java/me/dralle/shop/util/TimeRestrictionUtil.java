@@ -389,13 +389,13 @@ public class TimeRestrictionUtil {
     }
 
     /**
-     * Translate a day name or abbreviation using messages.yml.
+     * Translate a day name or abbreviation using the current language file.
      */
     private static String translateDay(String day, ShopPlugin plugin) {
         String key = day.trim().toLowerCase();
         String translated = plugin.getMessages().getMessage("days." + key);
         
-        // If not found in messages.yml, fall back to capitalized original
+        // If not found in the language file, fall back to capitalized original
         if (translated == null || translated.isEmpty() || translated.equals(plugin.getMessages().color(plugin.getMessagesConfig().getString("messages.days." + key, ""))) && translated.isEmpty()) {
              return capitalizeFirst(day);
         }

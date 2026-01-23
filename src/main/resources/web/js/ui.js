@@ -20,10 +20,7 @@ function switchTab(tabName) {
     // Toggle tab button states
     document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('active');
-        
-        // Match by normalized text content
-        const normalizedBtnText = tab.textContent.trim().toLowerCase().replace(/\s/g, '');
-        if (normalizedBtnText === tabName) {
+        if (tab.getAttribute('data-tab') === tabName) {
             tab.classList.add('active');
         }
     });
@@ -93,6 +90,15 @@ function changePage(direction) {
     if (currentPreviewPage > allowedMax) currentPreviewPage = allowedMax;
     
     updatePreview();
+    
+    // Update page indicator
+    const pageIndicator = document.getElementById('page-indicator');
+    if (pageIndicator) {
+        pageIndicator.textContent = t('web-editor.page-indicator', {
+            page: currentPreviewPage + 1,
+            total: (allowedMax + 1)
+        });
+    }
 }
 
 function renderButtonGroup(container, type, group, title, namePrefix) {
@@ -104,7 +110,7 @@ function renderButtonGroup(container, type, group, title, namePrefix) {
             <div class="flex justify-between items-center mb-24">
                 <h3 class="m-0" style="font-size: 1.1rem; color: #fff;">${title}</h3>
                 <div class="count-badge">
-                    ${Object.keys(groupData.buttons).length} buttons
+                    ${t('web-editor.main-menu.buttons-count', {count: Object.keys(groupData.buttons).length})}
                 </div>
             </div>
             <div class="grid-list" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
@@ -154,7 +160,7 @@ function renderTransactionPreview(type) {
 
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-        showAlert('Copied to clipboard!', 'success');
+        showAlert(t('web-editor.modals.copied', 'Copied to clipboard!'), 'success');
     });
 }
 
@@ -176,6 +182,14 @@ function handleItemSearch() {
     }
 }
 
+function handleItemSort() {
+    const select = document.getElementById('item-sort');
+    if (select) {
+        currentSort = select.value;
+        renderItems();
+    }
+}
+
 function renderItems() {
     const container = document.getElementById('items-container');
     if (!container) {
@@ -186,7 +200,24 @@ function renderItems() {
     }
     container.innerHTML = '';
 
-    const filteredItems = items.filter(item => {
+    let sortedItems = [...items];
+
+    // Apply sorting
+    if (currentSort === 'slot') {
+        sortedItems.sort((a, b) => (a.slot || 0) - (b.slot || 0));
+    } else if (currentSort === 'name') {
+        sortedItems.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (currentSort === 'material') {
+        sortedItems.sort((a, b) => (a.material || '').localeCompare(b.material || ''));
+    } else if (currentSort === 'price') {
+        sortedItems.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (currentSort === 'sellPrice') {
+        sortedItems.sort((a, b) => (a.sellPrice || 0) - (b.sellPrice || 0));
+    } else if (currentSort === 'id') {
+        sortedItems.sort((a, b) => a.id - b.id);
+    }
+
+    const filteredItems = sortedItems.filter(item => {
         if (!itemSearchQuery) return true;
         const name = (item.name || '').toLowerCase();
         const material = (item.material || '').toLowerCase();
@@ -240,7 +271,7 @@ function renderItems() {
                     <div class="item-title">${parseMinecraftColors(item.name)}</div>
                     <div class="item-subtitle">
                         ${escapeHtml(item.material)} × ${item.amount}
-                        <span style="margin-left: 8px; opacity: 0.6; font-size: 0.9em;">(Page ${page}, Slot ${slotOnPage})</span>
+                        <span style="margin-left: 8px; opacity: 0.6; font-size: 0.9em;">(${t('web-editor.item-location', {page: page, slot: slotOnPage})})</span>
                     </div>
                     ${tagsHtml}
                 </div>

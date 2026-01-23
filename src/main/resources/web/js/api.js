@@ -3,7 +3,7 @@
 async function loadAllFiles() {
     try {
         console.log('[LOAD] Starting to load files');
-        updateSaveStatus('Loading files...', '#ffaa00');
+        updateSaveStatus(t('web-editor.shop.loading'), '#ffaa00');
 
         const response = await fetch(`api/files?t=${Date.now()}`, {
             headers: {
@@ -12,7 +12,7 @@ async function loadAllFiles() {
         });
 
         if (response.status === 401) {
-            showAlert('Session expired. Please login again.', 'warning');
+            showAlert(t('web-editor.modals.session-expired', 'Session expired. Please login again.'), 'warning');
             logout();
             return;
         }
@@ -85,14 +85,14 @@ async function loadAllFiles() {
             renderGuiSettings();
         }
 
-        updateSaveStatus('✓ Loaded', '#55ff55');
+        updateSaveStatus('✓ ' + t('web-editor.modals.loaded', 'Loaded'), '#55ff55');
         setTimeout(() => updateSaveStatus(''), 2000);
         isLoadingFiles = false;
         unsavedChanges = [];
     } catch (error) {
         console.error('Failed to load files:', error);
-        updateSaveStatus('✗ Load failed', '#ff5555');
-        showAlert('Failed to connect to server: ' + error.message + '\n\nMake sure the API is enabled in config.yml and the port is open.');
+        updateSaveStatus('✗ ' + t('web-editor.modals.load-failed', 'Load failed'), '#ff5555');
+        showAlert(t('web-editor.modals.connect-error', 'Failed to connect to server') + ': ' + error.message + '\n\n' + t('web-editor.modals.api-hint', 'Make sure the API is enabled in config.yml and the port is open.'));
         isLoadingFiles = false;
     }
 }
@@ -116,7 +116,7 @@ async function saveCurrentShop(isSilent = false) {
     }
 
     isSaving = true;
-    if (!isSilent) updateSaveStatus('Saving...', '#ffaa00');
+    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
 
     try {
         const response = await fetch(`api/file/shops/${currentShopFile}`, {
@@ -129,7 +129,7 @@ async function saveCurrentShop(isSilent = false) {
         });
 
         if (response.status === 401) {
-            showAlert('Session expired. Please login again.', 'warning');
+            showAlert(t('web-editor.modals.session-expired', 'Session expired. Please login again.'), 'warning');
             logout();
             return;
         }
@@ -149,16 +149,16 @@ async function saveCurrentShop(isSilent = false) {
                     }
                     return true;
                 });
-                updateSaveStatus('✓ Saved', '#55ff55');
-                showToast('Configuration saved successfully', 'success');
+                updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
+                showToast(t('web-editor.modals.file-saved'), 'success');
                 setTimeout(() => updateSaveStatus(''), 2000);
             }
         }
     } catch (error) {
         console.error('Failed to save shop:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ Save failed', '#ff5555');
-            showAlert('Failed to save: ' + error.message);
+            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
     } finally {
@@ -168,7 +168,7 @@ async function saveCurrentShop(isSilent = false) {
 
 async function saveMainMenuYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus('Saving Main Menu...', '#ffaa00');
+    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
 
     try {
         let yamlContent = `# Main shop menu configuration\n`;
@@ -208,16 +208,16 @@ async function saveMainMenuYaml(isSilent = false) {
         
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'main-menu-button' && c.target !== 'main-menu-settings');
-            updateSaveStatus('✓ Saved', '#55ff55');
-            showToast('Main Menu configuration saved', 'success');
+            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
+            showToast(t('web-editor.modals.file-saved'), 'success');
             setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save main-menu.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ Save failed', '#ff5555');
-            showAlert('Failed to save main-menu.yml: ' + error.message);
+            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
     }
@@ -225,7 +225,7 @@ async function saveMainMenuYaml(isSilent = false) {
 
 async function savePurchaseMenuYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus('Saving Purchase Menu...', '#ffaa00');
+    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
 
     try {
         let yamlContent = `# Purchase menu configuration\n`;
@@ -276,16 +276,16 @@ async function savePurchaseMenuYaml(isSilent = false) {
 
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'purchase-menu-button' && c.target !== 'purchase-menu-settings');
-            updateSaveStatus('✓ Saved', '#55ff55');
-            showToast('Purchase Menu configuration saved', 'success');
+            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
+            showToast(t('web-editor.modals.file-saved'), 'success');
             setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save purchase-menu.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ Save failed', '#ff5555');
-            showAlert('Failed to save purchase-menu.yml: ' + error.message);
+            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
     }
@@ -293,7 +293,7 @@ async function savePurchaseMenuYaml(isSilent = false) {
 
 async function saveSellMenuYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus('Saving Sell Menu...', '#ffaa00');
+    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
 
     try {
         let yamlContent = `# Sell menu configuration\n`;
@@ -344,16 +344,16 @@ async function saveSellMenuYaml(isSilent = false) {
 
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'sell-menu-button' && c.target !== 'sell-menu-settings');
-            updateSaveStatus('✓ Saved', '#55ff55');
-            showToast('Sell Menu configuration saved', 'success');
+            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
+            showToast(t('web-editor.modals.file-saved'), 'success');
             setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save sell-menu.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ Save failed', '#ff5555');
-            showAlert('Failed to save sell-menu.yml: ' + error.message);
+            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
     }
@@ -361,7 +361,7 @@ async function saveSellMenuYaml(isSilent = false) {
 
 async function saveGuiSettingsYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus('Saving GUI Settings...', '#ffaa00');
+    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
 
     try {
         const yamlContent = generateGuiSettingsYaml();
@@ -379,30 +379,30 @@ async function saveGuiSettingsYaml(isSilent = false) {
         
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'gui-settings');
-            updateSaveStatus('✓ Saved', '#55ff55');
-            showToast('GUI Settings saved', 'success');
+            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
+            showToast(t('web-editor.modals.file-saved'), 'success');
             setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save gui-settings.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ Save failed', '#ff5555');
-            showAlert('Failed to save gui-settings.yml: ' + error.message);
+            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
     }
 }
 
 async function reloadCurrentConfig() {
-    const confirmed = await showConfirm('Are you sure you want to reload all configurations from the server? Any unsaved changes will be lost.');
+    const confirmed = await showConfirm(t('web-editor.modals.reload-confirm', 'Are you sure you want to reload all configurations from the server? Any unsaved changes will be lost.'));
     if (confirmed) {
         await loadAllFiles();
     }
 }
 
 async function logout() {
-    const confirmed = await showConfirm('Are you sure you want to logout?');
+    const confirmed = await showConfirm(t('web-editor.modals.logout-confirm', 'Are you sure you want to logout?'));
     if (confirmed) {
         localStorage.removeItem('sessionToken');
         localStorage.removeItem('username');
@@ -414,7 +414,7 @@ async function confirmSave() {
     closeSaveConfirmationModal();
     
     if (activeSaveMode === 'publish') {
-        updateSaveStatus('Publishing...', '#ffaa00');
+        updateSaveStatus(t('web-editor.modals.publishing', 'Publishing...'), '#ffaa00');
         try {
             // Save all first
             await saveCurrentShop(true);
@@ -423,13 +423,13 @@ async function confirmSave() {
             await saveSellMenuYaml(true);
             
             unsavedChanges = [];
-            showToast('All changes published and plugin reloaded!', 'success', 'Published');
-            updateSaveStatus('✓ Published', '#55ff55');
+            showToast(t('web-editor.modals.publish-success'), 'success', t('web-editor.modals.published', 'Published'));
+            updateSaveStatus('✓ ' + t('web-editor.modals.published', 'Published'), '#55ff55');
             setTimeout(() => updateSaveStatus(''), 2000);
         } catch (error) {
             console.error('Publish failed:', error);
-            showAlert('Publish failed: ' + error.message, 'error');
-            updateSaveStatus('✗ Publish failed', '#ff5555');
+            showAlert(t('web-editor.modals.publish-error') + ': ' + error.message, 'error');
+            updateSaveStatus('✗ ' + t('web-editor.modals.publish-failed', 'Publish failed'), '#ff5555');
         }
         return;
     }
@@ -450,11 +450,11 @@ async function publishChanges() {
 }
 
 async function createNewShop() {
-    const name = await showPrompt('Enter new shop filename (e.g. tools.yml):', 'new-shop.yml', 'Create New Shop');
+    const name = await showPrompt(t('web-editor.modals.enter-filename', 'Enter new shop filename (e.g. tools.yml):'), 'new-shop.yml', t('web-editor.shop.create-new'));
     if (name) {
         const filename = name.endsWith('.yml') ? name : name + '.yml';
         if (allShops[filename]) {
-            showAlert('A shop with this name already exists!', 'error');
+            showAlert(t('web-editor.modals.shop-exists', 'A shop with this name already exists!'), 'error');
             return;
         }
 
@@ -473,12 +473,12 @@ async function createNewShop() {
         
         loadShopFromData(filename);
         await saveCurrentShop();
-        showToast(`Created new shop: ${filename}`, 'success');
+        showToast(t('web-editor.modals.shop-created'), 'success');
     }
 }
 
 async function removeShopFile() {
-    const confirmed = await showConfirm(`Are you sure you want to PERMANENTLY DELETE ${currentShopFile} from the server? This cannot be undone!`);
+    const confirmed = await showConfirm(t('web-editor.modals.remove-file-confirm', {file: currentShopFile}));
     if (confirmed) {
         try {
             const response = await fetch(`api/file/shops/${currentShopFile}`, {
@@ -491,11 +491,11 @@ async function removeShopFile() {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             delete allShops[currentShopFile];
-            showToast(`Deleted ${currentShopFile}`, 'success');
+            showToast(t('web-editor.modals.shop-removed'), 'success');
             await loadAllFiles();
         } catch (error) {
             console.error('Failed to delete shop:', error);
-            showAlert('Failed to delete: ' + error.message, 'error');
+            showAlert(t('web-editor.modals.delete-error', 'Failed to delete') + ': ' + error.message, 'error');
         }
     }
 }

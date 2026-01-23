@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Genius Shop Editor</title>
+    <title data-i18n="web-editor.login.title">Login - Genius Shop Editor</title>
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,37 +12,42 @@
 </head>
 <body>
     <div class="login-container">
+        <div style="position: absolute; top: 20px; right: 20px;">
+            <select id="language-selector" class="premium-select" style="background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 8px; cursor: pointer;" onchange="changeEditorLanguage(this.value)">
+                <option value="en_US">English</option>
+            </select>
+        </div>
         <div class="logo-section">
-            <h1>GENIUS SHOP</h1>
-            <p class="subtitle">Configuration Editor</p>
+            <h1 data-i18n="web-editor.login.heading">GENIUS SHOP</h1>
+            <p class="subtitle" data-i18n="web-editor.login.subtitle">Configuration Editor</p>
         </div>
 
         <div class="error" id="error-message"></div>
 
         <div class="info-box">
-            <h3>Requirements</h3>
+            <h3 data-i18n="web-editor.login.requirements-title">Requirements</h3>
             <ul>
-                <li>You must be logged into the Minecraft server</li>
-                <li>You need admin permissions (geniusshop.admin or OP)</li>
-                <li>Your password is your player UUID</li>
+                <li data-i18n="web-editor.login.req1">You must be logged into the Minecraft server</li>
+                <li data-i18n="web-editor.login.req2">You need admin permissions (geniusshop.admin or OP)</li>
+                <li data-i18n="web-editor.login.req3">Your password is your player UUID</li>
             </ul>
         </div>
 
         <form id="login-form">
             <div class="form-group">
-                <label>Minecraft Username</label>
-                <input type="text" id="username" placeholder="Your in-game name" required autocomplete="username">
+                <label data-i18n="web-editor.login.username-label">Minecraft Username</label>
+                <input type="text" id="username" placeholder="Your in-game name" data-i18n="web-editor.login.username-placeholder" required autocomplete="username">
             </div>
 
             <div class="form-group">
-                <label>Password (Your UUID)</label>
-                <input type="password" id="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required autocomplete="current-password">
-                <div class="input-hint">
+                <label data-i18n="web-editor.login.password-label">Password (Your UUID)</label>
+                <input type="password" id="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" data-i18n="web-editor.login.password-placeholder" required autocomplete="current-password">
+                <div class="input-hint" data-i18n="web-editor.login.password-hint">
                     Get your UUID in-game: Run command /uuid or check at https://mcuuid.net/
                 </div>
             </div>
 
-            <button type="submit" class="btn" id="login-btn">Login</button>
+            <button type="submit" class="btn" id="login-btn" data-i18n="web-editor.login.login-button">Login</button>
         </form>
     </div>
 

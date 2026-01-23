@@ -112,10 +112,11 @@ function parseShopYaml(yamlContent) {
             };
             inLore = false;
         } else if (currentItem && indent >= 2) {
-            const [key, ...valueParts] = trimmed.split(':');
+            let [key, ...valueParts] = trimmed.split(':');
+            key = key.trim().replace(/['"]/g, '');
             const value = valueParts.join(':').trim().replace(/['"]/g, '');
 
-            if (key.trim() === 'material') {
+            if (key === 'material') {
                 currentItem.material = value;
                 inLore = false;
             } else if (key.trim() === 'name') {
@@ -183,13 +184,18 @@ function parseShopYaml(yamlContent) {
             } else if (indent >= 4 && !inLore && trimmed.includes(':')) {
                 // Could be enchantment or other nested property
                 if (line.includes(':')) {
-                    const [subKey, subVal] = trimmed.split(':');
-                    // Handle enchantments
-                    if (currentItem.enchantments) {
-                        const cleanKey = subKey.trim().toUpperCase();
-                        // Filter out keys that might have been incorrectly put here or are known fields
-                        if (!['SPAWNER-TYPE', 'POTION-TYPE', 'POTION-LEVEL', 'PRICE', 'SELL-PRICE', 'AMOUNT', 'LIMIT'].includes(cleanKey)) {
-                            currentItem.enchantments[cleanKey] = parseInt(subVal.trim()) || 1;
+                    const lastColonIndex = trimmed.lastIndexOf(':');
+                    if (lastColonIndex !== -1) {
+                        let subKey = trimmed.substring(0, lastColonIndex).trim().replace(/['"]/g, '');
+                        let subVal = trimmed.substring(lastColonIndex + 1).trim();
+                        // Handle enchantments
+                        if (currentItem.enchantments) {
+                            const cleanKey = subKey;
+                            const upperKey = cleanKey.toUpperCase();
+                            // Filter out keys that might have been incorrectly put here or are known fields
+                            if (!['SPAWNER-TYPE', 'POTION-TYPE', 'POTION-LEVEL', 'PRICE', 'SELL-PRICE', 'AMOUNT', 'LIMIT', 'MATERIAL', 'NAME', 'LORE', 'SLOT', 'REQUIRE-NAME', 'REQUIRE-LORE', 'UNSTABLE-TNT', 'HIDE-ATTRIBUTES', 'HIDE-ADDITIONAL'].includes(upperKey)) {
+                                currentItem.enchantments[cleanKey] = parseInt(subVal) || 1;
+                            }
                         }
                     }
                 }
@@ -505,7 +511,7 @@ function updateExport() {
         if (item.enchantments && Object.keys(item.enchantments).length > 0) {
             yaml += `    enchantments:\n`;
             Object.entries(item.enchantments).forEach(([ench, level]) => {
-                yaml += `      ${ench}: ${level}\n`;
+                yaml += `      '${ench}': ${level}\n`;
             });
         }
 

@@ -20,33 +20,39 @@
     <!-- Mobile Dropdown Menu -->
     <div id="mobile-menu" class="mobile-menu">
         <div class="mobile-menu-content">
+            <div class="mobile-menu-item" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; margin-bottom: 10px;">
+                <label class="section-label" style="display: block; margin-bottom: 8px; font-size: 0.7em;">LANGUAGE</label>
+                <select id="language-selector-mobile" class="premium-select w-full" onchange="changeEditorLanguage(this.value)">
+                    <option value="en_US">English</option>
+                </select>
+            </div>
             <label class="toggle-switch mobile-toggle">
                 <input type="checkbox" id="auto-save-toggle-mobile" checked>
-                <span class="toggle-label">Auto-save</span>
+                <span class="toggle-label" data-i18n="web-editor.auto-save">Auto-save</span>
             </label>
             <label class="toggle-switch mobile-toggle">
                 <input type="checkbox" id="animations-toggle-mobile" checked>
-                <span class="toggle-label">Animations</span>
+                <span class="toggle-label" data-i18n="web-editor.animations">Animations</span>
             </label>
             <button onclick="openActivityLogModal(); toggleMobileMenu();" class="mobile-menu-item">
                 <span class="btn-icon">📋</span>
-                <span>History</span>
+                <span data-i18n="web-editor.history">History</span>
             </button>
             <button onclick="reloadCurrentConfig(); toggleMobileMenu();" class="mobile-menu-item">
                 <span class="btn-icon">🔄</span>
-                <span>Reload from Server</span>
+                <span data-i18n="web-editor.reload">Reload from Server</span>
             </button>
             <button onclick="manualSave(); toggleMobileMenu();" class="mobile-menu-item btn-primary">
                 <span class="btn-icon">💾</span>
-                <span>Save Current Tab</span>
+                <span data-i18n="web-editor.save-tab">Save Current Tab</span>
             </button>
             <button onclick="publishChanges(); toggleMobileMenu();" class="mobile-menu-item" style="background: linear-gradient(135deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 100, 0.2)); border-color: rgba(0, 230, 118, 0.4);">
                 <span class="btn-icon">🚀</span>
-                <span>Publish All Changes</span>
+                <span data-i18n="web-editor.publish-all">Publish All Changes</span>
             </button>
             <button onclick="logout();" class="mobile-menu-item btn-danger">
                 <span class="btn-icon">🚪</span>
-                <span>Logout</span>
+                <span data-i18n="web-editor.logout">Logout</span>
             </button>
         </div>
     </div>
@@ -54,7 +60,12 @@
     <div class="container">
         <header>
             <div class="header-top flex justify-between items-center mb-20">
-                <div id="user-info"></div>
+                <div class="flex items-center gap-12">
+                    <div id="user-info"></div>
+                    <select id="language-selector" class="premium-select" style="padding: 4px 10px; height: 32px; font-size: 0.8em; min-width: 100px;" onchange="changeEditorLanguage(this.value)">
+                        <option value="en_US">English</option>
+                    </select>
+                </div>
 
                 <!-- Hamburger Menu Button (Mobile Only) -->
                 <button id="mobile-menu-toggle" class="mobile-menu-btn" onclick="toggleMobileMenu()">
@@ -64,43 +75,43 @@
                 <div id="desktop-nav" class="desktop-navigation flex gap-12 items-center">
                     <label class="toggle-switch">
                         <input type="checkbox" id="auto-save-toggle" checked>
-                        <span class="toggle-label">Auto-save</span>
+                        <span class="toggle-label" data-i18n="web-editor.auto-save">Auto-save</span>
                     </label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="animations-toggle" checked>
-                        <span class="toggle-label">Animations</span>
+                        <span class="toggle-label" data-i18n="web-editor.animations">Animations</span>
                     </label>
                     <button onclick="openActivityLogModal()" class="header-btn btn-activity">
                         <span class="btn-icon">📋</span>
-                        <span>HISTORY</span>
+                        <span data-i18n="web-editor.history">HISTORY</span>
                     </button>
                     <button onclick="reloadCurrentConfig()" class="header-btn btn-secondary">
                         <span class="btn-icon">🔄</span>
-                        <span>RELOAD</span>
+                        <span data-i18n="web-editor.reload">RELOAD</span>
                     </button>
                     <button onclick="manualSave()" class="header-btn btn-primary">
                         <span class="btn-icon">💾</span>
-                        <span>SAVE TAB</span>
+                        <span data-i18n="web-editor.save-tab">SAVE TAB</span>
                     </button>
                     <button onclick="publishChanges()" class="header-btn btn-publish">
                         <span class="btn-icon">🚀</span>
-                        <span>PUBLISH ALL</span>
+                        <span data-i18n="web-editor.publish-all">PUBLISH ALL</span>
                     </button>
                     <button onclick="logout()" class="header-btn btn-danger">
                         <span class="btn-icon">🚪</span>
-                        <span>LOGOUT</span>
+                        <span data-i18n="web-editor.logout">LOGOUT</span>
                     </button>
                 </div>
             </div>
 
             <div class="header-hero">
-                <h1>⛏️ GENIUS SHOP EDITOR</h1>
-                <p>Configure your shop with live Minecraft preview</p>
-                <div class="beta-badge">
+                <h1 data-i18n="web-editor.hero-title">⛏️ GENIUS SHOP EDITOR</h1>
+                <p data-i18n="web-editor.hero-subtitle">Configure your shop with live Minecraft preview</p>
+                <div class="beta-badge" data-i18n="web-editor.beta-badge">
                     ⚠️ BETA - Some features may be working and some might be missing
                 </div>
                 <div>
-                    <a href="https://github.com/Drallee/Genius-Shop/issues" target="_blank" class="bug-report-link">
+                    <a href="https://github.com/Drallee/Genius-Shop/issues" target="_blank" class="bug-report-link" data-i18n="web-editor.bug-report">
                         🐛 Report bugs or missing features
                     </a>
                 </div>
@@ -110,11 +121,11 @@
 
         <div class="tabs-container">
             <div class="tabs">
-                <button class="tab active" onclick="switchTab('mainmenu')">MAIN MENU</button>
-                <button class="tab" onclick="switchTab('shop')">SHOP</button>
-                <button class="tab" onclick="switchTab('purchase')">PURCHASE</button>
-                <button class="tab" onclick="switchTab('sell')">SELL</button>
-                <button class="tab" onclick="switchTab('guisettings')">GUI SETTINGS</button>
+                <button class="tab active" data-tab="mainmenu" data-i18n="web-editor.tabs.main-menu" onclick="switchTab('mainmenu')">MAIN MENU</button>
+                <button class="tab" data-tab="shop" data-i18n="web-editor.tabs.shop" onclick="switchTab('shop')">SHOP</button>
+                <button class="tab" data-tab="purchase" data-i18n="web-editor.tabs.purchase" onclick="switchTab('purchase')">PURCHASE</button>
+                <button class="tab" data-tab="sell" data-i18n="web-editor.tabs.sell" onclick="switchTab('sell')">SELL</button>
+                <button class="tab" data-tab="guisettings" data-i18n="web-editor.tabs.gui-settings" onclick="switchTab('guisettings')">GUI SETTINGS</button>
             </div>
         </div>
 
@@ -125,18 +136,18 @@
                 <!-- Live Preview (Shared at top) -->
                 <div class="minecraft-preview-section">
                     <div class="minecraft-gui" id="preview">
-                        <div class="gui-title" id="preview-title">Loading...</div>
+                        <div class="gui-title" id="preview-title" data-i18n="web-editor.preview-loading">Loading...</div>
                         <div class="gui-grid" id="preview-grid"></div>
                     </div>
                     
                     <!-- Page Navigation (Shop only) -->
                     <div id="page-navigation" class="pagination">
                         <button onclick="changePage(-1)" class="btn page-btn">
-                            <span style="font-size: 1.1em;">◀</span> PREV
+                            <span style="font-size: 1.1em;">◀</span> <span data-i18n="web-editor.prev">PREV</span>
                         </button>
                         <span id="page-indicator" class="page-indicator">Page 1/1</span>
                         <button onclick="changePage(1)" class="btn page-btn">
-                            NEXT <span style="font-size: 1.1em;">▶</span>
+                            <span data-i18n="web-editor.next">NEXT</span> <span style="font-size: 1.1em;">▶</span>
                         </button>
                     </div>
                 </div>
@@ -146,17 +157,17 @@
                     <div class="content-header flex justify-between items-center mb-30">
                         <div class="flex items-center gap-12">
                             <div class="icon-badge primary"><span style="font-size: 1.1em; color: white;">🏠</span></div>
-                            <span class="header-title">MAIN MENU EDITOR</span>
+                            <span class="header-title" data-i18n="web-editor.main-menu.title">MAIN MENU EDITOR</span>
                             <div id="mainmenu-buttons-count" class="count-badge">0 buttons</div>
                         </div>
                         <div class="flex gap-12">
                             <button class="btn btn-secondary action-btn" onclick="openMainMenuSettings()" style="height: 54px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0 25px;">
                                 <span style="font-size: 1.2em; margin-right: 8px;">⚙️</span>
-                                <span style="font-weight: 700; letter-spacing: 1px;">SETTINGS</span>
+                                <span style="font-weight: 700; letter-spacing: 1px;" data-i18n="web-editor.main-menu.settings">SETTINGS</span>
                             </button>
                             <button class="btn btn-primary action-btn" onclick="addMainMenuShop()" style="height: 54px; padding: 0 25px; border-radius: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border: none; box-shadow: 0 4px 15px rgba(120, 119, 198, 0.3);">
                                 <span style="font-size: 1.2em; margin-right: 8px;">➕</span>
-                                <span style="font-weight: 700; letter-spacing: 0.5px;">ADD BUTTON</span>
+                                <span style="font-weight: 700; letter-spacing: 0.5px;" data-i18n="web-editor.main-menu.add-button">ADD BUTTON</span>
                             </button>
                         </div>
                     </div>
@@ -169,41 +180,54 @@
                         <div class="flex items-center gap-12 flex-1">
                             <span style="font-size: 1.5em;">📁</span>
                             <div class="flex-1">
-                                <label class="section-label" style="margin-bottom: 4px; display: block; font-size: 0.7em;">CURRENT SHOP FILE</label>
+                                <label class="section-label" style="margin-bottom: 4px; display: block; font-size: 0.7em;" data-i18n="web-editor.shop.current-file">CURRENT SHOP FILE</label>
                                 <select id="shop-selector" onchange="switchShop(this.value)" class="premium-select w-full">
-                                    <option value="">Loading shops...</option>
+                                    <option value="" data-i18n="web-editor.shop.loading">Loading shops...</option>
                                 </select>
                             </div>
-                            <button class="btn btn-danger icon-btn" onclick="removeShopFile()" title="Delete Shop File" style="margin-top: 18px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
+                            <button class="btn btn-danger icon-btn" onclick="removeShopFile()" data-i18n-title="web-editor.shop.delete-file" title="Delete Shop File" style="margin-top: 18px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px;">
                                 <span style="font-size: 1.2em;">🗑️</span>
                             </button>
                         </div>
                         <button class="btn btn-success action-btn" onclick="createNewShop()" style="height: 54px; padding: 0 25px; border-radius: 14px; margin-top: 18px;">
                             <span style="font-size: 1.2em; margin-right: 8px;">📄</span>
-                            <span style="font-weight: 700; letter-spacing: 0.5px;">CREATE NEW SHOP</span>
+                            <span style="font-weight: 700; letter-spacing: 0.5px;" data-i18n="web-editor.shop.create-new">CREATE NEW SHOP</span>
                         </button>
                     </div>
 
                     <div class="content-header flex justify-between items-center mb-24">
                         <div class="flex items-center gap-12">
                             <div class="icon-badge primary">✏️</div>
-                            <span class="header-title">SHOP CONTENT</span>
+                            <span class="header-title" data-i18n="web-editor.shop.title">SHOP CONTENT</span>
                             <div id="items-count-display" class="count-badge">0 items</div>
                         </div>
                         
                         <div class="flex gap-12 items-center">
+                            <!-- Sort Dropdown -->
+                            <div class="flex items-center gap-8">
+                                <span class="section-label" style="margin: 0; font-size: 0.7em;" data-i18n="web-editor.shop.sort-label">Sort by:</span>
+                                <select id="item-sort" class="premium-select" style="padding: 4px 10px; height: 38px; font-size: 0.85em; min-width: 120px;" onchange="handleItemSort()">
+                                    <option value="slot" data-i18n="web-editor.shop.sort.slot">Slot</option>
+                                    <option value="name" data-i18n="web-editor.shop.sort.name">Name</option>
+                                    <option value="material" data-i18n="web-editor.shop.sort.material">Material</option>
+                                    <option value="price" data-i18n="web-editor.shop.sort.price">Buy Price</option>
+                                    <option value="sellPrice" data-i18n="web-editor.shop.sort.sell-price">Sell Price</option>
+                                    <option value="id" data-i18n="web-editor.shop.sort.id">ID</option>
+                                </select>
+                            </div>
+
                             <!-- Search Bar -->
                             <div class="search-wrapper">
                                 <span class="search-icon">🔍</span>
-                                <input type="text" id="item-search" placeholder="Search by name or material..." oninput="handleItemSearch()">
+                                <input type="text" id="item-search" placeholder="Search by name or material..." data-i18n="web-editor.shop.search-placeholder" oninput="handleItemSearch()">
                             </div>
                             
-                            <button class="btn btn-secondary action-btn" onclick="openShopSettings()" style="height: 54px; width: 54px; padding: 0; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;" title="Shop Settings">
+                            <button class="btn btn-secondary action-btn" onclick="openShopSettings()" style="height: 54px; width: 54px; padding: 0; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;" data-i18n-title="web-editor.main-menu.settings" title="Shop Settings">
                                 <span style="font-size: 1.4em;">⚙️</span>
                             </button>
                             <button class="btn btn-primary action-btn" onclick="addItem()" style="height: 54px; padding: 0 25px; border-radius: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border: none; box-shadow: 0 4px 15px rgba(120, 119, 198, 0.3);">
                                 <span style="font-size: 1.2em; margin-right: 8px;">➕</span>
-                                <span style="font-weight: 700; letter-spacing: 0.5px;">ADD ITEM</span>
+                                <span style="font-weight: 700; letter-spacing: 0.5px;" data-i18n="web-editor.shop.add-item">ADD ITEM</span>
                             </button>
                         </div>
                     </div>
@@ -215,11 +239,11 @@
                     <div class="content-header flex justify-between items-center mb-24">
                         <div class="flex items-center gap-12">
                             <div class="icon-badge warning"><span style="font-size: 1.1em; color: white;">💰</span></div>
-                            <span class="header-title">PURCHASE CONFIGURATION</span>
+                            <span class="header-title" data-i18n="web-editor.purchase.title">PURCHASE CONFIGURATION</span>
                         </div>
                         <button class="btn btn-secondary action-btn" onclick="openPurchaseSettings()" style="height: 54px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0 25px;">
                             <span style="font-size: 1.2em; margin-right: 8px;">⚙️</span>
-                            <span style="font-weight: 700; letter-spacing: 1px;">MENU SETTINGS</span>
+                            <span style="font-weight: 700; letter-spacing: 1px;" data-i18n="web-editor.purchase.menu-settings">MENU SETTINGS</span>
                         </button>
                     </div>
                     <div id="purchase-buttons-list" class="flex-list"></div>
@@ -230,11 +254,11 @@
                     <div class="content-header flex justify-between items-center mb-24">
                         <div class="flex items-center gap-12">
                             <div class="icon-badge success"><span style="font-size: 1.1em; color: white;">💵</span></div>
-                            <span class="header-title">SELL CONFIGURATION</span>
+                            <span class="header-title" data-i18n="web-editor.sell.title">SELL CONFIGURATION</span>
                         </div>
                         <button class="btn btn-secondary action-btn" onclick="openSellSettings()" style="height: 54px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0 25px;">
                             <span style="font-size: 1.2em; margin-right: 8px;">⚙️</span>
-                            <span style="font-weight: 700; letter-spacing: 1px;">MENU SETTINGS</span>
+                            <span style="font-weight: 700; letter-spacing: 1px;" data-i18n="web-editor.sell.menu-settings">MENU SETTINGS</span>
                         </button>
                     </div>
                     <div id="sell-buttons-list" class="flex-list"></div>
@@ -245,11 +269,11 @@
                     <div class="content-header flex justify-between items-center mb-24">
                         <div class="flex items-center gap-12">
                             <div class="icon-badge primary"><span style="font-size: 1.1em; color: white;">🎨</span></div>
-                            <span class="header-title">GUI GLOBAL SETTINGS</span>
+                            <span class="header-title" data-i18n="web-editor.gui-settings.title">GUI GLOBAL SETTINGS</span>
                         </div>
                         <button class="btn btn-primary action-btn" onclick="saveGuiSettingsYaml()" style="height: 54px; padding: 0 25px; border-radius: 14px;">
                             <span style="font-size: 1.2em; margin-right: 8px;">💾</span>
-                            <span style="font-weight: 700; letter-spacing: 0.5px;">SAVE GUI SETTINGS</span>
+                            <span style="font-weight: 700; letter-spacing: 0.5px;" data-i18n="web-editor.gui-settings.save">SAVE GUI SETTINGS</span>
                         </button>
                     </div>
                     <div id="gui-settings-container" class="settings-grid">
@@ -268,16 +292,16 @@
                     <div class="flex justify-between items-center mb-12 cursor-pointer" onclick="toggleQuickTips()">
                         <h3 class="flex items-center gap-8 m-0">
                             <span style="font-size: 1.2em;">💡</span>
-                            <span style="font-size: 0.9em; font-weight: 700; letter-spacing: 0.5px;">QUICK TIPS</span>
+                            <span style="font-size: 0.9em; font-weight: 700; letter-spacing: 0.5px;" data-i18n="web-editor.tips.title">QUICK TIPS</span>
                         </h3>
                         <span id="tips-toggle-icon" class="toggle-icon" style="font-size: 0.8em; color: rgba(200, 210, 225, 0.7);">▼</span>
                     </div>
                     <ul id="quick-tips-list" style="display: block;">
-                        <li>✨ Click items in preview to edit properties</li>
-                        <li>🎨 Real Minecraft textures displayed</li>
-                        <li>💾 Auto-save keeps your changes safe</li>
-                        <li>🔄 Use SYNC to reload from server</li>
-                        <li>📄 Create multiple shop files</li>
+                        <li data-i18n="web-editor.tips.tip1">✨ Click items in preview to edit properties</li>
+                        <li data-i18n="web-editor.tips.tip2">🎨 Real Minecraft textures displayed</li>
+                        <li data-i18n="web-editor.tips.tip3">💾 Auto-save keeps your changes safe</li>
+                        <li data-i18n="web-editor.tips.tip4">🔄 Use SYNC to reload from server</li>
+                        <li data-i18n="web-editor.tips.tip5">📄 Create multiple shop files</li>
                     </ul>
                 </div>
             </div>
@@ -291,17 +315,20 @@
     <div id="edit-modal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
-                <h2 class="modal-title" id="modal-title">Edit Item</h2>
+                <h2 class="modal-title" id="modal-title" data-i18n="web-editor.modals.edit-item">Edit Item</h2>
                 <button onclick="closeEditModal()" class="modal-close">✕</button>
             </div>
             <div id="modal-content">
                 <!-- Content will be dynamically inserted here -->
             </div>
             <div class="modal-footer">
-                <button id="modal-delete-btn" onclick="deleteFromModal()" class="btn-base btn-danger" style="display: none;">🗑️ Delete</button>
+                <button id="modal-delete-btn" onclick="deleteFromModal()" class="btn-base btn-danger" style="display: none;">
+                    <span style="margin-right: 4px;">🗑️</span>
+                    <span data-i18n="web-editor.modals.delete">Delete</span>
+                </button>
                 <div class="flex gap-12">
-                    <button onclick="closeEditModal()" class="btn-base btn-secondary">Cancel</button>
-                    <button onclick="saveEditModal()" class="btn-base btn-success">Save</button>
+                    <button onclick="closeEditModal()" class="btn-base btn-secondary" data-i18n="web-editor.modals.cancel">Cancel</button>
+                    <button onclick="saveEditModal()" class="btn-base btn-success" data-i18n="web-editor.modals.save">Save</button>
                 </div>
             </div>
         </div>
@@ -311,25 +338,25 @@
     <div id="activity-log-modal" class="modal-overlay">
         <div class="modal-box" style="max-width: 1000px;">
             <div class="modal-header">
-                <h2 class="modal-title">📋 HISTORY LOG</h2>
+                <h2 class="modal-title" data-i18n="web-editor.modals.history-log">📋 HISTORY LOG</h2>
                 <button onclick="closeActivityLogModal()" class="modal-close">✕</button>
             </div>
 
             <div class="flex gap-12 mb-20">
                 <button class="btn-base btn-primary flex-1" onclick="refreshActivityLog()">
-                    <span>🔄 REFRESH</span>
+                    <span data-i18n="web-editor.modals.refresh">🔄 REFRESH</span>
                 </button>
                 <button class="btn-base btn-danger flex-1" onclick="clearActivityLog()">
-                    <span>🗑️ CLEAR ALL</span>
+                    <span data-i18n="web-editor.modals.clear">🗑️ CLEAR ALL</span>
                 </button>
             </div>
 
             <div class="info-box mb-20">
                 <div class="flex items-center gap-8 mb-8">
                     <span>ℹ️</span>
-                    <h3 class="m-0">ABOUT HISTORY LOG</h3>
+                    <h3 class="m-0" data-i18n="web-editor.modals.about-history-title">ABOUT HISTORY LOG</h3>
                 </div>
-                <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+                <p class="text-muted" style="font-size: 0.85rem; margin: 0;" data-i18n="web-editor.modals.about-history-text">
                     Track all changes made by users. Click any entry to view detailed before/after comparison.
                 </p>
             </div>
@@ -340,7 +367,7 @@
 
             <div id="activity-log-empty" class="text-center" style="padding: 4rem 0;">
                 <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">📋</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-muted);">No Activity Yet</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-muted);" data-i18n="web-editor.modals.no-activity">No Activity Yet</div>
             </div>
         </div>
     </div>
@@ -351,7 +378,7 @@
             <div class="modal-header">
                 <h2 id="alert-modal-title" class="modal-title flex items-center gap-12">
                     <span id="alert-modal-icon">ℹ️</span>
-                    <span id="alert-modal-title-text">Message</span>
+                    <span id="alert-modal-title-text" data-i18n="web-editor.modals.alert-title">Message</span>
                 </h2>
             </div>
             <div id="alert-modal-content" class="mb-24" style="line-height: 1.6; white-space: pre-wrap;">
@@ -369,15 +396,15 @@
             <div class="modal-header">
                 <h2 class="modal-title flex items-center gap-12">
                     <span>⚠️</span>
-                    <span>Confirm Action</span>
+                    <span data-i18n="web-editor.modals.confirm-title">Confirm Action</span>
                 </h2>
             </div>
             <div id="confirm-modal-content" class="mb-24" style="line-height: 1.6; white-space: pre-wrap;">
                 <!-- Content will be dynamically inserted here -->
             </div>
             <div class="modal-footer">
-                <button onclick="closeConfirmModal(false)" class="btn-base btn-secondary">Cancel</button>
-                <button onclick="closeConfirmModal(true)" class="btn-base btn-warning">Confirm</button>
+                <button onclick="closeConfirmModal(false)" class="btn-base btn-secondary" data-i18n="web-editor.modals.cancel">Cancel</button>
+                <button onclick="closeConfirmModal(true)" class="btn-base btn-warning" data-i18n="web-editor.modals.confirm-button">Confirm</button>
             </div>
         </div>
     </div>
@@ -388,7 +415,7 @@
             <div class="modal-header">
                 <h2 id="prompt-modal-title" class="modal-title flex items-center gap-12">
                     <span id="prompt-modal-icon">✏️</span>
-                    <span id="prompt-modal-title-text">Enter Value</span>
+                    <span id="prompt-modal-title-text" data-i18n="web-editor.modals.prompt-title">Enter Value</span>
                 </h2>
             </div>
             <div id="prompt-modal-content" class="mb-16">
@@ -398,7 +425,7 @@
                 <input type="text" id="prompt-modal-input" class="input-base" placeholder="Enter value...">
             </div>
             <div class="modal-footer">
-                <button onclick="closePromptModal(null)" class="btn-base btn-secondary">Cancel</button>
+                <button onclick="closePromptModal(null)" class="btn-base btn-secondary" data-i18n="web-editor.modals.cancel">Cancel</button>
                 <button onclick="submitPromptModal()" class="btn-base btn-primary">OK</button>
             </div>
         </div>
@@ -410,7 +437,7 @@
             <div class="modal-header">
                 <h2 class="modal-title flex items-center gap-12">
                     <span>💾</span>
-                    <span>Confirm Save</span>
+                    <span data-i18n="web-editor.modals.save-confirm-title">Confirm Save</span>
                 </h2>
                 <button onclick="closeSaveConfirmationModal()" class="modal-close">✕</button>
             </div>
@@ -420,9 +447,10 @@
             </div>
 
             <div class="modal-footer">
-                <button onclick="closeSaveConfirmationModal()" class="btn-base btn-secondary">Cancel</button>
+                <button onclick="closeSaveConfirmationModal()" class="btn-base btn-secondary" data-i18n="web-editor.modals.cancel">Cancel</button>
                 <button onclick="confirmSave()" class="btn-base btn-success">
-                    <span>💾 SAVE CURRENT TAB</span>
+                    <span style="margin-right: 4px;">💾</span>
+                    <span data-i18n="web-editor.save-tab">SAVE CURRENT TAB</span>
                 </button>
             </div>
         </div>
@@ -434,7 +462,7 @@
             <div class="modal-header">
                 <h2 class="modal-title flex items-center gap-12">
                     <span>📋</span>
-                    <span id="activity-detail-title">Change Details</span>
+                    <span id="activity-detail-title" data-i18n="web-editor.modals.activity-detail-title">Change Details</span>
                 </h2>
                 <button onclick="closeActivityDetailModal()" class="modal-close">✕</button>
             </div>
@@ -443,31 +471,31 @@
             </div>
             <div class="modal-footer" style="justify-content: space-between;">
                 <button id="rollback-btn" onclick="rollbackChange()" class="btn-base btn-warning" style="display: none;">
-                    <span>⏮️ ROLLBACK</span>
+                    <span data-i18n="web-editor.modals.rollback">⏮️ ROLLBACK</span>
                 </button>
-                <button onclick="closeActivityDetailModal()" class="btn-base btn-secondary">Close</button>
+                <button onclick="closeActivityDetailModal()" class="btn-base btn-secondary" data-i18n="web-editor.modals.cancel">Close</button>
             </div>
         </div>
     </div>
     <footer style="margin-top: 40px; padding: 30px 0 25px 0; text-align: center; border-top: 1px solid rgba(120, 119, 198, 0.15); position: relative; z-index: 10;">
         <div style="max-width: 600px; margin: 0 auto;">
             <div style="font-size: 0.85em; color: rgba(150, 160, 180, 0.6); line-height: 1.8;">
-                <p style="margin: 0 0 12px 0;">A powerful configuration editor for Minecraft shop plugins with live preview</p>
+                <p style="margin: 0 0 12px 0;" data-i18n="web-editor.footer.description">A powerful configuration editor for Minecraft shop plugins with live preview</p>
             </div>
 
             <div style="display: flex; gap: 16px; justify-content: center; align-items: center; margin: 16px 0; flex-wrap: wrap;">
-                <a href="https://github.com/Drallee/Genius-Shop" target="_blank" style="color: rgba(120, 119, 198, 0.8); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 0.85em; transition: color 0.3s ease; position: relative; z-index: 11;" onmouseover="this.style.color='rgba(120, 119, 198, 1)';" onmouseout="this.style.color='rgba(120, 119, 198, 0.8)';">
+                <a href="https://github.com/Drallee/Genius-Shop" target="_blank" style="color: rgba(120, 119, 198, 0.8); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 0.85em; transition: color 0.3s ease; position: relative; z-index: 11;" onmouseover="this.style.color='rgba(120, 119, 198, 1)';" onmouseout="this.style.color='rgba(120, 119, 198, 0.8)';" data-i18n="web-editor.footer.github">
                     ⭐ Star on GitHub
                 </a>
                 <span style="color: rgba(120, 119, 198, 0.3);">•</span>
-                <a href="https://github.com/Drallee/Genius-Shop/issues" target="_blank" style="color: rgba(120, 119, 198, 0.8); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 0.85em; transition: color 0.3s ease; position: relative; z-index: 11;" onmouseover="this.style.color='rgba(120, 119, 198, 1)';" onmouseout="this.style.color='rgba(120, 119, 198, 0.8)';">
+                <a href="https://github.com/Drallee/Genius-Shop/issues" target="_blank" style="color: rgba(120, 119, 198, 0.8); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 0.85em; transition: color 0.3s ease; position: relative; z-index: 11;" onmouseover="this.style.color='rgba(120, 119, 198, 1)';" onmouseout="this.style.color='rgba(120, 119, 198, 0.8)';" data-i18n="web-editor.footer.issues">
                     🐛 Report Issues
                 </a>
             </div>
 
             <div style="margin-top: 16px; font-size: 0.8em; color: rgba(130, 140, 160, 0.5);">
-                <p style="margin: 0;">Made with ❤️ by Dralle for the Minecraft community</p>
-                <p style="margin: 6px 0 0 0;">© 2025 Genius Shop - Open Source Project</p>
+                <p style="margin: 0;" data-i18n="web-editor.footer.made-with">Made with ❤️ by Dralle for the Minecraft community</p>
+                <p style="margin: 6px 0 0 0;" data-i18n="web-editor.footer.copyright">© 2025 Genius Shop - Open Source Project</p>
             </div>
         </div>
     </footer>
