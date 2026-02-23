@@ -1,14 +1,14 @@
-gui-name: '&8Blocks Shop'
+gui-name: '<gradient:#92E28D:#2FA53C>Blocks Shop</gradient>'
 rows: 3
 permission: ''
 items:
   - material: STONE
-    name: '&fStone'
+    name: '<gradient:#F8F9FA:#C7CDD6>Stone</gradient>'
     price: 5
     sell-price: 2
     amount: 16
   - material: COBBLESTONE
-    name: '&7Cobblestone'
+    name: '<gradient:#B0B7C3:#8B93A1>Cobblestone</gradient>'
     price: 3
     sell-price: 1
     amount: 32

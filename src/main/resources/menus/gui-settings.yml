@@ -1,6 +1,8 @@
 # Common GUI settings shared across all menus
 # This file contains buttons and settings used in shop pages
 
+config-version: 3
+
 gui:
   # Navigation buttons for shop pages
   back-button:
@@ -26,6 +28,26 @@ gui:
 
   # Controls lore lines on shop items
   item-lore:
+
+    # Format of the item lore in shop pages
+    # Available placeholders:
+    # %price-line%, %buy-price-line%, %sell-price-line%
+    # %custom-lore%, %spawner-type-line%, %spawner-item-line%, %potion-type-line%
+    # %global-limit%, %player-limit%, %stock-reset-timer%
+    # %hint-line%, %buy-hint-line%, %sell-hint-line%
+    lore-format:
+      - "%custom-lore%"
+      - ""
+      - "%spawner-type-line%"
+      - "%spawner-item-line%"
+      - "%potion-type-line%"
+      - "%global-limit%"
+      - "%player-limit%"
+      - "%stock-reset-timer%"
+      - ""
+      - "%price-line%"
+      - "%hint-line%"
+
     # Price display lines (shown at top of item lore)
     show-buy-price: true
     buy-price-line: '&6Buy Price: &a%price%'
@@ -41,3 +63,24 @@ gui:
     # Purchase menu amount and total lines
     amount-line: '&eAmount: &7%amount%'
     total-line: '&eTotal: &7%total%'
+
+    # Spawner lore lines
+    spawner-type-line: '&7Spawner Type: &e%type%'
+    spawner-item-line: '&7Spawner Item: &e%item%'
+
+    # Potion lore lines
+    potion-type-line: '&7Potion Type: &d%type%'
+
+    # Value format templates for placeholders.
+    # Available: %current%, %limit%
+    global-limit-value-format: '%current%/%limit%'
+    player-limit-value-format: '%current%/%limit%'
+
+    # Countdown value format for %stock-reset-timer%
+    # Available: %time% (example: 10 minutes, 5 hours)
+    stock-reset-timer-value-format: 'Stock resets in %time%'
+
+    # Display lines for lore-format placeholders
+    global-limit-line: '&7Stock: &e%global-limit%'
+    player-limit-line: '&7Your limit: &e%player-limit%'
+    stock-reset-timer-line: '&7%stock-reset-timer%'

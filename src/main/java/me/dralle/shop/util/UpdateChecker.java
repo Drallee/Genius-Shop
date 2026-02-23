@@ -2,10 +2,11 @@ package me.dralle.shop.util;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.dralle.shop.ShopPlugin;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,6 +17,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class UpdateChecker implements Listener {
@@ -23,6 +28,7 @@ public class UpdateChecker implements Listener {
     private final ShopPlugin plugin;
     private final String projectSlug; // Modrinth project slug (e.g., "genius-shop")
     private String latestVersion = null;
+    private volatile List<String> latestReleaseHighlights = Collections.emptyList();
     private boolean updateAvailable = false;
 
     public UpdateChecker(ShopPlugin plugin, String projectSlug) {
@@ -38,6 +44,10 @@ public class UpdateChecker implements Listener {
         return latestVersion;
     }
 
+    public List<String> getLatestReleaseHighlights() {
+        return new ArrayList<>(latestReleaseHighlights);
+    }
+
     public void getVersion(final Consumer<String> consumer) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
@@ -48,33 +58,40 @@ public class UpdateChecker implements Listener {
                 connection.setRequestProperty("User-Agent", "dralle/Genius-Shop/" + plugin.getDescription().getVersion() + " (contact@dralle.me)");
 
                 if (connection.getResponseCode() != 200) {
-                    plugin.getLogger().warning("Modrinth API returned code: " + connection.getResponseCode());
+                    me.dralle.shop.util.ConsoleLog.warn(plugin, "Modrinth API returned code: " + connection.getResponseCode());
                     return;
                 }
 
                 try (InputStream inputStream = connection.getInputStream();
-                     InputStreamReader reader = new InputStreamReader(inputStream)) {
+                     InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
 
                     JsonElement root = new JsonParser().parse(reader);
                     if (root.isJsonArray()) {
                         JsonArray versions = root.getAsJsonArray();
                         if (versions.size() > 0) {
+                            JsonObject latest = versions.get(0).getAsJsonObject();
                             // The API returns versions sorted by date (newest first) by default
                             // We take the first one as the latest version
-                            String latestVersionNumber = versions.get(0).getAsJsonObject()
-                                    .get("version_number").getAsString();
+                            String latestVersionNumber = latest.get("version_number").getAsString();
+
+                            String changelog = "";
+                            if (latest.has("changelog") && !latest.get("changelog").isJsonNull()) {
+                                changelog = latest.get("changelog").getAsString();
+                            }
+                            latestReleaseHighlights = extractHighlights(changelog, 4);
+
                             consumer.accept(latestVersionNumber);
                         }
                     }
                 }
             } catch (IOException exception) {
-                plugin.getLogger().warning("Unable to check for updates: " + exception.getMessage());
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Unable to check for updates: " + exception.getMessage());
             }
         });
     }
 
     public void checkForUpdates() {
-        if (!plugin.getConfig().getBoolean("check-updates", true)) return;
+        if (!isUpdateCheckEnabled()) return;
 
         getVersion(latestVersionStr -> {
             String currentVersion = plugin.getDescription().getVersion();
@@ -83,38 +100,142 @@ public class UpdateChecker implements Listener {
             // Use smarter version comparison
             if (!isVersionNewer(currentVersion, latestVersionStr)) {
                 this.updateAvailable = false;
+                me.dralle.shop.util.ConsoleLog.success(plugin, "You are running the latest version (" + currentVersion + ").");
                 return;
             }
 
             this.updateAvailable = true;
-
-            // Notify Console with color
-            String prefix = "&8&l| &cGENIUS-SHOP &8&l| ";
-            Bukkit.getConsoleSender().sendMessage(ItemUtil.color(prefix + "&aThere is a new update available &7(&c" + currentVersion + " &7-> &a" + latestVersionStr + "&7)"));
-            Bukkit.getConsoleSender().sendMessage(ItemUtil.color(prefix + "&aDownload it here: &ehttps://modrinth.com/plugin/" + projectSlug));
+            sendStyledConsoleUpdateMessage(currentVersion, latestVersionStr);
         });
+    }
+
+    private void sendStyledConsoleUpdateMessage(String currentVersion, String latestVersionStr) {
+        String projectUrl = "https://modrinth.com/plugin/" + projectSlug;
+        String versionUrl = projectUrl + "/version/" + latestVersionStr;
+
+        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&8&m--------------------------------------------------------------"));
+        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&b&l[GeniusShop] &a&lUPDATE AVAILABLE"));
+        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Current version: &e" + currentVersion));
+        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Latest version:  &a" + latestVersionStr));
+        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Download latest: &d" + versionUrl));
+        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Project page:    &d" + projectUrl));
+        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&8&m--------------------------------------------------------------"));
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        if (!plugin.getConfig().getBoolean("check-updates", true)) return;
-        
-        // NEW: Check if ingame messages are enabled
-        if (!plugin.getConfig().getBoolean("send-update-message-ingame", true)) return;
-        
+        if (!isUpdateCheckEnabled()) return;
+
+        if (!isIngameUpdateMessageEnabled()) return;
+
         Player player = event.getPlayer();
         if (!player.hasPermission("geniusshop.admin") && !player.isOp()) return;
 
-        getVersion(latestVersion -> {
+        getVersion(latestVersionStr -> {
             String currentVersion = plugin.getDescription().getVersion();
-            if (!isVersionNewer(currentVersion, latestVersion)) return;
+            if (!isVersionNewer(currentVersion, latestVersionStr)) return;
 
-            String msg = plugin.getMessages().getMessage("update-available")
-                    .replace("%current%", currentVersion)
-                    .replace("%new%", latestVersion);
-            
-            player.sendMessage(msg);
+            // Always send player messages on the main server thread.
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                sendStyledUpdateMessage(player, currentVersion, latestVersionStr);
+                playUpdateSound(player);
+            });
         });
+    }
+
+    private void sendStyledUpdateMessage(Player player, String currentVersion, String latestVersionStr) {
+        String downloadUrl = "https://modrinth.com/plugin/" + projectSlug;
+
+        player.sendMessage(ShopItemUtil.color("&8&m---------------------------------------------"));
+        player.sendMessage(ShopItemUtil.color("&9&l-------- &d&lGENIUSSHOP UPDATE &9&l--------"));
+        player.sendMessage("");
+        player.sendMessage(ShopItemUtil.color("&a&l>> &aNEW UPDATE AVAILABLE!"));
+        player.sendMessage(ShopItemUtil.color("&7>> CURRENT: &e" + currentVersion + " &7* LATEST: &a" + latestVersionStr));
+        player.sendMessage(ShopItemUtil.color("&5&l>> &d&l[DOWNLOAD] &7" + downloadUrl));
+
+        player.sendMessage("");
+        player.sendMessage(ShopItemUtil.color("&8&m---------------------------------------------"));
+    }
+
+    private void playUpdateSound(Player player) {
+        if (!isUpdateSoundEnabled()) return;
+
+        String soundName = plugin.getConfig().getString("updates.message-sound.type",
+                plugin.getConfig().getString("update-message-sound.type", "BLOCK_NOTE_BLOCK_PLING"));
+        float volume = (float) plugin.getConfig().getDouble("updates.message-sound.volume",
+                plugin.getConfig().getDouble("update-message-sound.volume", 1.0D));
+        float pitch = (float) plugin.getConfig().getDouble("updates.message-sound.pitch",
+                plugin.getConfig().getDouble("update-message-sound.pitch", 1.2D));
+
+        try {
+            Sound sound = Sound.valueOf(soundName.toUpperCase(java.util.Locale.ROOT));
+            player.playSound(player.getLocation(), sound, volume, pitch);
+        } catch (IllegalArgumentException ex) {
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "Invalid update sound in config: " + soundName);
+        }
+    }
+
+    private boolean isUpdateCheckEnabled() {
+        return plugin.getConfig().getBoolean("updates.check-updates",
+                plugin.getConfig().getBoolean("check-updates", true));
+    }
+
+    private boolean isIngameUpdateMessageEnabled() {
+        return plugin.getConfig().getBoolean("updates.send-update-message-ingame",
+                plugin.getConfig().getBoolean("send-update-message-ingame", true));
+    }
+
+    private boolean isUpdateSoundEnabled() {
+        return plugin.getConfig().getBoolean("updates.message-sound.enabled",
+                plugin.getConfig().getBoolean("update-message-sound.enabled", true));
+    }
+
+    private List<String> extractHighlights(String changelog, int maxLines) {
+        if (changelog == null || changelog.trim().isEmpty()) return Collections.emptyList();
+
+        List<String> out = new ArrayList<>();
+        String[] lines = changelog.split("\\r?\\n");
+
+        for (String raw : lines) {
+            if (out.size() >= maxLines) break;
+            if (raw == null) continue;
+
+            String line = raw.trim();
+            if (line.isEmpty()) continue;
+            if (line.startsWith("#")) continue;
+
+            if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("+ ")) {
+                line = line.substring(2).trim();
+            } else if (line.matches("^\\d+\\.\\s+.*")) {
+                int idx = line.indexOf('.');
+                if (idx >= 0 && idx + 1 < line.length()) {
+                    line = line.substring(idx + 1).trim();
+                }
+            } else {
+                continue;
+            }
+
+            line = line.replace("`", "").replace("**", "").replace("__", "").trim();
+            if (line.isEmpty()) continue;
+
+            out.add(line);
+        }
+
+        if (!out.isEmpty()) return out;
+
+        // Fallback: take first non-empty non-header lines if changelog has no bullet points.
+        for (String raw : lines) {
+            if (out.size() >= maxLines) break;
+            if (raw == null) continue;
+            String line = raw.trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            line = line.replace("`", "").replace("**", "").replace("__", "").trim();
+            if (!line.isEmpty()) {
+                out.add(line);
+            }
+        }
+
+        return out;
     }
 
     /**

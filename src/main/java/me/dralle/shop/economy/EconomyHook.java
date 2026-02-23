@@ -27,19 +27,19 @@ public class EconomyHook {
 
     private void setupEconomy() {
         if (plugin.getServer().getPluginManager().getPlugin("Vault") == null) {
-            plugin.getLogger().warning("Vault not found — economy features will be limited.");
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "Vault not found â€” economy features will be limited.");
             return;
         }
 
         RegisteredServiceProvider<Economy> rsp =
                 Bukkit.getServicesManager().getRegistration(Economy.class);
         if (rsp == null) {
-            plugin.getLogger().warning("No Vault economy provider found!");
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "No Vault economy provider found!");
             return;
         }
 
         economy = rsp.getProvider();
-        plugin.getLogger().info("Detected economy provider: " + economy.getName());
+        me.dralle.shop.util.ConsoleLog.info(plugin, "Detected economy provider: " + economy.getName());
     }
 
     public boolean isReady() {
@@ -72,7 +72,7 @@ public class EconomyHook {
     }
 
     /**
-     * Gets the currency symbol (e.g., "$", "€").
+     * Gets the currency symbol (e.g., "$", "â‚¬").
      * Priority:
      * 1. Config Override (if set)
      * 2. Vault (if available) - attempts to parse symbol
@@ -108,12 +108,12 @@ public class EconomyHook {
      */
     public String format(double amount) {
 
-        // If config override is set → always use that
+        // If config override is set â†’ always use that
         if (overrideSymbol != null && !overrideSymbol.isEmpty()) {
             return overrideSymbol + trimZeros(amount);
         }
 
-        // If Vault is available → use its format
+        // If Vault is available â†’ use its format
         if (isReady()) {
             try {
                 return economy.format(amount);

@@ -1,6 +1,8 @@
 # Sell menu configuration
 # This file contains settings for the item selling interface
 
+config-version: 2
+
 title-prefix: '&8Selling '
 display-material: BOOK
 display-slot: 22

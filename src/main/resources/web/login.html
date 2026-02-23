@@ -4,16 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="web-editor.login.title">Login - Genius Shop Editor</title>
-    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link rel="apple-touch-icon" href="/favicon.ico?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="login-style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="login-page">
     <div class="login-container">
         <div style="position: absolute; top: 20px; right: 20px;">
-            <select id="language-selector" class="premium-select" style="background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 8px; cursor: pointer;" onchange="changeEditorLanguage(this.value)">
+            <label for="language-selector" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">Language</label>
+            <select id="language-selector" name="language-selector" class="premium-select" style="min-width: 120px;" onchange="changeEditorLanguage(this.value)">
                 <option value="en_US">English</option>
             </select>
         </div>
@@ -29,21 +32,38 @@
             <ul>
                 <li data-i18n="web-editor.login.req1">You must be logged into the Minecraft server</li>
                 <li data-i18n="web-editor.login.req2">You need admin permissions (geniusshop.admin or OP)</li>
-                <li data-i18n="web-editor.login.req3">Your password is your player UUID</li>
+                <li data-i18n="web-editor.login.req3">Your password is your player UUID (or a login code)</li>
             </ul>
+        </div>
+
+        <div class="login-tabs">
+            <button class="tab-btn active" id="tab-uuid" type="button" data-i18n="web-editor.login.tab-uuid">UUID Login</button>
+            <button class="tab-btn" id="tab-code" type="button" data-i18n="web-editor.login.tab-code">Code Login</button>
         </div>
 
         <form id="login-form">
             <div class="form-group">
-                <label data-i18n="web-editor.login.username-label">Minecraft Username</label>
-                <input type="text" id="username" placeholder="Your in-game name" data-i18n="web-editor.login.username-placeholder" required autocomplete="username">
+                <label for="username" data-i18n="web-editor.login.username-label">Minecraft Username</label>
+                <input type="text" id="username" name="username" placeholder="Your in-game name" data-i18n="web-editor.login.username-placeholder" required autocomplete="username">
             </div>
 
-            <div class="form-group">
-                <label data-i18n="web-editor.login.password-label">Password (Your UUID)</label>
-                <input type="password" id="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" data-i18n="web-editor.login.password-placeholder" required autocomplete="current-password">
-                <div class="input-hint" data-i18n="web-editor.login.password-hint">
-                    Get your UUID in-game: Run command /uuid or check at https://mcuuid.net/
+            <div id="uuid-fields">
+                <div class="form-group">
+                    <label for="password" data-i18n="web-editor.login.password-label">Password (Your UUID)</label>
+                    <input type="password" id="password" name="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" data-i18n="web-editor.login.password-placeholder" autocomplete="current-password">
+                    <div class="input-hint" data-i18n="web-editor.login.password-hint">
+                        Get your UUID from https://mcuuid.net/ or use the Code Login tab
+                    </div>
+                </div>
+            </div>
+
+            <div id="code-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="login-code" data-i18n="web-editor.login.code-label">Login Code</label>
+                    <input type="text" id="login-code" name="login-code" placeholder="6-digit code (e.g. 123456)" data-i18n="web-editor.login.code-placeholder" maxlength="6">
+                    <div class="input-hint" data-i18n="web-editor.login.code-hint">
+                        Generate a code in-game using /shop editor
+                    </div>
                 </div>
             </div>
 

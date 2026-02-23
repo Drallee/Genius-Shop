@@ -1,13 +1,13 @@
-gui-name: '&8Misc Shop'
+gui-name: '<gradient:#00FF26:#688AFE:#9C3CC5:#E03F9A>Misc Shop</gradient>'
 rows: 3
 permission: ''
 items:
   - material: TORCH
-    name: '&eTorch'
+    name: '<gradient:#FFD54F:#FF8A00>Torch</gradient>'
     price: 10
     amount: 32
   - material: LADDER
-    name: '&eLadder'
+    name: '<gradient:#E0A96D:#C97C45>Ladder</gradient>'
     price: 15
     amount: 16
   - material: WATER_BUCKET
@@ -22,6 +22,9 @@ items:
     name: '&fName Tag'
     price: 500
     amount: 1
+    global-limit: 100
+    lore:
+      - '&6Stock: &e%global-limit%'
   - material: LEAD
     name: '&fLead'
     price: 200
@@ -46,3 +49,14 @@ items:
     price: 40
     sell-price: 10
     amount: 16
+  - material: PAPER
+    name: '&d&lCoupon'
+    price: 5000
+    amount: 1
+    global-limit: 10
+    lore:
+      - '&7A special coupon that does'
+      - '&7nothing but looks cool!'
+      - ''
+      - '&e&o"Valid for 0 uses"'
+      - '&6Stock: &e%global-limit%'

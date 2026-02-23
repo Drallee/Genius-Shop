@@ -1,6 +1,16 @@
-gui-name: '&8Spawner Shop'
+gui-name: '<gradient:#8A5CF6:#5EE7FF:#7DFFB3>Spawner Shop</gradient>'
 rows: 4
-permission: shop.spawners
+permission: geniusshop.shop.spawners
+
+# Example shop-level stock behavior for scarce items
+sell-adds-to-stock: false
+allow-sell-stock-overflow: false
+stock-reset:
+  enabled: true
+  type: DAILY
+  time: '06:00'
+  timezone: server
+
 items:
   - material: SPAWNER
     name: '&aPig Spawner'
@@ -8,61 +18,121 @@ items:
     sell-price: 25000
     amount: 1
     spawner-type: PIG
+    global-limit: 128
+    show-stock: true
+    show-stock-reset-timer: true
     lore:
       - '&7Spawns pigs.'
+
   - material: SPAWNER
     name: '&aCow Spawner'
     price: 75000
     sell-price: 35000
     amount: 1
     spawner-type: COW
-    lore:
-      - '&7Spawns cows.'
+    global-limit: 96
+    show-stock: true
+
   - material: SPAWNER
     name: '&aSheep Spawner'
     price: 60000
     sell-price: 30000
     amount: 1
     spawner-type: SHEEP
+    global-limit: 96
+
   - material: SPAWNER
     name: '&aChicken Spawner'
     price: 45000
     sell-price: 22000
     amount: 1
     spawner-type: CHICKEN
+    global-limit: 96
+
   - material: SPAWNER
-    name: '&eVillager Spawner'
+    name: '<gradient:#F6D365:#FDA085>Villager Spawner</gradient>'
     price: 200000
     sell-price: 100000
     amount: 1
+    global-limit: 10
     spawner-type: VILLAGER
+    show-stock: true
+    show-stock-reset-timer: true
+    stock-reset:
+      enabled: true
+      type: HOURLY
+      time: '00:10'
+      timezone: server
+
   - material: SPAWNER
     name: '&cBlaze Spawner'
     price: 150000
     sell-price: 80000
     amount: 1
     spawner-type: BLAZE
+    global-limit: 24
+
   - material: SPAWNER
     name: '&cSkeleton Spawner'
     price: 110000
     sell-price: 55000
     amount: 1
     spawner-type: SKELETON
+    global-limit: 32
+
   - material: SPAWNER
     name: '&cZombie Spawner'
     price: 100000
     sell-price: 50000
     amount: 1
     spawner-type: ZOMBIE
+    global-limit: 32
+
   - material: SPAWNER
     name: '&cCreeper Spawner'
     price: 180000
     sell-price: 90000
     amount: 1
     spawner-type: CREEPER
+    global-limit: 16
+
   - material: SPAWNER
     name: '&6Iron Golem Spawner'
     price: 300000
     sell-price: 150000
     amount: 1
+    global-limit: 5
     spawner-type: IRON_GOLEM
+    show-stock: true
+    # Example per-item sell overflow override
+    sell-adds-to-stock: true
+    allow-sell-stock-overflow: true
+
+  - material: SPAWNER
+    name: '<gradient:#57C1FF:#7EE8FA:#EEC0C6>Diamond Spawner</gradient>'
+    price: 1000000
+    sell-price: 500000
+    amount: 1
+    global-limit: 3
+    spawner-item: DIAMOND
+    show-stock: true
+    show-stock-reset-timer: true
+    lore:
+      - '&7Produces diamonds.'
+      - '&8Requires SmartSpawner'
+    # Example command execution context
+    commands:
+      - 'broadcast <gradient:#57C1FF:#7EE8FA>%player% bought a Diamond Spawner!</gradient>'
+    run-as: console
+    run-command-only: false
+
+  - material: SPAWNER
+    name: '&eGold Ingot Spawner'
+    price: 750000
+    sell-price: 375000
+    amount: 1
+    global-limit: 5
+    spawner-item: GOLD_INGOT
+    lore:
+      - '&7Produces gold ingots.'
+      - '&8Requires SmartSpawner'

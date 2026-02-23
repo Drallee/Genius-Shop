@@ -1,13 +1,28 @@
 name: Genius-Shop
 main: me.dralle.shop.ShopPlugin
 version: ${project.version}
-api-version: 1.20
+api-version: 1.21
 author: Dralle
 description: Data-driven shop with GUI, permissions and Vault
 depend: [Vault]
+softdepend: [SmartSpawner]
 commands:
   shop:
     description: Open the shop menu or reload the plugin
-    usage: /shop [reload|editor]
+    usage: /shop [reload|editor|sell|wiki|resetstock]
     permission: geniusshop.use
     permission-message: '&8&l| &cGENIUS-SHOP &8&l| &cYou do not have permission.'
+
+permissions:
+  geniusshop.sell:
+    description: Allows using /shop sell (bulk sell GUI)
+    default: true
+  geniusshop.resetstock:
+    description: Allows using /shop resetstock commands
+    default: op
+  geniusshop.wiki:
+    description: Allows using /shop wiki to receive the wiki link
+    default: op
+  geniusshop.admin:
+    description: Allows access to advanced commands and configuration
+    default: op

@@ -1,5 +1,7 @@
 package me.dralle.shop.model;
 
+import me.dralle.shop.stock.StockResetRule;
+
 import java.util.List;
 
 /**
@@ -14,14 +16,21 @@ public class ShopData {
     private final String permission;    // permission required to open, "" = public
     private final List<ShopItem> items; // items in this shop
     private final List<String> availableTimes; // time restrictions (optional)
+    private final StockResetRule stockResetRule;
+    private final boolean sellAddsToStock;
+    private final boolean allowSellStockOverflow;
 
-    public ShopData(String key, String guiName, int rows, String permission, List<ShopItem> items, List<String> availableTimes) {
+    public ShopData(String key, String guiName, int rows, String permission, List<ShopItem> items, List<String> availableTimes,
+                    StockResetRule stockResetRule, boolean sellAddsToStock, boolean allowSellStockOverflow) {
         this.key = key;
         this.guiName = guiName;
         this.rows = rows;
         this.permission = permission;
         this.items = items;
         this.availableTimes = availableTimes;
+        this.stockResetRule = stockResetRule;
+        this.sellAddsToStock = sellAddsToStock;
+        this.allowSellStockOverflow = allowSellStockOverflow;
     }
 
     public String getKey() {
@@ -46,5 +55,17 @@ public class ShopData {
 
     public List<String> getAvailableTimes() {
         return availableTimes;
+    }
+
+    public StockResetRule getStockResetRule() {
+        return stockResetRule;
+    }
+
+    public boolean isSellAddsToStock() {
+        return sellAddsToStock;
+    }
+
+    public boolean isAllowSellStockOverflow() {
+        return allowSellStockOverflow;
     }
 }

@@ -1,6 +1,6 @@
 package me.dralle.shop.gui;
 
-import me.dralle.shop.ShopPlugin;
+import me.dralle.shop.util.ShopItemUtil;
 import org.bukkit.Material;
 import org.bukkit.block.CreatureSpawner;
 import org.bukkit.entity.EntityType;
@@ -20,17 +20,20 @@ public class SpawnerPlaceListener implements Listener {
         if (!(item.getItemMeta() instanceof BlockStateMeta)) return;
         BlockStateMeta meta = (BlockStateMeta) item.getItemMeta();
         
-        if (!(meta.getBlockState() instanceof CreatureSpawner)) return;
-        CreatureSpawner itemState = (CreatureSpawner) meta.getBlockState();
-        
-        // Get the entity type from the item
-        EntityType type = itemState.getSpawnedType();
-        
-        // If the placed block is a spawner, update it
-        if (e.getBlockPlaced().getState() instanceof CreatureSpawner) {
-            CreatureSpawner placedSpawner = (CreatureSpawner) e.getBlockPlaced().getState();
-            placedSpawner.setSpawnedType(type);
-            placedSpawner.update();
+        // Get the entity type from the item using ShopItemUtil
+        String typeName = ShopItemUtil.getSpawnerType(item);
+        if (typeName == null) return;
+
+        try {
+            EntityType type = EntityType.valueOf(typeName.toUpperCase());
+            
+            // If the placed block is a spawner, update it
+            if (e.getBlockPlaced().getState() instanceof CreatureSpawner) {
+                CreatureSpawner placedSpawner = (CreatureSpawner) e.getBlockPlaced().getState();
+                placedSpawner.setSpawnedType(type);
+                placedSpawner.update();
+            }
+        } catch (Exception ignored) {
         }
     }
 }

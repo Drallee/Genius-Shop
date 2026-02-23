@@ -10,9 +10,12 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
+import me.dralle.shop.util.ShopItemUtil;
+import me.dralle.shop.util.YamlUtil;
 import org.bukkit.entity.Player;
 
 import java.io.*;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -32,6 +35,7 @@ public class ConfigApiServer {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final Map<String, SessionData> sessions = new ConcurrentHashMap<>();
     private final Map<String, AutoLoginToken> autoLoginTokens = new ConcurrentHashMap<>();
+    private final Map<String, String> loginCodes = new ConcurrentHashMap<>();
     private final Map<String, PendingLoginConfirmation> pendingConfirmations = new ConcurrentHashMap<>();
     private final Map<String, java.util.Set<String>> trustedIps = new ConcurrentHashMap<>();
     private static final long SESSION_DURATION = 3600000; // 1 hour
@@ -95,16 +99,16 @@ public class ConfigApiServer {
         }
 
         try {
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(trustedIpsFile);
+            YamlConfiguration config = YamlUtil.loadUtf8(trustedIpsFile);
             for (String username : config.getKeys(false)) {
                 java.util.List<String> ips = config.getStringList(username);
                 if (!ips.isEmpty()) {
                     trustedIps.put(username.toLowerCase(), new java.util.HashSet<>(ips));
                 }
             }
-            plugin.getLogger().info("Loaded trusted IPs for " + trustedIps.size() + " users");
+            plugin.debug("WebEditor API: loaded trusted IPs for " + trustedIps.size() + " user(s)");
         } catch (Exception e) {
-            plugin.getLogger().warning("Failed to load trusted IPs: " + e.getMessage());
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to load trusted IPs: " + e.getMessage());
         }
     }
 
@@ -120,9 +124,9 @@ public class ConfigApiServer {
         }
 
         try {
-            config.save(trustedIpsFile);
+            YamlUtil.saveUtf8(config, trustedIpsFile);
         } catch (IOException e) {
-            plugin.getLogger().warning("Failed to save trusted IPs: " + e.getMessage());
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to save trusted IPs: " + e.getMessage());
         }
     }
 
@@ -140,7 +144,7 @@ public class ConfigApiServer {
     public void addTrustedIp(String username, String ip) {
         trustedIps.computeIfAbsent(username.toLowerCase(), k -> new java.util.HashSet<>()).add(ip);
         saveTrustedIps();
-        plugin.getLogger().info("Added trusted IP " + ip + " for user " + username);
+        me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Added trusted IP for user '" + username + "'");
     }
 
     /**
@@ -164,12 +168,25 @@ public class ConfigApiServer {
 
         autoLoginTokens.put(token, new AutoLoginToken(player.getName(), ipAddress, expiry));
 
-        // Clean up expired tokens
-        autoLoginTokens.entrySet().removeIf(entry -> entry.getValue().expiry < System.currentTimeMillis());
+        // Generate a 6-digit login code for Bedrock users
+        String code = String.format("%06d", new java.util.Random().nextInt(1000000));
+        loginCodes.put(code, token);
 
-        plugin.getLogger().info("Created auto-login token for " + player.getName() + " from IP " + ipAddress + " (expires in 5 minutes)");
-        plugin.getLogger().info("Active tokens: " + autoLoginTokens.size());
+        // Clean up expired tokens and codes
+        autoLoginTokens.entrySet().removeIf(entry -> entry.getValue().expiry < System.currentTimeMillis());
+        loginCodes.entrySet().removeIf(entry -> !autoLoginTokens.containsKey(entry.getValue()));
+
+        plugin.debug("WebEditor API: created auto-login token for " + player.getName() + " (" + ipAddress + ", 5m expiry)");
         return token;
+    }
+
+    public String getLoginCodeForToken(String token) {
+        for (Map.Entry<String, String> entry : loginCodes.entrySet()) {
+            if (entry.getValue().equals(token)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     public void start() {
@@ -202,17 +219,21 @@ public class ConfigApiServer {
             });
 
             server.start();
-            plugin.getLogger().info("Config API Server started on port " + port);
-            plugin.getLogger().info("Web UI available at: http://localhost:" + port + "/");
+            me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Online on port " + port + " (http://localhost:" + port + "/)");
         } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to start API server", e);
+            if (e instanceof BindException) {
+                me.dralle.shop.util.ConsoleLog.apiError(plugin, "Failed to start: port " + port + " is already in use. Change 'api.port' in config.yml.");
+            } else {
+                me.dralle.shop.util.ConsoleLog.apiError(plugin, "Failed to start on port " + port + ": " + e.getMessage());
+            }
+            plugin.debug("WebEditor API startup exception: " + e);
         }
     }
 
     public void stop() {
         if (server != null) {
             server.stop(0);
-            plugin.getLogger().info("Config API Server stopped");
+            me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Stopped");
         }
     }
 
@@ -235,6 +256,16 @@ public class ConfigApiServer {
             if (path.equals("/api/autologin")) {
                 if (method.equals("POST")) {
                     handleAutoLogin(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts POST requests");
+                }
+                return;
+            }
+
+            // Login with code endpoint
+            if (path.equals("/api/logincode")) {
+                if (method.equals("POST")) {
+                    handleLoginCode(exchange);
                 } else {
                     sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts POST requests");
                 }
@@ -296,7 +327,8 @@ public class ConfigApiServer {
                 sendError(exchange, 404, "Endpoint Not Found", "The requested API endpoint does not exist");
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error handling API request", e);
+            me.dralle.shop.util.ConsoleLog.apiError(plugin, method + " " + path + " failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            plugin.debug("WebEditor API request exception (" + method + " " + path + "): " + e);
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("exception", e.getClass().getSimpleName());
             sendError(exchange, 500, "Internal Server Error", "An unexpected error occurred while processing your request", errorData);
@@ -316,7 +348,7 @@ public class ConfigApiServer {
         }
 
         // Check if player is online and has admin permission
-        Player player = Bukkit.getPlayerExact(username);
+        Player player = getPlayerByName(username);
         if (player == null || !player.isOnline()) {
             sendError(exchange, 401, "Unauthorized", "Player must be logged into the Minecraft server to authenticate");
             return;
@@ -328,7 +360,7 @@ public class ConfigApiServer {
             errorData.put("username", username);
             errorData.put("requiredPermissions", new String[]{"geniusshop.admin", "shop.admin", "OP"});
             sendError(exchange, 403, "Forbidden", "Player does not have admin permission to access the editor", errorData);
-            plugin.getLogger().warning("Unauthorized login attempt by " + username + " - missing admin permission");
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Login denied for '" + username + "': missing admin permission");
             return;
         }
 
@@ -353,40 +385,9 @@ public class ConfigApiServer {
                             username, playerIp, requestIp, confirmToken, confirmExpiry
                     ));
 
-                    // Send message to player with clickable confirmation
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-                        player.sendMessage("§c§lSECURITY ALERT");
-                        player.sendMessage("");
-                        player.sendMessage("§7Someone is trying to access the shop editor from:");
-                        player.sendMessage("§e" + requestIp);
-                        player.sendMessage("");
-                        player.sendMessage("§7Your current IP: §a" + playerIp);
-                        player.sendMessage("");
-                        player.sendMessage("§7If this is you, click below to confirm:");
-
-                        // Create clickable confirmation button
-                        try {
-                            net.md_5.bungee.api.chat.TextComponent message = new net.md_5.bungee.api.chat.TextComponent(" [✓ CONFIRM LOGIN] ");
-                            message.setColor(net.md_5.bungee.api.ChatColor.GREEN);
-                            message.setBold(true);
-                            message.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(
-                                    net.md_5.bungee.api.chat.ClickEvent.Action.RUN_COMMAND,
-                                    "/shop confirmlogin " + confirmToken
-                            ));
-                            message.setHoverEvent(new net.md_5.bungee.api.chat.HoverEvent(
-                                    net.md_5.bungee.api.chat.HoverEvent.Action.SHOW_TEXT,
-                                    new net.md_5.bungee.api.chat.ComponentBuilder("§aClick to confirm and trust this IP").create()
-                            ));
-                            player.spigot().sendMessage(message);
-                        } catch (Exception e) {
-                            player.sendMessage("§aType: §e/shop confirmlogin " + confirmToken);
-                        }
-
-                        player.sendMessage("");
-                        player.sendMessage("§cThis request will expire in 3 minutes.");
-                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-                    });
+                    // Send message to player with confirmation command
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            sendSecurityConfirmationPrompt(player, requestIp, playerIp, confirmToken));
 
                     Map<String, String> response = new HashMap<>();
                     response.put("status", "pending_confirmation");
@@ -394,17 +395,17 @@ public class ConfigApiServer {
                     response.put("confirmToken", confirmToken);
                     response.put("username", username);
                     sendJsonResponse(exchange, 403, response);
-                    plugin.getLogger().warning("Manual login IP mismatch for " + username + " - Confirmation required. Player IP: " + playerIp + ", Request IP: " + requestIp);
+                    me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Login blocked for '" + username + "': IP mismatch requires in-game confirmation");
                     return;
                 }
                 // IP is trusted, allow login to continue
-                plugin.getLogger().info("IP mismatch allowed - " + requestIp + " is a trusted IP for " + username);
+                plugin.debug("WebEditor API: trusted IP bypass used for " + username);
             } else {
                 Map<String, Object> errorData = new HashMap<>();
                 errorData.put("playerIp", playerIp);
                 errorData.put("requestIp", requestIp);
                 sendError(exchange, 403, "IP Mismatch", "You must access this from the same network as your Minecraft client", errorData);
-                plugin.getLogger().warning("Login attempt from mismatched IP - Player: " + playerIp + ", Request: " + requestIp);
+                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Login blocked for '" + username + "': request IP does not match in-game IP");
                 return;
             }
         }
@@ -423,7 +424,7 @@ public class ConfigApiServer {
         // Clean up expired sessions
         sessions.entrySet().removeIf(entry -> entry.getValue().expiry < System.currentTimeMillis());
 
-        plugin.getLogger().info("Admin " + username + " logged into config editor from IP: " + requestIp);
+        me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Admin '" + username + "' logged in");
 
         Map<String, String> response = new HashMap<>();
         response.put("sessionToken", sessionToken);
@@ -436,7 +437,7 @@ public class ConfigApiServer {
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         String token = extractJsonField(body, "token");
 
-        plugin.getLogger().info("Auto-login attempt with token: " + (token != null ? token.substring(0, Math.min(8, token.length())) + "..." : "null"));
+        plugin.debug("WebEditor API: auto-login attempt received");
 
         if (token == null) {
             sendError(exchange, 400, "Bad Request", "Auto-login token is required in the request body");
@@ -446,24 +447,24 @@ public class ConfigApiServer {
         // Get token data
         AutoLoginToken tokenData = autoLoginTokens.get(token);
         if (tokenData == null) {
-            plugin.getLogger().warning("Auto-login failed: Token not found in map. Active tokens: " + autoLoginTokens.size());
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Auto-login failed: token not found or expired");
             // List all token prefixes for debugging
-            autoLoginTokens.keySet().forEach(t -> plugin.getLogger().info("  - Token: " + t.substring(0, 8) + "..."));
+            autoLoginTokens.keySet().forEach(t -> plugin.debug("WebEditor API: active token " + t.substring(0, 8) + "..."));
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("activeTokens", autoLoginTokens.size());
             sendError(exchange, 401, "Authentication Failed", "The auto-login token is invalid or has expired. Please generate a new token using /shop editor", errorData);
             return;
         }
 
-        plugin.getLogger().info("Token found for user: " + tokenData.username);
+        plugin.debug("WebEditor API: token found for " + tokenData.username);
 
         // Check if expired
         long now = System.currentTimeMillis();
         long timeLeft = tokenData.expiry - now;
-        plugin.getLogger().info("Token expiry check: now=" + now + ", expiry=" + tokenData.expiry + ", timeLeft=" + timeLeft + "ms");
+        plugin.debug("WebEditor API: token time left " + (timeLeft / 1000) + "s");
 
         if (tokenData.expiry < now) {
-            plugin.getLogger().warning("Token has expired! Time left was: " + timeLeft + "ms");
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Auto-login failed: token expired");
             autoLoginTokens.remove(token);
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("expiredAt", tokenData.expiry);
@@ -472,8 +473,51 @@ public class ConfigApiServer {
             return;
         }
 
-        plugin.getLogger().info("Token is valid. Time remaining: " + (timeLeft / 1000) + " seconds");
+        plugin.debug("WebEditor API: token validated");
 
+        completeAutoLogin(exchange, token, tokenData);
+    }
+
+    private void handleLoginCode(HttpExchange exchange) throws IOException {
+        // Read request body
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String username = extractJsonField(body, "username");
+        String code = extractJsonField(body, "code");
+
+        if (username == null || code == null) {
+            sendError(exchange, 400, "Bad Request", "Username and login code are required");
+            return;
+        }
+
+        // Find token for this code
+        String token = loginCodes.get(code);
+        if (token == null) {
+            sendError(exchange, 401, "Invalid Code", "The login code is invalid or has expired");
+            return;
+        }
+
+        AutoLoginToken tokenData = autoLoginTokens.get(token);
+        if (tokenData == null) {
+            loginCodes.remove(code);
+            sendError(exchange, 401, "Expired Code", "The login code has expired");
+            return;
+        }
+
+        // Verify username matches (case-insensitive for Bedrock support)
+        if (!tokenData.username.equalsIgnoreCase(username)) {
+            // Check if they are the same player (e.g. prefix handling)
+            Player p = getPlayerByName(username);
+            if (p == null || !p.getName().equalsIgnoreCase(tokenData.username)) {
+                sendError(exchange, 401, "Invalid Username", "This login code was generated for a different player");
+                return;
+            }
+        }
+
+        // If username and code match, we proceed with the same logic as handleAutoLogin
+        completeAutoLogin(exchange, token, tokenData);
+    }
+
+    private void completeAutoLogin(HttpExchange exchange, String token, AutoLoginToken tokenData) throws IOException {
         // Get request IP
         String requestIp = exchange.getRemoteAddress().getAddress().getHostAddress();
 
@@ -496,12 +540,12 @@ public class ConfigApiServer {
         if (!ipMatches && !(playerIsLocalhost && requestIsLocal)) {
             // Check if IP bypass is enabled and user has permission
             boolean allowBypass = plugin.getConfig().getBoolean("api.allow-ip-bypass", true);
-            Player player = Bukkit.getPlayerExact(tokenData.username);
+            Player player = getPlayerByName(tokenData.username);
 
             if (allowBypass && player != null && player.hasPermission("geniusshop.login.ip.bypass")) {
                 // Check if this IP is already trusted
                 if (isIpTrusted(tokenData.username, requestIp)) {
-                    plugin.getLogger().info("IP mismatch allowed - " + requestIp + " is a trusted IP for " + tokenData.username);
+                    plugin.debug("WebEditor API: trusted IP bypass used for " + tokenData.username);
                 } else {
                     // Create pending confirmation
                     String confirmToken = UUID.randomUUID().toString();
@@ -510,65 +554,36 @@ public class ConfigApiServer {
                             tokenData.username, tokenData.ipAddress, requestIp, token, confirmExpiry
                     ));
 
-                    // Send message to player with clickable confirmation
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-                        player.sendMessage("§c§lSECURITY ALERT");
-                        player.sendMessage("");
-                        player.sendMessage("§7Someone is trying to access the shop editor from:");
-                        player.sendMessage("§e" + requestIp);
-                        player.sendMessage("");
-                        player.sendMessage("§7Your current IP: §a" + tokenData.ipAddress);
-                        player.sendMessage("");
-                        player.sendMessage("§7If this is you, click below to confirm:");
-
-                        // Create clickable confirmation button
-                        try {
-                            net.md_5.bungee.api.chat.TextComponent message = new net.md_5.bungee.api.chat.TextComponent(" [✓ CONFIRM LOGIN] ");
-                            message.setColor(net.md_5.bungee.api.ChatColor.GREEN);
-                            message.setBold(true);
-                            message.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(
-                                    net.md_5.bungee.api.chat.ClickEvent.Action.RUN_COMMAND,
-                                    "/shop confirmlogin " + confirmToken
-                            ));
-                            message.setHoverEvent(new net.md_5.bungee.api.chat.HoverEvent(
-                                    net.md_5.bungee.api.chat.HoverEvent.Action.SHOW_TEXT,
-                                    new net.md_5.bungee.api.chat.ComponentBuilder("§aClick to confirm and trust this IP").create()
-                            ));
-                            player.spigot().sendMessage(message);
-                        } catch (Exception e) {
-                            player.sendMessage("§aType: §e/shop confirmlogin " + confirmToken);
-                        }
-
-                        player.sendMessage("");
-                        player.sendMessage("§cThis request will expire in 3 minutes.");
-                        player.sendMessage("§8§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
-                    });
+                    // Send message to player with confirmation command
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            sendSecurityConfirmationPrompt(player, requestIp, tokenData.ipAddress, confirmToken));
 
                     Map<String, String> response = new HashMap<>();
                     response.put("status", "pending_confirmation");
                     response.put("message", "Please confirm this login in-game");
                     response.put("confirmToken", confirmToken);
                     sendJsonResponse(exchange, 403, response);
-                    plugin.getLogger().warning("Auto-login IP mismatch for " + tokenData.username + " - Confirmation required. Player IP: " + tokenData.ipAddress + ", Request IP: " + requestIp);
+                    me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Auto-login blocked for '" + tokenData.username + "': IP mismatch requires in-game confirmation");
                     return;
                 }
+                // IP is trusted, allow login to continue
+                plugin.debug("WebEditor API: trusted IP bypass used for " + tokenData.username);
             } else {
                 Map<String, Object> errorData = new HashMap<>();
                 errorData.put("playerIp", tokenData.ipAddress);
                 errorData.put("requestIp", requestIp);
                 errorData.put("username", tokenData.username);
                 sendError(exchange, 403, "IP Address Mismatch", "The request is coming from a different IP address than the one used to generate the token. For security reasons, you must access the editor from the same network as your Minecraft client", errorData);
-                plugin.getLogger().warning("Auto-login IP mismatch for " + tokenData.username + " - Player IP: " + tokenData.ipAddress + ", Request IP: " + requestIp);
+                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Auto-login blocked for '" + tokenData.username + "': request IP does not match in-game IP");
                 // Don't remove token - let it expire naturally
                 return;
             }
         }
 
-        plugin.getLogger().info("IP verification passed: Player=" + tokenData.ipAddress + ", Request=" + requestIp);
+        plugin.debug("WebEditor API: IP verification passed");
 
         // Verify player is still online
-        Player player = Bukkit.getPlayerExact(tokenData.username);
+        Player player = getPlayerByName(tokenData.username);
         if (player == null || !player.isOnline()) {
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("username", tokenData.username);
@@ -589,6 +604,8 @@ public class ConfigApiServer {
 
         // Remove used token (one-time use)
         autoLoginTokens.remove(token);
+        // Also remove login code if it exists
+        loginCodes.entrySet().removeIf(entry -> entry.getValue().equals(token));
 
         // Create session
         String sessionToken = UUID.randomUUID().toString();
@@ -598,7 +615,7 @@ public class ConfigApiServer {
         // Clean up expired sessions
         sessions.entrySet().removeIf(entry -> entry.getValue().expiry < System.currentTimeMillis());
 
-        plugin.getLogger().info("Admin " + tokenData.username + " auto-logged into config editor from IP: " + requestIp);
+        me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Admin '" + tokenData.username + "' logged in");
 
         Map<String, String> response = new HashMap<>();
         response.put("sessionToken", sessionToken);
@@ -646,13 +663,13 @@ public class ConfigApiServer {
 
         // If session and request are both local, allow it
         if (!ipMatches && !(sessionIsLocal && requestIsLocal)) {
-            plugin.getLogger().warning("Session IP mismatch for " + session.username + " - Session IP: " + session.ipAddress + ", Request IP: " + requestIp);
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Session rejected for '" + session.username + "': request IP changed");
             sessions.remove(sessionToken);
             return false;
         }
 
         // Check if player is still online and has permission
-        Player player = Bukkit.getPlayerExact(session.username);
+        Player player = getPlayerByName(session.username);
         if (player == null || !player.isOnline()) {
             sessions.remove(sessionToken);
             return false;
@@ -666,7 +683,7 @@ public class ConfigApiServer {
                                    playerIp.equals("::1");
 
         if (!playerIsLocalhost && !playerIp.equals(session.ipAddress) && !(sessionIsLocal && requestIsLocal)) {
-            plugin.getLogger().warning("Player IP changed for " + session.username + " - Session invalidated");
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Session invalidated for '" + session.username + "': in-game IP changed");
             sessions.remove(sessionToken);
             return false;
         }
@@ -680,8 +697,10 @@ public class ConfigApiServer {
     }
 
     private void handleListFiles(HttpExchange exchange) throws IOException {
-        plugin.getLogger().info("[API] handleListFiles called");
         Map<String, Object> response = new HashMap<>();
+        response.put("shops", new HashMap<String, String>());
+
+        ensureEditorFilesExist();
 
         // List shop files
         File shopsDir = new File(plugin.getDataFolder(), "shops");
@@ -690,64 +709,157 @@ public class ConfigApiServer {
             if (shopFiles != null) {
                 Map<String, String> shops = new HashMap<>();
                 for (File file : shopFiles) {
-                    try {
-                        String content = Files.readString(file.toPath());
+                    String content = readFileSafely(file);
+                    if (content != null) {
                         shops.put(file.getName(), content);
-                    } catch (IOException e) {
-                        plugin.getLogger().warning("Failed to read shop file: " + file.getName());
                     }
                 }
                 response.put("shops", shops);
             }
-        } else {
-            response.put("shops", new HashMap<>());
         }
 
-        // Get menu files from menus/ folder
+        // Menu files
         File menusDir = new File(plugin.getDataFolder(), "menus");
-        plugin.getLogger().info("[API] Menus directory: " + menusDir.getAbsolutePath() + " (exists: " + menusDir.exists() + ")");
         if (menusDir.exists() && menusDir.isDirectory()) {
-            // Load main-menu.yml
-            File mainMenuFile = new File(menusDir, "main-menu.yml");
-            if (mainMenuFile.exists()) {
-                String content = Files.readString(mainMenuFile.toPath());
-                response.put("mainMenu", content);
-                plugin.getLogger().info("[API] Loaded main-menu.yml (" + content.length() + " chars)");
-            }
+            putIfPresent(response, "mainMenu", new File(menusDir, "main-menu.yml"));
+            putIfPresent(response, "purchaseMenu", new File(menusDir, "purchase-menu.yml"));
+            putIfPresent(response, "sellMenu", new File(menusDir, "sell-menu.yml"));
+            putIfPresent(response, "guiSettings", new File(menusDir, "gui-settings.yml"));
+            putIfPresent(response, "bulkSellMenu", new File(menusDir, "bulk-sell-menu.yml"));
+        }
 
-            // Load purchase-menu.yml
-            File purchaseMenuFile = new File(menusDir, "purchase-menu.yml");
-            if (purchaseMenuFile.exists()) {
-                String content = Files.readString(purchaseMenuFile.toPath());
-                response.put("purchaseMenu", content);
-                plugin.getLogger().info("[API] Loaded purchase-menu.yml (" + content.length() + " chars)");
-            }
+        // discord.yml
+        putIfPresent(response, "discord", new File(plugin.getDataFolder(), "discord.yml"));
 
-            // Load sell-menu.yml
-            File sellMenuFile = new File(menusDir, "sell-menu.yml");
-            if (sellMenuFile.exists()) {
-                String content = Files.readString(sellMenuFile.toPath());
-                response.put("sellMenu", content);
-                plugin.getLogger().info("[API] Loaded sell-menu.yml (" + content.length() + " chars)");
-            }
+        // Sanitized price format config for web preview (no sensitive config values exposed).
+        Map<String, Object> priceFormat = new HashMap<>();
+        priceFormat.put("mode", plugin.getConfig().getString("price-format.mode", ""));
+        Map<String, Object> grouped = new HashMap<>();
+        grouped.put("thousandsSeparator", plugin.getConfig().getString("price-format.grouped.thousands-separator", "."));
+        grouped.put("decimalSeparator", plugin.getConfig().getString("price-format.grouped.decimal-separator", ","));
+        grouped.put("maxDecimals", plugin.getConfig().getInt("price-format.grouped.max-decimals", 2));
+        priceFormat.put("grouped", grouped);
+        response.put("priceFormat", priceFormat);
 
-            // Load gui-settings.yml
-            File guiSettingsFile = new File(menusDir, "gui-settings.yml");
-            if (guiSettingsFile.exists()) {
-                String content = Files.readString(guiSettingsFile.toPath());
-                response.put("guiSettings", content);
-                plugin.getLogger().info("[API] Loaded gui-settings.yml (" + content.length() + " chars)");
+        // Add server info
+        Map<String, Object> serverInfo = new HashMap<>();
+        serverInfo.put("version", plugin.getDescription().getVersion());
+        boolean ssEnabled = plugin.getConfig().getBoolean("smart-spawner-support", true) &&
+                (Bukkit.getPluginManager().isPluginEnabled("SmartSpawner") || Bukkit.getPluginManager().isPluginEnabled("SmartSpawners"));
+        serverInfo.put("smartSpawnerEnabled", ssEnabled);
+
+        if (ssEnabled) {
+            org.bukkit.plugin.Plugin ssPlugin = Bukkit.getPluginManager().getPlugin("SmartSpawner");
+            if (ssPlugin == null) ssPlugin = Bukkit.getPluginManager().getPlugin("SmartSpawners");
+
+            if (ssPlugin != null) {
+                try {
+                    // Get Entity Types
+                    File sFile = new File(ssPlugin.getDataFolder(), "spawners_settings.yml");
+                    if (sFile.exists()) {
+                        YamlConfiguration sYaml = YamlUtil.loadUtf8(sFile);
+                        java.util.List<String> keys = new java.util.ArrayList<>();
+                        for (String key : sYaml.getKeys(false)) {
+                            if (key.equalsIgnoreCase("config_version") || key.equalsIgnoreCase("default_material")) {
+                                continue;
+                            }
+                            if (sYaml.isConfigurationSection(key)) {
+                                keys.add(key);
+                            }
+                        }
+                        serverInfo.put("smartSpawnerEntityTypes", keys);
+                    } else {
+                        serverInfo.put("smartSpawnerEntityTypes", java.util.Collections.emptyList());
+                    }
+
+                    // Get Item Types
+                    File iFile = new File(ssPlugin.getDataFolder(), "item_spawners_settings.yml");
+                    if (iFile.exists()) {
+                        YamlConfiguration iYaml = YamlUtil.loadUtf8(iFile);
+                        java.util.List<String> keys = new java.util.ArrayList<>();
+                        for (String key : iYaml.getKeys(false)) {
+                            if (key.equalsIgnoreCase("config_version") || key.equalsIgnoreCase("default_material")) {
+                                continue;
+                            }
+                            if (iYaml.isConfigurationSection(key)) {
+                                keys.add(key);
+                            }
+                        }
+                        serverInfo.put("smartSpawnerItemTypes", keys);
+                    } else {
+                        serverInfo.put("smartSpawnerItemTypes", java.util.Collections.emptyList());
+                    }
+                } catch (Exception e) {
+                    me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "SmartSpawner settings unavailable: " + e.getMessage());
+                    serverInfo.put("smartSpawnerEntityTypes", java.util.Collections.emptyList());
+                    serverInfo.put("smartSpawnerItemTypes", java.util.Collections.emptyList());
+                }
             }
         }
 
-        // Get discord.yml
-        File discordFile = new File(plugin.getDataFolder(), "discord.yml");
-        if (discordFile.exists()) {
-            response.put("discord", Files.readString(discordFile.toPath()));
+        java.util.List<String> entityTypes = new java.util.ArrayList<>();
+        for (org.bukkit.entity.EntityType type : org.bukkit.entity.EntityType.values()) {
+            if (type.isSpawnable()) {
+                entityTypes.add(type.name());
+            }
         }
+        java.util.Collections.sort(entityTypes);
+        serverInfo.put("entityTypes", entityTypes);
 
-        plugin.getLogger().info("[API] Sending response with " + response.size() + " items");
+        java.util.List<String> materials = new java.util.ArrayList<>();
+        for (org.bukkit.Material material : org.bukkit.Material.values()) {
+            if (!material.isAir() && material.isItem()) {
+                materials.add(material.name());
+            }
+        }
+        java.util.Collections.sort(materials);
+        serverInfo.put("materials", materials);
+        
+        response.put("serverInfo", serverInfo);
+
         sendJsonResponse(exchange, 200, response);
+    }
+
+    private void ensureEditorFilesExist() {
+        File menusDir = new File(plugin.getDataFolder(), "menus");
+        File shopsDir = new File(plugin.getDataFolder(), "shops");
+        if (!menusDir.exists()) menusDir.mkdirs();
+        if (!shopsDir.exists()) shopsDir.mkdirs();
+
+        ensureDefaultResourceExists("menus/main-menu.yml");
+        ensureDefaultResourceExists("menus/purchase-menu.yml");
+        ensureDefaultResourceExists("menus/sell-menu.yml");
+        ensureDefaultResourceExists("menus/bulk-sell-menu.yml");
+        ensureDefaultResourceExists("menus/gui-settings.yml");
+        ensureDefaultResourceExists("discord.yml");
+    }
+
+    private void ensureDefaultResourceExists(String resourcePath) {
+        File file = new File(plugin.getDataFolder(), resourcePath);
+        if (!file.exists() && plugin.getResource(resourcePath) != null) {
+            try {
+                plugin.saveResource(resourcePath, false);
+            } catch (Exception e) {
+                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create default resource '" + resourcePath + "': " + e.getMessage());
+            }
+        }
+    }
+
+    private String readFileSafely(File file) {
+        if (file == null || !file.exists()) return null;
+        try {
+            return Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to read file '" + file.getName() + "': " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void putIfPresent(Map<String, Object> response, String key, File file) {
+        String content = readFileSafely(file);
+        if (content != null) {
+            response.put(key, content);
+        }
     }
 
     private void handleGetFile(HttpExchange exchange, String fileName) throws IOException {
@@ -761,7 +873,7 @@ public class ConfigApiServer {
             return;
         }
 
-        String content = Files.readString(file.toPath());
+        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
         Map<String, String> response = new HashMap<>();
         response.put("content", content);
         sendJsonResponse(exchange, 200, response);
@@ -805,12 +917,12 @@ public class ConfigApiServer {
         if (!file.getParentFile().exists()) {
             boolean created = file.getParentFile().mkdirs();
             if (!created) {
-                plugin.getLogger().warning("Failed to create directory: " + file.getParentFile());
+                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create directory: " + file.getParentFile());
             }
         }
 
         // Save file
-        Files.writeString(file.toPath(), fileContent);
+        Files.writeString(file.toPath(), fileContent, StandardCharsets.UTF_8);
 
         // Reload plugin configuration
         plugin.reloadPlugin();
@@ -861,11 +973,12 @@ public class ConfigApiServer {
             SessionData session = sessions.get(sessionToken);
             String username = session != null ? session.username : "unknown";
 
-            plugin.getLogger().info("Admin " + username + " deleted file: " + fileName);
+            me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Admin '" + username + "' deleted '" + fileName + "'");
 
             sendResponse(exchange, 200, "{\"success\": true}");
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error deleting file: " + fileName, e);
+            me.dralle.shop.util.ConsoleLog.apiError(plugin, "Delete failed for '" + fileName + "': " + e.getMessage());
+            plugin.debug("WebEditor API delete exception: " + e);
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("fileName", fileName);
             errorData.put("exception", e.getClass().getSimpleName());
@@ -883,7 +996,7 @@ public class ConfigApiServer {
             return;
         }
 
-        String content = Files.readString(activityLogFile.toPath());
+        String content = Files.readString(activityLogFile.toPath(), StandardCharsets.UTF_8);
         sendResponse(exchange, 200, content);
     }
 
@@ -915,7 +1028,7 @@ public class ConfigApiServer {
             return;
         }
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(langFile);
+        YamlConfiguration config = YamlUtil.loadUtf8(langFile);
         Map<String, Object> response = new HashMap<>();
 
         // Only send web-editor section
@@ -925,7 +1038,7 @@ public class ConfigApiServer {
             // Fallback to en_US if current doesn't have web-editor
             File enFile = new File(plugin.getDataFolder(), "languages" + File.separator + "en_US.yml");
             if (enFile.exists()) {
-                YamlConfiguration enConfig = YamlConfiguration.loadConfiguration(enFile);
+                YamlConfiguration enConfig = YamlUtil.loadUtf8(enFile);
                 if (enConfig.contains("web-editor")) {
                     response.put("web-editor", recursiveSectionToMap(enConfig.getConfigurationSection("web-editor")));
                 }
@@ -960,12 +1073,12 @@ public class ConfigApiServer {
         if (!activityLogFile.getParentFile().exists()) {
             boolean created = activityLogFile.getParentFile().mkdirs();
             if (!created) {
-                plugin.getLogger().warning("Failed to create directory: " + activityLogFile.getParentFile());
+                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create activity log directory: " + activityLogFile.getParentFile());
             }
         }
 
         // Save file
-        Files.writeString(activityLogFile.toPath(), content);
+        Files.writeString(activityLogFile.toPath(), content, StandardCharsets.UTF_8);
 
         sendResponse(exchange, 200, "{\"success\": true}");
     }
@@ -1182,11 +1295,47 @@ public class ConfigApiServer {
                 os.write(bytes);
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Error serving web file: " + filename, e);
+            me.dralle.shop.util.ConsoleLog.apiError(plugin, "Failed to serve web file '" + filename + "': " + e.getMessage());
+            plugin.debug("WebEditor API serveWebFile exception: " + e);
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("filename", filename);
             errorData.put("exception", e.getClass().getSimpleName());
             sendError(exchange, 500, "Internal Server Error", "An error occurred while serving the requested file", errorData);
         }
     }
+
+    private void sendSecurityConfirmationPrompt(Player player, String requestIp, String currentIp, String confirmToken) {
+        player.sendMessage(ShopItemUtil.color("&8&m----------------------------------------------------------------"));
+        player.sendMessage(ShopItemUtil.color("<gradient:#EF4444:#F97316>&lSECURITY ALERT</gradient>"));
+        player.sendMessage("");
+        player.sendMessage(ShopItemUtil.color("&7Someone is trying to access the shop editor from:"));
+        player.sendMessage(ShopItemUtil.color("&e" + requestIp));
+        player.sendMessage("");
+        player.sendMessage(ShopItemUtil.color("&7Your current IP: &a" + currentIp));
+        player.sendMessage("");
+        player.sendMessage(ShopItemUtil.color("&7If this is you, run this command to confirm:"));
+        player.sendMessage(ShopItemUtil.color("&aType: &e/shop confirmlogin " + confirmToken));
+        player.sendMessage("");
+        player.sendMessage(ShopItemUtil.color("&cThis request will expire in 3 minutes."));
+        player.sendMessage(ShopItemUtil.color("&8&m----------------------------------------------------------------"));
+    }
+
+    private Player getPlayerByName(String username) {
+        Player player = Bukkit.getPlayerExact(username);
+        if (player == null) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getName().equalsIgnoreCase(username)) {
+                    return p;
+                }
+                // Check if it's a Bedrock player with a prefix
+                if (me.dralle.shop.util.BedrockUtil.isBedrockPlayer(p)) {
+                    if (p.getName().endsWith(username)) {
+                        return p;
+                    }
+                }
+            }
+        }
+        return player;
+    }
 }
+

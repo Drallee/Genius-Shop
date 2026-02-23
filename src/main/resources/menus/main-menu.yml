@@ -1,8 +1,10 @@
 # Main shop menu configuration
 # This file contains the main menu that players see when opening /shop
 
-title: '&8Shop Menu'
-rows: 3  # Number of rows (each row = 9 slots, so 3 rows = 27 slots)
+config-version: 3
+
+title: '<gradient:#B154F4:#5482B6>Shop Menu</gradient>'
+rows: 4  # Number of rows (each row = 9 slots, so 3 rows = 27 slots)
 
 # Shop buttons
 # Each item can have:
@@ -11,6 +13,11 @@ rows: 3  # Number of rows (each row = 9 slots, so 3 rows = 27 slots)
 #   - name: Display name (supports color codes)
 #   - lore: List of lore lines (supports %available-times% placeholder)
 #   - shop-key: Which shop to open
+#   - action: shop|shop-key|command|command-close|close (defaults to shop if shop-key is set)
+#   - command: Single command to run (for action: command)
+#   - commands: List of commands to run (for action: command)
+#   - run-as: player|console (for action: command, default: player)
+#   - close-after-action: true/false (for action: command, default: false)
 #   - permission: Optional permission to see this button
 #   - hide-attributes: true/false - Hide "When in Main Hand" etc.
 #   - hide-additional: true/false - Hide additional tooltip info
@@ -18,74 +25,116 @@ items:
   info:
     slot: 4
     material: BOOK
-    name: '&cINFO'
+    name: '<gradient:#54DAF4:#8CA5E7>INFO</gradient>'
     lore:
       - ''
-      - '&7Made by &bDralle'
-      - '&7Version: &b%version%'
+      - '&7Made by <gradient:#C81BA8:#F03B9C>Dralle</gradient>'
+      - '&7Version: <gradient:#46F7D9:#62ED44>%version%</gradient>'
       - '%update-available%'
+      - '%latest-update-highlights%'
       - ''
   blocks:
     slot: 11
     material: DIRT
-    name: '&bBlocks'
+    name: '<gradient:#92E28D:#2FA53C>Blocks</gradient>'
     lore:
       - ''
       - '&7Buy building blocks here.'
-      - '&7Available: &e%available-times%'
+      - '&7Available: %available-times%'
       - ''
     shop-key: blocks
   spawners:
     slot: 12
     material: SPAWNER
-    name: '&bSpawners'
+    name: '<gradient:#8A5CF6:#5EE7FF:#7DFFB3>Spawners</gradient>'
     lore:
       - ''
       - '&7Buy mob spawners here.'
-      - '&7Available: &e%available-times%'
+      - '&7Available: %available-times%'
       - ''
     shop-key: spawners
-    permission: shop.spawners
+    permission: geniusshop.spawners
     hide-attributes: false
     hide-additional: true
   farming:
     slot: 13
     material: GOLDEN_HOE
-    name: '&bFarming'
+    name: '<gradient:#6EDC4B:#A8E063:#F6D365>Farming</gradient>'
     lore:
       - ''
       - '&7Buy and sell crops.'
-      - '&7Available: &e%available-times%'
+      - '&7Available: %available-times%'
       - ''
     shop-key: farming
-  premium:
-    slot: 14
-    material: EMERALD_BLOCK
-    name: '&6Premium Shop'
-    lore:
-      - ''
-      - '&7Exclusive / premium items.'
-      - '&7Available: &e%available-times%'
-      - ''
-    shop-key: premium
-    permission: shop.premium
   misc:
-    slot: 15
+    slot: 14
     material: REDSTONE
-    name: '&bMisc Items'
+    name: '<gradient:#00FF26:#688AFE:#9C3CC5:#E03F9A>Misc Items</gradient>'
     lore:
       - ''
       - '&7Random stuff.'
-      - '&7Available: &e%available-times%'
+      - '&7Available: %available-times%'
       - ''
     shop-key: misc
+  potions:
+    slot: 15
+    material: POTION
+    name: '<gradient:#2C7CF8:#45CCF8>Potions</gradient>'
+    lore:
+      - ''
+      - '&7Buy magical potions.'
+      - '&7Available: %available-times%'
+      - ''
+    shop-key: potions
+  special:
+    slot: 21
+    material: NETHERITE_CHESTPLATE
+    name: '<gradient:#8B5AFF:#9BECFC>Special Items</gradient>'
+    lore:
+      - ''
+      - '&7Exclusive and unique items!'
+      - '&7Available: %available-times%'
+      - ''
+    shop-key: special
   weekend_market:
-    slot: 22
+    slot: 23
     material: NETHER_STAR
-    name: '&d&lWeekend Market'
+    name: '<gradient:#FF21E7:#B09BFC>&lWeekend Market</gradient>'
     lore:
       - ''
       - '&7Special items at discounted prices!'
-      - '&7Available: &e%available-times%'
+      - '&7Available: <gradient:#C8FF00:#9BFCA2>%available-times%</gradient>'
       - ''
     shop-key: weekend_market
+  premium:
+    slot: 22
+    material: EMERALD_BLOCK
+    name: '<gradient:#FF0072:#FC9BF5>Premium Shop</gradient>'
+    lore:
+      - ''
+      - '&7Exclusive / premium items.'
+      - '&7Available: %available-times%'
+      - ''
+    shop-key: premium
+    permission: geniusshop.premium
+  wiki:
+    slot: 27
+    material: WRITABLE_BOOK
+    name: '<gradient:#54daf4:#5482B6>Wiki</gradient>'
+    lore:
+      - ''
+      - '&7Open documentation in chat.'
+      - ''
+    action: command
+    command: 'shop wiki'
+    run-as: player
+    permission: geniusshop.wiki
+  close:
+    slot: 31
+    material: BARRIER
+    name: '<gradient:#ff0000:#ff6666>Close</gradient>'
+    lore:
+      - ''
+      - '&7Close this menu.'
+      - ''
+    action: close

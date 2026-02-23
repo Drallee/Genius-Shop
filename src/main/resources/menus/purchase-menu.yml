@@ -1,6 +1,8 @@
 # Purchase menu configuration
 # This file contains settings for the item purchase interface
 
+config-version: 2
+
 title-prefix: '&8Buying '
 display-material: BOOK
 display-slot: 22

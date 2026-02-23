@@ -5,24 +5,37 @@
 # smart updates, debugging, and more.
 # ==========================================================
 
-config-version: 6
+config-version: 12
 
 # When true, missing/outdated config files will automatically be updated
 # by merging new keys from defaults (your custom changes are kept).
 merge-missing-defaults: true
 
-# Toggle automatic update checks on startup and join
-check-updates: true
+# Update checker settings
+updates:
+  # Toggle automatic update checks on startup and join
+  check-updates: true
 
-# If true, admins will receive a message on join when an update is available
-# Requires 'check-updates' to be true
-send-update-message-ingame: true
+  # If true, admins will receive a message on join when an update is available
+  # Requires 'check-updates' to be true
+  send-update-message-ingame: true
+
+  # Sound played when the update message is sent to an admin in-game.
+  message-sound:
+    enabled: true
+    type: "BLOCK_NOTE_BLOCK_PLING"
+    volume: 1.0
+    pitch: 1.2
 
 # Enable detailed debug logging to console
 # Shows: shop openings, permissions checks, time restrictions,
 #        purchase/sell transactions, player balances, etc.
 # Useful for troubleshooting issues.
 debug: false
+
+# How often to check scheduled stock reset rules (in seconds).
+# Lower = more precise schedule execution, higher = less overhead.
+stock-reset-check-interval-seconds: 1
 
 # Language file to use (located in languages/ folder)
 # Example: "en_US", "ru_RU"
@@ -50,6 +63,31 @@ eco:
 fallback-currency-symbol: "$"
 
 # ==========================================================
+# Price Display Format
+# ==========================================================
+# Choose how prices are shown in-game:
+#   plain   -> 1000 / 1500.5
+#   compact -> 1k / 1.5k / 2m / 3b
+#   grouped -> 1.000 / 10.000 / 1.000.000 (separator configurable)
+# Applies to in-game shop lore and transaction messages.
+price-format:
+  # Modes: plain, compact, grouped
+  mode: "plain"
+  compact:
+    # Customize compact suffixes (e.g. 1k, 1m, 1b)
+    thousand-suffix: "k"
+    million-suffix: "m"
+    billion-suffix: "b"
+    # If true, compact mode uses scientific notation (example: 1E6)
+    use-scientific-notation: false
+  grouped:
+    # Example EU style: 1.000,50
+    thousands-separator: "."
+    decimal-separator: ","
+    # Decimal precision used in grouped mode
+    max-decimals: 2
+
+# ==========================================================
 # Date Format for Time-Limited Shops
 # ==========================================================
 # Choose how date ranges are displayed in shop availability times
@@ -69,6 +107,20 @@ date-format: "dd MMM yyyy"
 # When enabled, the plugin will create default shop files on first run
 # This creates: blocks.yml, farming.yml, misc.yml, premium.yml, spawners.yml, weekend_market.yml
 create-default-shops: true
+
+# ==========================================================
+# Integrations
+# ==========================================================
+# Enable or disable support for the SmartSpawner plugin
+# If enabled, the shop will use SmartSpawner's /ss give command for delivering spawners.
+smart-spawner-support: true
+
+# ==========================================================
+# Wiki Link
+# ==========================================================
+# Used by /shop wiki and web editor quick-link button
+wiki:
+  url: "https://github.com/Drallee/Genius-Shop/wiki"
 
 # ==========================================================
 # Web Config Editor API
@@ -94,4 +146,4 @@ api:
   # When enabled, allows users with permission "geniusshop.login.ip.bypass" to log in from
   # different IPs after confirming their identity in-game
   # Trusted IPs are saved per-user
-  allow-ip-bypass: true
+  allow-ip-bypass: false

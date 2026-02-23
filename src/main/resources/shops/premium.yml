@@ -1,14 +1,14 @@
-gui-name: '&8Premium Shop'
+gui-name: '<gradient:#FF0072:#FC9BF5>Premium Shop</gradient>'
 rows: 3
 permission: geniusshop.shop.premium
 items:
   - material: DIAMOND
-    name: '&bDiamond'
+    name: '<gradient:#6EE7F9:#60A5FA>Diamond</gradient>'
     price: 500
     sell-price: 250
     amount: 8
   - material: EMERALD
-    name: '&aEmerald'
+    name: '<gradient:#34D399:#A7F3D0>Emerald</gradient>'
     price: 600
     sell-price: 300
     amount: 8
@@ -21,10 +21,16 @@ items:
     name: '&6Enchanted Golden Apple'
     price: 8000
     amount: 1
+    global-limit: 10
+    lore:
+      - '&6Stock: &e%global-limit%'
   - material: BEACON
     name: '&bBeacon'
     price: 15000
     amount: 1
+    global-limit: 20
+    lore:
+      - '&6Stock: &e%global-limit%'
   - material: ENDER_CHEST
     name: '&5Ender Chest'
     price: 1200
@@ -39,3 +45,32 @@ items:
     name: '&bElytra'
     price: 20000
     amount: 1
+    global-limit: 5
+    lore:
+      - '&6Stock: &e%global-limit%'
+  - material: DIAMOND_SWORD
+    name: '&b&lMaster Sword'
+    price: 12000
+    sell-price: 3000
+    amount: 1
+    global-limit: 15
+    enchantments:
+      sharpness: 5
+      looting: 3
+      unbreaking: 3
+    lore:
+      - '&7A finely crafted blade.'
+      - '&6Stock: &e%global-limit%'
+  - material: DIAMOND_PICKAXE
+    name: '&b&lUltimate Drill'
+    price: 15000
+    sell-price: 4000
+    amount: 1
+    global-limit: 15
+    enchantments:
+      efficiency: 6
+      fortune: 3
+      unbreaking: 3
+    lore:
+      - '&7Mines everything instantly!'
+      - '&6Stock: &e%global-limit%'

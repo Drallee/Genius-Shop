@@ -2,8 +2,8 @@ package me.dralle.shop.gui;
 
 import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.model.ShopData;
-import me.dralle.shop.util.ItemUtil;
-import me.dralle.shop.util.TimeRestrictionUtil;
+import me.dralle.shop.util.ShopItemUtil;
+import me.dralle.shop.util.ShopTimeUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -12,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -19,9 +20,17 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class MainMenu implements Listener {
+
+    public static class MainMenuHolder implements InventoryHolder {
+        @Override
+        public Inventory getInventory() {
+            return null;
+        }
+    }
 
     private final ShopPlugin plugin;
 
@@ -39,13 +48,13 @@ public class MainMenu implements Listener {
         ConfigurationSection mainConfig = plugin.getMenuManager().getMainMenuConfig();
         if (mainConfig == null) {
             // very small fallback if main-menu.yml is broken
-            Inventory fallback = Bukkit.createInventory(player, 27, ItemUtil.color("&8Shop Menu"));
+            Inventory fallback = Bukkit.createInventory(player, 27, ShopItemUtil.color("&8Shop Menu"));
             player.openInventory(fallback);
             return;
         }
 
         String rawTitle = mainConfig.getString("title", "&8Shop Menu");
-        String title = plugin.getMessages().color(rawTitle);
+        String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, plugin.getMessages().color(rawTitle));
 
         // Support both 'rows' and 'size' config (rows = number of rows, size = total slots)
         int size;
@@ -61,13 +70,19 @@ public class MainMenu implements Listener {
             if (size % 9 != 0) size = 27;
         }
 
-        Inventory inv = Bukkit.createInventory(player, size, title);
+        Inventory inv = Bukkit.createInventory(new MainMenuHolder(), size, title);
 
         ConfigurationSection itemsSec = mainConfig.getConfigurationSection("items");
         if (itemsSec != null) {
             for (String key : itemsSec.getKeys(false)) {
                 ConfigurationSection itemSec = itemsSec.getConfigurationSection(key);
                 if (itemSec == null) continue;
+
+                // Permission check
+                String permission = itemSec.getString("permission", "");
+                if (permission != null && !permission.isEmpty()) {
+                    if (!player.hasPermission(permission)) continue;
+                }
 
                 int slot = itemSec.getInt("slot", -1);
                 if (slot < 0 || slot >= size) continue;
@@ -79,20 +94,23 @@ public class MainMenu implements Listener {
                 String name = itemSec.getString("name", key);
                 List<String> loreRaw = itemSec.getStringList("lore");
                 List<String> lore = new ArrayList<>();
+                List<String> latestHighlights = plugin.getUpdateChecker() != null
+                        ? plugin.getUpdateChecker().getLatestReleaseHighlights()
+                        : java.util.Collections.emptyList();
+                boolean hasHighlightsPlaceholder = false;
                 
-                // Get shop key to check for available times
+// Get shop key to check for available times
                 String shopKey = itemSec.getString("shop-key", null);
                 String availableTimes = "";
                 if (shopKey != null) {
                     ShopData shopData = plugin.getShopManager().getShop(shopKey);
                     if (shopData != null) {
-                        availableTimes = TimeRestrictionUtil.formatAvailableTimes(shopData.getAvailableTimes(), plugin);
+                        availableTimes = ShopTimeUtil.formatAvailableTimes(shopData.getAvailableTimes(), plugin);
                     }
                 }
                 
                 for (String line : loreRaw) {
-                    String processed = line
-                            .replace("%available-times%", availableTimes)
+                    String processed = replaceAvailableTimesPlaceholder(line, availableTimes)
                             .replace("%version%", plugin.getDescription().getVersion());
 
                     // Handle update-available placeholder
@@ -106,11 +124,27 @@ public class MainMenu implements Listener {
                         }
                     }
 
+                    // Expand latest-update-highlights placeholder into multiple lore lines.
+                    if (processed.contains("%latest-update-highlights%")) {
+                        hasHighlightsPlaceholder = true;
+                        boolean updateAvailable = plugin.getUpdateChecker() != null
+                                && plugin.getUpdateChecker().isUpdateAvailable();
+                        if (!updateAvailable || latestHighlights.isEmpty()) {
+                            continue;
+                        }
+
+                        lore.add(ShopItemUtil.color("&7Latest update highlights:"));
+                        for (String highlight : latestHighlights) {
+                            lore.add(ShopItemUtil.color("&8- &f" + highlight));
+                        }
+                        continue;
+                    }
+
                     // Support multiple lines if \n is present (e.g. from %available-times%)
-                    lore.addAll(ItemUtil.splitAndColor(processed));
+                    lore.addAll(ShopItemUtil.splitAndColor(processed));
                 }
 
-                ItemStack item = ItemUtil.create(mat, 1, name, lore);
+                ItemStack item = ShopItemUtil.create(mat, 1, name, lore);
                 
                 // Apply item flags if specified
                 ItemMeta meta = item.getItemMeta();
@@ -138,15 +172,10 @@ public class MainMenu implements Listener {
     @EventHandler
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
+        if (!(e.getInventory().getHolder() instanceof MainMenuHolder)) return;
 
-        // Check that this is the main menu by matching title
         ConfigurationSection mainConfig = plugin.getMenuManager().getMainMenuConfig();
         if (mainConfig == null) return;
-
-        String expectedTitle = plugin.getMessages().color(
-                mainConfig.getString("title", "&8Shop Menu")
-        );
-        if (!e.getView().getTitle().equals(expectedTitle)) return;
 
         e.setCancelled(true);
         if (e.getCurrentItem() == null || e.getCurrentItem().getType() == Material.AIR) return;
@@ -179,9 +208,59 @@ public class MainMenu implements Listener {
             }
         }
 
-        // Open the linked shop
+        String action = clickedItem.getString("action", "").trim().toLowerCase(Locale.ROOT);
         String shopKey = clickedItem.getString("shop-key", null);
-        if (shopKey != null && !shopKey.isEmpty()) {
+        if (action.isEmpty()) {
+            if (shopKey != null && !shopKey.isEmpty()) {
+                action = "shop";
+            } else if (clickedItem.contains("command") || clickedItem.contains("commands")) {
+                action = "command";
+            }
+        }
+
+        if ("close".equals(action)) {
+            player.closeInventory();
+            return;
+        }
+
+        if ("command".equals(action) || "command-close".equals(action)) {
+            List<String> commands = new ArrayList<>();
+            String singleCommand = clickedItem.getString("command", "").trim();
+            if (!singleCommand.isEmpty()) {
+                commands.add(singleCommand);
+            }
+            commands.addAll(clickedItem.getStringList("commands"));
+
+            if (commands.isEmpty()) {
+                return;
+            }
+
+            String runAs = clickedItem.getString("run-as", "player").trim().toLowerCase(Locale.ROOT);
+            for (String cmdRaw : commands) {
+                if (cmdRaw == null || cmdRaw.trim().isEmpty()) continue;
+
+                String command = cmdRaw.trim().replace("%player%", player.getName());
+                if (command.startsWith("/")) {
+                    command = command.substring(1);
+                }
+                if (command.isEmpty()) continue;
+
+                if ("console".equals(runAs)) {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+                } else {
+                    Bukkit.dispatchCommand(player, command);
+                }
+            }
+
+            boolean closeAfter = "command-close".equals(action) || clickedItem.getBoolean("close-after-action", false);
+            if (closeAfter) {
+                player.closeInventory();
+            }
+            return;
+        }
+
+        // Open the linked shop
+        if (("shop".equals(action) || "shop-key".equals(action)) && shopKey != null && !shopKey.isEmpty()) {
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop == null) {
                 player.sendMessage(
@@ -192,19 +271,78 @@ public class MainMenu implements Listener {
             }
 
             // Check time restrictions
-            if (!TimeRestrictionUtil.isShopAvailable(shop.getAvailableTimes())) {
-                String availableTimes = TimeRestrictionUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
+            if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
+                String availableTimes = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
                 player.sendMessage(
                         plugin.getMessages()
                                 .getMessage("shop-not-available")
-                                .replace("%shop%", ItemUtil.color(shop.getGuiName()))
+                                .replace("%shop%", ShopItemUtil.color(shop.getGuiName()))
                                 .replace("%available-times%", availableTimes)
                 );
                 return;
             }
 
-            plugin.getGenericShopGui().openShop(player, shopKey, 1);
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getGenericShopGui().openShop(player, shopKey, 1));
             plugin.shopsOpened++;
         }
+    }
+
+    /**
+     * Avoid nested gradient tags when %available-times% is wrapped by a gradient in lore.
+     * If placeholder is inside a gradient tag, strip formatting from replacement first.
+     */
+    private static String replaceAvailableTimesPlaceholder(String line, String availableTimes) {
+        if (line == null || !line.contains("%available-times%")) {
+            return line;
+        }
+        String replacement = availableTimes == null ? "" : availableTimes;
+        if (isInsideGradientTag(line, "%available-times%")) {
+            replacement = stripColorFormatting(replacement);
+            String openGradientTag = findEnclosingGradientOpenTag(line, "%available-times%");
+            if (openGradientTag != null && replacement.contains("\n")) {
+                // Prevent gradients from spanning raw newlines by closing/reopening per line.
+                replacement = replacement.replace("\n", "</gradient>\n" + openGradientTag);
+            }
+        }
+        return line.replace("%available-times%", replacement);
+    }
+
+    private static boolean isInsideGradientTag(String line, String token) {
+        int tokenIndex = line.indexOf(token);
+        if (tokenIndex < 0) return false;
+
+        int lastOpen = line.lastIndexOf("<gradient:", tokenIndex);
+        if (lastOpen < 0) return false;
+
+        int lastClose = line.lastIndexOf("</gradient>", tokenIndex);
+        return lastOpen > lastClose;
+    }
+
+    private static String findEnclosingGradientOpenTag(String line, String token) {
+        int tokenIndex = line.indexOf(token);
+        if (tokenIndex < 0) return null;
+
+        int lastOpen = line.lastIndexOf("<gradient:", tokenIndex);
+        if (lastOpen < 0) return null;
+
+        int openEnd = line.indexOf('>', lastOpen);
+        if (openEnd < 0 || openEnd > tokenIndex) return null;
+
+        int closeAfter = line.indexOf("</gradient>", tokenIndex);
+        if (closeAfter < 0) return null;
+
+        return line.substring(lastOpen, openEnd + 1);
+    }
+
+    private static String stripColorFormatting(String input) {
+        if (input == null || input.isEmpty()) return "";
+
+        String plain = input
+                .replaceAll("(?i)</?gradient(?::[^>]*)?>", "")
+                .replaceAll("(?i)&#[A-F0-9]{6}", "")
+                .replaceAll("(?i)[&§][0-9A-FK-ORX]", "")
+                .replace("Â§", "§")
+                .replaceAll("(?i)§x(§[0-9A-F]){6}", "");
+        return plain;
     }
 }

@@ -22,6 +22,19 @@ let currentUsername = username; // For activity log
 let currentShopFile = 'blocks.yml'; // Current shop being edited
 let currentTab = 'mainmenu'; // Track current active tab
 let allShops = {}; // Store all loaded shops
+let serverInfo = {
+    version: 'unknown',
+    smartSpawnerEnabled: false,
+    entityTypes: []
+};
+let priceFormatSettings = {
+    mode: 'plain',
+    grouped: {
+        thousandsSeparator: '.',
+        decimalSeparator: ',',
+        maxDecimals: 2
+    }
+};
 let autoSaveTimeout = null;
 let isSaving = false;
 let currentPreviewPage = 0; // Current page being previewed
@@ -35,11 +48,29 @@ let draggedFromPage = null;
 let pageFlipTimeout = null;
 
 // Current Shop Metadata State
+function createDefaultStockResetRule() {
+    return {
+        enabled: false,
+        type: 'daily',
+        time: '00:00',
+        interval: 1,
+        dayOfWeek: 'MONDAY',
+        dayOfMonth: 1,
+        month: 1,
+        monthDay: '',
+        date: '',
+        timezone: ''
+    };
+}
+
 let currentShopSettings = {
     guiName: '&8Shop',
     rows: 3,
     permission: '',
-    availableTimes: ''
+    availableTimes: '',
+    sellAddsToStock: false,
+    allowSellStockOverflow: false,
+    stockResetRule: createDefaultStockResetRule()
 };
 
 let guiSettings = {
@@ -56,7 +87,29 @@ let guiSettings = {
         showSellHint: true,
         sellHintLine: '&aRight-click to sell',
         amountLine: '&eAmount: &7%amount%',
-        totalLine: '&eTotal: &7%total%'
+        totalLine: '&eTotal: &7%total%',
+        spawnerTypeLine: '&7Spawner Type: &e%type%',
+        spawnerItemLine: '&7Spawner Item: &e%item%',
+        potionTypeLine: '&7Potion Type: &d%type%',
+        globalLimitLine: '&7Stock: &e%global-limit%',
+        playerLimitLine: '&7Your limit: &e%player-limit%',
+        stockResetTimerLine: '&7%stock-reset-timer%',
+        globalLimitValueFormat: '%current%/%limit%',
+        playerLimitValueFormat: '%current%/%limit%',
+        stockResetTimerValueFormat: 'Stock resets in %time%',
+        loreFormat: [
+            "%price-line%",
+            "",
+            "%custom-lore%",
+            "%spawner-type-line%",
+            "%spawner-item-line%",
+            "%potion-type-line%",
+            "%global-limit%",
+            "%player-limit%",
+            "%stock-reset-timer%",
+            "",
+            "%hint-line%"
+        ]
     }
 };
 
@@ -71,7 +124,225 @@ let currentModalData = null;
 // Minecraft texture API base URL
 const TEXTURE_API = 'https://mc.nerothe.com/img/1.21.8/minecraft_';
 
-let translations = {};
+// Safety fallbacks in case ui.js fails to load or parse.
+if (typeof window.renderSkeletons !== 'function') {
+    window.renderSkeletons = function() {
+        const container = document.getElementById('items-container') || document.getElementById('mainmenu-shops-container');
+        if (container) {
+            container.innerHTML = '<div class="skeleton skeleton-item"></div><div class="skeleton skeleton-item"></div>';
+        }
+    };
+}
+
+if (typeof window.initCustomSelects !== 'function') {
+    window.initCustomSelects = function() {};
+}
+
+const DEFAULT_TRANSLATIONS = {
+    "web-editor": {
+        "title": "Genius Shop - Configuration Editor",
+        "hero-title": "GENIUS SHOP EDITOR",
+        "hero-subtitle": "Configure your shop with live Minecraft preview",
+        "beta-badge": "BETA - Some features may be working and some might be missing",
+        "bug-report": "Report bugs or missing features",
+        "auto-save": "Auto-save",
+        "animations": "Animations",
+        "history": "HISTORY",
+        "reload": "RELOAD",
+        "save-tab": "SAVE TAB",
+        "publish-all": "PUBLISH ALL",
+        "logout": "LOGOUT",
+        "rows": "Rows:",
+        "permission": "Permission:",
+        "available-times": "Times:",
+        "display-material": "Material:",
+        "display-slot": "Slot:",
+        "max-amount": "Max:",
+        "spawner-lore": "Spawner Lore:",
+        "tabs": {
+            "main-menu": "MAIN MENU",
+            "shop": "SHOP",
+            "purchase": "PURCHASE",
+            "sell": "SELL",
+            "gui-settings": "GUI SETTINGS"
+        },
+        "preview-loading": "Loading...",
+        "prev": "PREV",
+        "next": "NEXT",
+        "page-indicator": "Page %page%/%total%",
+        "main-menu": {
+            "title": "MAIN MENU EDITOR",
+            "buttons-count": "%count% buttons",
+            "settings": "SETTINGS",
+            "add-button": "ADD BUTTON"
+        },
+        "shop": {
+            "current-file": "CURRENT SHOP FILE",
+            "loading": "Loading shops...",
+            "create-new": "CREATE NEW SHOP",
+            "title": "SHOP CONTENT",
+            "items-count": "%count% items",
+            "sort-label": "Sort by:",
+            "sort": {
+                "slot-asc": "Slot (Low to High)",
+                "slot-desc": "Slot (High to Low)",
+                "name-asc": "Name (A to Z)",
+                "name-desc": "Name (Z to A)",
+                "material-asc": "Material (A to Z)",
+                "material-desc": "Material (Z to A)",
+                "price-asc": "Buy Price (Low to High)",
+                "price-desc": "Buy Price (High to Low)",
+                "sell-price-asc": "Sell Price (Low to High)",
+                "sell-price-desc": "Sell Price (High to Low)",
+                "id-asc": "ID (Low to High)",
+                "id-desc": "ID (High to Low)"
+            },
+            "search-placeholder": "Search by name or material...",
+            "add-item": "ADD ITEM",
+            "delete-file": "Delete Shop File"
+        },
+        "purchase": {
+            "title": "PURCHASE CONFIGURATION",
+            "menu-settings": "MENU SETTINGS"
+        },
+        "sell": {
+            "title": "SELL CONFIGURATION",
+            "menu-settings": "MENU SETTINGS"
+        },
+        "gui-settings": {
+            "title": "GUI GLOBAL SETTINGS",
+            "lore-format-title": "Shop Item Lore Format",
+            "lore-format-label": "Lore Format"
+        },
+        "tips": {
+            "title": "QUICK TIPS",
+            "tip1": "Click items in preview to edit properties",
+            "tip2": "Real Minecraft textures displayed",
+            "tip3": "Auto-save keeps your changes safe",
+            "tip4": "Use SYNC to reload from server",
+            "tip5": "Create multiple shop files"
+        },
+        "modals": {
+            "edit-item": "Edit Item",
+            "edit-main-item": "Edit Main Item",
+            "edit-button": "Edit Menu Button",
+            "delete": "Delete",
+            "cancel": "Cancel",
+            "save": "Save",
+            "confirm-title": "Confirm Action",
+            "confirm-button": "Confirm",
+            "alert-title": "Message",
+            "error-title": "Error",
+            "success-title": "Success",
+            "warning-title": "Warning",
+            "prompt-title": "Enter Value",
+            "save-confirm-title": "Confirm Save",
+            "activity-detail-title": "Change Details",
+            "rollback": "ROLLBACK",
+            "rollback-success": "Action rolled back successfully",
+            "refresh": "REFRESH",
+            "clear": "CLEAR ALL",
+            "history-log": "HISTORY LOG",
+            "about-history-title": "ABOUT HISTORY LOG",
+            "about-history-text": "Track all changes made by users. Click any entry to view detailed before/after comparison.",
+            "no-activity": "No Activity Yet",
+            "session-expired": "Session expired. Please login again.",
+            "item-updated": "Item updated",
+            "item-removed": "Item removed",
+            "remove-confirm": "Are you sure you want to remove this %item%?",
+            "remove-file-confirm": "Are you sure you want to PERMANENTLY DELETE %file% from the server? This cannot be undone!",
+            "reload-confirm": "Are you sure you want to reload all configurations from the server? Any unsaved changes will be lost.",
+            "logout-confirm": "Are you sure you want to logout?",
+            "shop-created": "New shop created",
+            "shop-removed": "Shop file removed",
+            "file-saved": "File saved successfully",
+            "save-error": "Failed to save file",
+            "publish-success": "All changes published successfully",
+            "publish-error": "Failed to publish changes",
+            "reload-success": "Configuration reloaded from server",
+            "reload-error": "Failed to reload configuration",
+            "loaded": "Loaded",
+            "load-failed": "Load failed",
+            "saving": "Saving...",
+            "saved": "Saved",
+            "save-failed": "Save failed",
+            "delete-error": "Failed to delete",
+            "connect-error": "Failed to connect to server",
+            "api-hint": "Make sure the API is enabled in config.yml and the port is open.",
+            "rollback-failed": "Rollback failed",
+            "copied": "Copied to clipboard!",
+            "shop-exists": "A shop with this name already exists!",
+            "enter-filename": "Enter new shop filename (e.g. tools.yml):",
+            "publishing": "Publishing...",
+            "published": "Published",
+            "fields": {
+                "material": "Material",
+                "material-hint": "Minecraft material name (e.g. DIAMOND_SWORD)",
+                "display-name": "Display Name",
+                "display-name-hint": "Supports & color codes",
+                "slot": "Slot",
+                "slot-hint": "Position in the GUI (absolute index)",
+                "buy-price": "Buy Price",
+                "buy-price-hint": "0 = cannot buy",
+                "sell-price": "Sell Price",
+                "sell-price-hint": "0 = cannot sell",
+                "amount": "Amount",
+                "lore": "Lore (one per line)",
+                "enchantments": "Enchantments",
+                "enchantments-hint": "Format: ENCHANTMENT:LEVEL (e.g. SHARPNESS:5)",
+                "spawner-type": "Spawner Type",
+                "spawner-type-hint": "Entity type for the spawner",
+                "potion-type": "Potion Type",
+                "potion-type-hint": "Base potion effect",
+                "potion-level": "Potion Level",
+                "potion-level-hint": "0 = default, 1+ = custom amplifier",
+                "hide-attributes": "Hide Attributes",
+                "hide-additional": "Hide Additional Info",
+                "require-name": "Require Name",
+                "require-name-hint": "Exact name match required for selling",
+                "require-lore": "Require Lore",
+                "require-lore-hint": "Exact lore match required for selling",
+                "unstable-tnt": "Unstable TNT",
+                "limit": "Limit",
+                "player-limit": "Player Limit",
+                "player-limit-hint": "Total amount a player can buy/sell (0 = unlimited)",
+                "global-limit": "Global Limit",
+                "global-limit-hint": "Total amount available globally (restocks when sold)",
+                "add-limit": "Add Limit...",
+                "remove-limit": "Remove",
+                "select-limit": "-- Select to add --",
+                "dynamic-pricing": "Dynamic Pricing",
+                "min-price": "Min Price",
+                "min-price-hint": "Minimum dynamic price",
+                "max-price": "Max Price",
+                "max-price-hint": "Maximum dynamic price",
+                "price-change": "Price Change",
+                "price-change-hint": "Price change per item bought/sold"
+            },
+            "new-item-name": "&eNew Item",
+            "new-item-lore": "&7Added via web editor",
+            "new-shop-name": "&eNew Shop",
+            "click-to-open": "&7Click to open",
+            "buying-title": "&8Buying ",
+            "selling-title": "&8Selling ",
+            "confirm-purchase": "&aCONFIRM PURCHASE",
+            "confirm-sell": "&aCONFIRM SELL",
+            "sell-all": "&6SELL ALL"
+        },
+        "item": {
+            "item-location": "Page %page%, Slot %slot%"
+        },
+        "footer": {
+            "description": "A powerful configuration editor for Minecraft shop plugins with live preview",
+            "github": "Star on GitHub",
+            "issues": "Report Issues",
+            "made-with": "Made with love by Dralle for the Minecraft community",
+            "copyright": "(c) 2025 Genius Shop - Open Source Project"
+        }
+    }
+};
+
+let translations = DEFAULT_TRANSLATIONS;
 let currentLanguage = localStorage.getItem('preferredLanguage');
 
 async function loadTranslations() {
@@ -85,15 +356,16 @@ async function loadTranslations() {
             // If the server returned a different language than we expected (e.g. fallback)
             if (data.language && !currentLanguage) {
                 currentLanguage = data.language;
+                localStorage.setItem('preferredLanguage', currentLanguage);
             }
             
             applyTranslations();
-            
-            // Also load available languages list if we haven't yet
-            loadLanguages();
         }
     } catch (error) {
         console.error('Failed to load translations:', error);
+    } finally {
+        // Always try to load the list of available languages
+        loadLanguages();
     }
 }
 
@@ -102,7 +374,7 @@ async function loadLanguages() {
         const response = await fetch(`${API_URL}/api/languages`);
         if (response.ok) {
             const languages = await response.json();
-            const selectors = [document.getElementById('language-selector'), document.getElementById('language-selector-mobile')];
+            const selectors = [document.getElementById('language-selector')];
             
             selectors.forEach(selector => {
                 if (!selector) return;
@@ -114,17 +386,17 @@ async function loadLanguages() {
                     const names = {
                         'en_US': 'English (US)',
                         'en_GB': 'English (UK)',
-                        'ru_RU': 'Русский',
+                        'ru_RU': 'Russian',
                         'de_DE': 'Deutsch',
-                        'fr_FR': 'Français',
-                        'tr_TR': 'Türkçe',
-                        'ro_RO': 'Română',
-                        'es_MX': 'Español (MX)',
-                        'es_ES': 'Español (ES)',
-                        'es_AR': 'Español (AR)',
-                        'pt_BR': 'Português (BR)',
-                        'pt_PT': 'Português (PT)',
-                        'vi_VN': 'Tiếng Việt',
+                        'fr_FR': 'French',
+                        'tr_TR': 'Turkish',
+                        'ro_RO': 'Romanian',
+                        'es_MX': 'Spanish (MX)',
+                        'es_ES': 'Spanish (ES)',
+                        'es_AR': 'Spanish (AR)',
+                        'pt_BR': 'Portuguese (BR)',
+                        'pt_PT': 'Portuguese (PT)',
+                        'vi_VN': 'Vietnamese',
                         'nl_NL': 'Nederlands',
                         'fi_FI': 'Suomi',
                         'pl_PL': 'Polski',
@@ -136,6 +408,7 @@ async function loadLanguages() {
                 if (currentLanguage) {
                     selector.value = currentLanguage;
                 }
+                selector.dispatchEvent(new Event('refresh'));
             });
         }
     } catch (error) {
@@ -148,10 +421,19 @@ async function changeEditorLanguage(lang) {
     currentLanguage = lang;
     
     // Update all selectors to match
-    const selectors = [document.getElementById('language-selector'), document.getElementById('language-selector-mobile')];
+    const selectors = [document.getElementById('language-selector')];
     selectors.forEach(s => { if(s) s.value = lang; });
     
     await loadTranslations();
+    // Immediately repaint current tab/preview so title never stays as translated "Loading...".
+    if (typeof switchTab === 'function') {
+        switchTab(currentTab || 'mainmenu');
+    } else {
+        if (currentTab === 'mainmenu' && typeof updateGuiPreview === 'function') updateGuiPreview();
+        if (currentTab === 'shop' && typeof updatePreview === 'function') updatePreview();
+        if (currentTab === 'purchase' && typeof updatePurchasePreview === 'function') updatePurchasePreview();
+        if (currentTab === 'sell' && typeof updateSellPreview === 'function') updateSellPreview();
+    }
     showToast(t('web-editor.modals.reload-success', 'Configuration reloaded from server'), 'success');
 }
 
@@ -162,16 +444,28 @@ function t(key, replacements = {}) {
     let text = key.split('.').reduce((obj, k) => obj && obj[k], translations);
     
     // If not found and key starts with web-editor., try looking inside web-editor object
-    // (Handles case where translations might be the web-editor section itself)
     if ((text === undefined || text === null) && key.startsWith('web-editor.')) {
         const subKey = key.substring('web-editor.'.length);
         text = subKey.split('.').reduce((obj, k) => obj && obj[k], translations);
     }
     
     // If still not found and translations has web-editor key, try looking there
-    // (Handles case where root web-editor might be missing in some parts of the code)
     if ((text === undefined || text === null) && translations['web-editor']) {
         text = key.split('.').reduce((obj, k) => obj && obj[k], translations['web-editor']);
+    }
+
+    // FALLBACK TO DEFAULT_TRANSLATIONS
+    if (text === undefined || text === null) {
+        text = key.split('.').reduce((obj, k) => obj && obj[k], DEFAULT_TRANSLATIONS);
+        
+        if ((text === undefined || text === null) && key.startsWith('web-editor.')) {
+            const subKey = key.substring('web-editor.'.length);
+            text = subKey.split('.').reduce((obj, k) => obj && obj[k], DEFAULT_TRANSLATIONS);
+        }
+        
+        if ((text === undefined || text === null) && DEFAULT_TRANSLATIONS['web-editor']) {
+            text = key.split('.').reduce((obj, k) => obj && obj[k], DEFAULT_TRANSLATIONS['web-editor']);
+        }
     }
     
     if (text === undefined || text === null) {
@@ -189,8 +483,89 @@ function t(key, replacements = {}) {
     return text;
 }
 
+function applyFontAwesomeIcons() {
+    const setIcon = (selector, classes) => {
+        document.querySelectorAll(selector).forEach(el => {
+            el.innerHTML = `<i class="${classes}" aria-hidden="true"></i>`;
+        });
+    };
+
+    const normalize = (text) => {
+        if (!text) return '';
+        return text.replace(/^[^A-Za-z0-9&]+/, '').trim();
+    };
+
+    const setTextWithIcon = (selector, classes) => {
+        document.querySelectorAll(selector).forEach(el => {
+            const text = normalize(el.textContent);
+            if (text.length > 0) {
+                el.innerHTML = `<i class="${classes}" aria-hidden="true"></i> ${text}`;
+            }
+        });
+    };
+
+    setIcon('.edit-icon', 'fa-solid fa-pen');
+    setIcon('.edit-icon-small', 'fa-solid fa-pen');
+    setIcon('.modal-close', 'fa-solid fa-xmark');
+    setIcon('button[onclick="logout()"] .btn-icon', 'fa-solid fa-right-from-bracket');
+    setIcon('button[onclick="addMainMenuShop()"] .btn-icon', 'fa-solid fa-plus');
+    setIcon('button[onclick="addItem()"] .btn-icon', 'fa-solid fa-plus');
+    setIcon('button[onclick="openActivityLogModal()"] .btn-icon', 'fa-solid fa-clock-rotate-left');
+    setIcon('button[onclick="reloadCurrentConfig()"] .btn-icon', 'fa-solid fa-rotate');
+    setIcon('button[onclick="manualSave()"] .btn-icon', 'fa-solid fa-floppy-disk');
+    setIcon('button[onclick="publishChanges()"] .btn-icon', 'fa-solid fa-rocket');
+    setIcon('.search-icon', 'fa-solid fa-magnifying-glass');
+    setIcon('#tips-toggle-icon', 'fa-solid fa-chevron-down');
+    setIcon('#alert-modal-icon', 'fa-solid fa-circle-info');
+    setIcon('#prompt-modal-icon', 'fa-solid fa-pen-to-square');
+    setIcon('#modal-delete-btn span:first-child', 'fa-solid fa-trash');
+    setIcon('#activity-log-empty div:first-child', 'fa-solid fa-clock-rotate-left');
+    setIcon('#activity-log-modal .info-box .flex.items-center.gap-8.mb-8 span:first-child', 'fa-solid fa-circle-info');
+    setIcon('button[onclick="confirmSave()"] span:first-child', 'fa-solid fa-floppy-disk');
+    setIcon('#page-navigation button:first-child span:first-child', 'fa-solid fa-chevron-left');
+    setIcon('#page-navigation button:last-child span:last-child', 'fa-solid fa-chevron-right');
+    setIcon('.info-box .flex.justify-between.items-center.mb-12 h3 span:first-child', 'fa-solid fa-lightbulb');
+    setIcon('#confirm-modal .modal-title > span:first-child', 'fa-solid fa-triangle-exclamation');
+    setIcon('#save-confirmation-modal .modal-title > span:first-child', 'fa-solid fa-floppy-disk');
+    setIcon('#activity-detail-modal .modal-title > span:first-child', 'fa-solid fa-clock-rotate-left');
+    setIcon('button[onclick="openShopSettingsModal()"] i, button[onclick="openShopSettingsModal()"]', 'fa-solid fa-gear');
+    setIcon('button[onclick="createNewShop()"] i, button[onclick="createNewShop()"]', 'fa-solid fa-file-circle-plus');
+
+    setTextWithIcon('[data-i18n="web-editor.hero-title"]', 'fa-solid fa-shop');
+    setTextWithIcon('[data-i18n="web-editor.beta-badge"]', 'fa-solid fa-triangle-exclamation');
+    setTextWithIcon('[data-i18n="web-editor.modals.rollback"]', 'fa-solid fa-backward-fast');
+    setTextWithIcon('[data-i18n="web-editor.modals.history-log"]', 'fa-solid fa-clock-rotate-left');
+    setTextWithIcon('[data-i18n="web-editor.modals.refresh"]', 'fa-solid fa-rotate');
+    setTextWithIcon('[data-i18n="web-editor.modals.clear"]', 'fa-solid fa-trash');
+    setTextWithIcon('[data-i18n="web-editor.tips.tip1"]', 'fa-solid fa-wand-magic-sparkles');
+    setTextWithIcon('[data-i18n="web-editor.tips.tip2"]', 'fa-solid fa-palette');
+    setTextWithIcon('[data-i18n="web-editor.tips.tip3"]', 'fa-solid fa-floppy-disk');
+    setTextWithIcon('[data-i18n="web-editor.tips.tip4"]', 'fa-solid fa-rotate');
+    setTextWithIcon('[data-i18n="web-editor.tips.tip5"]', 'fa-solid fa-file-lines');
+    setTextWithIcon('[data-i18n="web-editor.footer.github"]', 'fa-brands fa-github');
+    setTextWithIcon('[data-i18n="web-editor.footer.issues"]', 'fa-solid fa-bug');
+
+    const madeWith = document.querySelector('[data-i18n="web-editor.footer.made-with"]');
+    if (madeWith) {
+        const suffix = normalize(madeWith.textContent).replace(/^Made with\s*/i, '').trim();
+        madeWith.innerHTML = `Made with <i class="fa-solid fa-heart" style="color:#ef4444;" aria-hidden="true"></i> ${suffix || 'by Dralle for the Minecraft community'}`;
+    }
+
+    const copyright = document.querySelector('[data-i18n="web-editor.footer.copyright"]');
+    if (copyright) {
+        copyright.innerHTML = '&copy; 2025 Genius Shop - Open Source Project';
+    }
+
+    document.querySelectorAll('footer div[style*="display: flex"] > span').forEach(el => {
+        el.innerHTML = '&bull;';
+    });
+}
+
 function applyTranslations() {
     document.querySelectorAll('[data-i18n], [data-i18n-title]').forEach(el => {
+        // Keep preview title bound to config values, not translation placeholders.
+        if (el.id === 'preview-title') return;
+
         const key = el.getAttribute('data-i18n') || el.getAttribute('data-i18n-title');
         const translated = t(key);
         if (translated !== key) {
@@ -210,16 +585,8 @@ function applyTranslations() {
         document.title = pageTitle;
     }
 
-    // Update transaction settings
-    transactionSettings.purchase.titlePrefix = t('web-editor.modals.buying-title', transactionSettings.purchase.titlePrefix);
-    transactionSettings.sell.titlePrefix = t('web-editor.modals.selling-title', transactionSettings.sell.titlePrefix);
-    transactionSettings.purchase.buttons.confirm.name = t('web-editor.modals.confirm-purchase', transactionSettings.purchase.buttons.confirm.name);
-    transactionSettings.sell.buttons.confirm.name = t('web-editor.modals.confirm-sell', transactionSettings.sell.buttons.confirm.name);
-    transactionSettings.sell.buttons.sellAll.name = t('web-editor.modals.sell-all', transactionSettings.sell.buttons.sellAll.name);
+    applyFontAwesomeIcons();
 }
-
-// Start loading translations immediately
-loadTranslations();
 
 // Initialize animations toggle from localStorage
 const animationsEnabled = localStorage.getItem('animationsEnabled') !== 'false'; // default true
@@ -303,14 +670,11 @@ let transactionSettings = {
     }
 };
 
-// Utilities
-function updateSaveStatus(message, color = '#aaa') {
-    const status = document.getElementById('save-status');
-    if (status) {
-        status.textContent = message;
-        status.style.color = color;
-    }
-}
+// Apply defaults immediately
+applyTranslations();
+
+// Start loading translations immediately
+loadTranslations();
 
 function loadActivityLog() {
     try {
@@ -339,7 +703,34 @@ function clearActivityLog() {
     showToast('Activity log cleared', 'success');
 }
 
+function normalizeActivityData(value) {
+    if (Array.isArray(value)) {
+        return value.map(normalizeActivityData);
+    }
+    if (value && typeof value === 'object') {
+        const normalized = {};
+        Object.keys(value).sort().forEach(key => {
+            normalized[key] = normalizeActivityData(value[key]);
+        });
+        return normalized;
+    }
+    return value;
+}
+
+function isSameActivityData(a, b) {
+    try {
+        return JSON.stringify(normalizeActivityData(a)) === JSON.stringify(normalizeActivityData(b));
+    } catch (e) {
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+}
+
 function addActivityEntry(action, target, beforeData, afterData, details = {}) {
+    // Do not log "updated" events if no effective data change happened.
+    if (action === 'updated' && isSameActivityData(beforeData, afterData)) {
+        return;
+    }
+
     const entry = {
         id: Date.now() + Math.random(),
         timestamp: new Date().toISOString(),

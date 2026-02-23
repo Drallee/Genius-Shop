@@ -5,10 +5,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Setup animations toggle
     const animationsToggle = document.getElementById('animations-toggle');
-    const animationsToggleMobile = document.getElementById('animations-toggle-mobile');
     if (animationsToggle) {
         animationsToggle.checked = animationsEnabled;
-        if (animationsToggleMobile) animationsToggleMobile.checked = animationsEnabled;
         if (!animationsEnabled) {
             document.body.classList.add('no-animations');
         }
@@ -17,10 +15,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Setup auto-save toggle
     const autoSaveToggle = document.getElementById('auto-save-toggle');
-    const autoSaveToggleMobile = document.getElementById('auto-save-toggle-mobile');
     if (autoSaveToggle) {
         autoSaveToggle.checked = autoSaveEnabled;
-        if (autoSaveToggleMobile) autoSaveToggleMobile.checked = autoSaveEnabled;
         autoSaveToggle.addEventListener('change', toggleAutoSave);
     }
 
@@ -42,22 +38,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initial load
     loadActivityLog();
     await loadAllFiles();
+    if (typeof initCustomSelects === 'function') {
+        initCustomSelects();
+    }
 
     // Setup user info display
     const userInfo = document.getElementById('user-info');
     if (userInfo) {
-        userInfo.className = 'user-badge';
         userInfo.innerHTML = `
             <img src="https://mc-heads.net/avatar/${username}/24" alt="${username}" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
             <span style="display: none;">👤</span>
             <span class="status-dot"></span>
             <span>${username}</span>
+            <span style="margin-left: 8px; font-size: 0.8em; opacity: 0.7;">▼</span>
         `;
     }
 
     // Setup event listeners for inputs
     setupInputListeners();
-    setupMobileSync();
 });
 
 function setupInputListeners() {
@@ -78,6 +76,8 @@ function addItem() {
         id: itemIdCounter++,
         material: 'STONE',
         name: t('web-editor.new-item-name', '&eNew Item'),
+        headTexture: '',
+        headOwner: '',
         price: 100,
         sellPrice: 50,
         amount: 1,
@@ -89,8 +89,16 @@ function addItem() {
         requireLore: false,
         unstableTnt: false,
         spawnerType: null,
+        spawnerItem: null,
         potionType: null,
         potionLevel: 0,
+        commands: [],
+        runAs: 'console',
+        stockResetRule: createDefaultStockResetRule(),
+        showStock: false,
+        showStockResetTimer: false,
+        runCommandOnly: true,
+        permission: '',
         slot: slot
     };
     items.push(newItem);
@@ -110,7 +118,10 @@ function addMainMenuShop() {
         material: 'CHEST',
         name: t('web-editor.new-shop-name', '&eNew Shop'),
         lore: [t('web-editor.click-to-open', '&7Click to open')],
+        action: 'shop-key',
         shopKey: 'misc',
+        commands: [],
+        runAs: 'player',
         permission: '',
         hideAttributes: false,
         hideAdditional: false
@@ -157,30 +168,3 @@ function updateTransactionSettings() {
     }
 }
 
-// Mobile menu and toggle sync logic
-function setupMobileSync() {
-    const animationsToggle = document.getElementById('animations-toggle');
-    const animationsToggleMobile = document.getElementById('animations-toggle-mobile');
-    const autoSaveToggle = document.getElementById('auto-save-toggle');
-    const autoSaveToggleMobile = document.getElementById('auto-save-toggle-mobile');
-
-    if (animationsToggle && animationsToggleMobile) {
-        animationsToggle.addEventListener('change', () => {
-            animationsToggleMobile.checked = animationsToggle.checked;
-        });
-        animationsToggleMobile.addEventListener('change', () => {
-            animationsToggle.checked = animationsToggleMobile.checked;
-            toggleAnimations();
-        });
-    }
-
-    if (autoSaveToggle && autoSaveToggleMobile) {
-        autoSaveToggle.addEventListener('change', () => {
-            autoSaveToggleMobile.checked = autoSaveToggle.checked;
-        });
-        autoSaveToggleMobile.addEventListener('change', () => {
-            autoSaveToggle.checked = autoSaveToggleMobile.checked;
-            toggleAutoSave();
-        });
-    }
-}

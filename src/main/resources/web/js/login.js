@@ -1,5 +1,45 @@
 (function() {
-    let translations = {};
+    const DEFAULT_TRANSLATIONS = {
+        "web-editor": {
+            "modals": {
+                "error-title": "Error",
+                "success-title": "Success",
+                "warning-title": "Warning",
+                "alert-title": "Message"
+            },
+            "login": {
+                "title": "Login - Genius Shop Editor",
+                "heading": "GENIUS SHOP",
+                "subtitle": "Configuration Editor",
+                "requirements-title": "Requirements",
+                "req1": "You must be logged into the Minecraft server",
+                "req2": "You need admin permissions (geniusshop.admin or OP)",
+                "req3": "Your password is your player UUID (or a login code)",
+                "tab-uuid": "UUID Login",
+                "tab-code": "Code Login",
+                "code-label": "Login Code",
+                "code-placeholder": "6-digit code (e.g. 123456)",
+                "code-hint": "Generate a code in-game using /shop editor",
+                "username-label": "Minecraft Username",
+                "username-placeholder": "Your in-game name",
+                "password-label": "Password (Your UUID)",
+                "password-placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                "password-hint": "Get your UUID from https://mcuuid.net/ or use the Code Login tab",
+                "login-button": "Login",
+                "security-title": "Security Confirmation Required",
+                "security-text": "You are logging in from a different IP address.<br>Please check your Minecraft game and confirm the login request.",
+                "waiting": "Waiting for confirmation...",
+                "retry-auto": "This will retry automatically",
+                "retry-in": "Retrying in",
+                "confirmed": "Login Confirmed!",
+                "redirecting": "Redirecting...",
+                "timeout": "Confirmation timeout. Please try logging in again.",
+                "failed": "Login failed"
+            }
+        }
+    };
+
+    let translations = DEFAULT_TRANSLATIONS;
     let currentLanguage = localStorage.getItem('preferredLanguage');
 
     async function loadTranslations() {
@@ -12,13 +52,15 @@
                 
                 if (data.language && !currentLanguage) {
                     currentLanguage = data.language;
+                    localStorage.setItem('preferredLanguage', currentLanguage);
                 }
                 
                 applyTranslations();
-                loadLanguages();
             }
         } catch (error) {
             console.error('Failed to load translations:', error);
+        } finally {
+            loadLanguages();
         }
     }
 
@@ -36,17 +78,17 @@
                         const names = {
                             'en_US': 'English (US)',
                             'en_GB': 'English (UK)',
-                            'ru_RU': 'Русский',
+                            'ru_RU': 'Russian',
                             'de_DE': 'Deutsch',
-                            'fr_FR': 'Français',
-                            'tr_TR': 'Türkçe',
-                            'ro_RO': 'Română',
-                            'es_MX': 'Español (MX)',
-                            'es_ES': 'Español (ES)',
-                            'es_AR': 'Español (AR)',
-                            'pt_BR': 'Português (BR)',
-                            'pt_PT': 'Português (PT)',
-                            'vi_VN': 'Tiếng Việt',
+                            'fr_FR': 'French',
+                            'tr_TR': 'Turkish',
+                            'ro_RO': 'Romanian',
+                            'es_MX': 'Spanish (MX)',
+                            'es_ES': 'Spanish (ES)',
+                            'es_AR': 'Spanish (AR)',
+                            'pt_BR': 'Portuguese (BR)',
+                            'pt_PT': 'Portuguese (PT)',
+                            'vi_VN': 'Vietnamese',
                             'nl_NL': 'Nederlands',
                             'fi_FI': 'Suomi',
                             'pl_PL': 'Polski',
@@ -58,6 +100,7 @@
                     if (currentLanguage) {
                         selector.value = currentLanguage;
                     }
+                    initCustomSelects();
                 }
             }
         } catch (error) {
@@ -125,28 +168,65 @@
         }
     }
 
+    // Apply defaults immediately
+    applyTranslations();
+
     loadTranslations();
+
+    let loginMethod = 'uuid';
+
+    document.getElementById('tab-uuid').addEventListener('click', () => {
+        loginMethod = 'uuid';
+        document.getElementById('tab-uuid').classList.add('active');
+        document.getElementById('tab-code').classList.remove('active');
+        document.getElementById('uuid-fields').style.display = 'block';
+        document.getElementById('code-fields').style.display = 'none';
+        document.getElementById('password').required = true;
+        document.getElementById('login-code').required = false;
+    });
+
+    document.getElementById('tab-code').addEventListener('click', () => {
+        loginMethod = 'code';
+        document.getElementById('tab-code').classList.add('active');
+        document.getElementById('tab-uuid').classList.remove('active');
+        document.getElementById('code-fields').style.display = 'block';
+        document.getElementById('uuid-fields').style.display = 'none';
+        document.getElementById('login-code').required = true;
+        document.getElementById('password').required = false;
+    });
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
+        const code = document.getElementById('login-code').value;
         const errorEl = document.getElementById('error-message');
         const loginBtn = document.getElementById('login-btn');
 
         errorEl.style.display = 'none';
         loginBtn.disabled = true;
-        loginBtn.textContent = '...'; // Temporary until translated
+        loginBtn.textContent = '...'; 
 
         try {
-            const response = await fetch(`api/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
+            let response;
+            if (loginMethod === 'code') {
+                response = await fetch(`api/logincode`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, code })
+                });
+            } else {
+                response = await fetch(`api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+            }
 
             const data = await response.json();
 
@@ -155,8 +235,8 @@
                 if (response.status === 403 && data.status === 'pending_confirmation') {
                     // Show waiting for confirmation screen
                     document.body.innerHTML = `
-                        <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 25px; padding: 40px; text-align: center;">
-                            <div style="font-size: 48px; animation: pulse 2s ease-in-out infinite;">⚠️</div>
+                        <div style="display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 80px); background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 25px; padding: 20px; text-align: center; margin: auto; max-width: 600px;">
+                            <div style="font-size: 48px; animation: pulse 2s ease-in-out infinite;">&#9888;</div>
                             <div style="font-size: 28px; font-weight: 700;">${t('web-editor.login.security-title', 'Security Confirmation Required')}</div>
                             <div style="font-size: 16px; color: #aaa; max-width: 500px; line-height: 1.6;">
                                 ${t('web-editor.login.security-text', 'You are logging in from a different IP address.<br>Please check your Minecraft game and confirm the login request.')}
@@ -198,13 +278,24 @@
                         }
 
                         try {
-                            const retryResponse = await fetch(`api/login`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ username, password })
-                            });
+                            let retryResponse;
+                            if (loginMethod === 'code') {
+                                retryResponse = await fetch(`api/logincode`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ username, code })
+                                });
+                            } else {
+                                retryResponse = await fetch(`api/login`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ username, password })
+                                });
+                            }
 
                             if (retryResponse.ok) {
                                 clearInterval(pollInterval);
@@ -214,7 +305,7 @@
                                 localStorage.setItem('username', retryData.username);
 
                                 // Show success and redirect
-                                document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 48px;">✓</div><div style="font-size: 24px; color: #4ade80;">${t('web-editor.login.confirmed', 'Login Confirmed!')}</div><div style="font-size: 14px; color: #888;">${t('web-editor.login.redirecting', 'Redirecting...')}</div></div>`;
+                                document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 80px); background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px; margin: auto;"><div style="font-size: 48px;">&#10003;</div><div style="font-size: 24px; color: #4ade80;">${t('web-editor.login.confirmed', 'Login Confirmed!')}</div><div style="font-size: 14px; color: #888;">${t('web-editor.login.redirecting', 'Redirecting...')}</div></div>`;
 
                                 setTimeout(() => {
                                     window.location.href = 'index.html';
@@ -257,4 +348,70 @@
         if (localStorage.getItem('sessionToken')) {
             window.location.href = 'index.html';
         }
+
+    function initCustomSelects() {
+        document.querySelectorAll('select.premium-select').forEach(select => {
+            if (select.dataset.customInitialized) return;
+            createCustomDropdown(select);
+        });
+    }
+
+    function createCustomDropdown(select) {
+        const container = document.createElement('div');
+        container.className = 'custom-select';
+        if (select.id) container.id = 'custom-' + select.id;
+        
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-select-trigger';
+        
+        const triggerText = document.createElement('span');
+        triggerText.textContent = select.options[select.selectedIndex]?.textContent || 'Select...';
+        trigger.appendChild(triggerText);
+        
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'custom-select-options';
+        
+        function updateOptions() {
+            optionsContainer.innerHTML = '';
+            Array.from(select.options).forEach((option, index) => {
+                const opt = document.createElement('div');
+                opt.className = 'custom-select-option';
+                if (index === select.selectedIndex) opt.classList.add('selected');
+                opt.textContent = option.textContent;
+                opt.onclick = (e) => {
+                    e.stopPropagation();
+                    select.selectedIndex = index;
+                    select.dispatchEvent(new Event('change'));
+                    triggerText.textContent = option.textContent;
+                    container.classList.remove('open');
+                    updateOptions();
+                };
+                optionsContainer.appendChild(opt);
+            });
+        }
+        
+        updateOptions();
+        
+        trigger.onclick = (e) => {
+            e.stopPropagation();
+            const isOpen = container.classList.contains('open');
+            document.querySelectorAll('.custom-select').forEach(s => s.classList.remove('open'));
+            if (!isOpen) container.classList.add('open');
+        };
+        
+        container.appendChild(trigger);
+        container.appendChild(optionsContainer);
+        
+        select.parentNode.insertBefore(container, select);
+        select.dataset.customInitialized = "true";
+        
+        select.addEventListener('change', () => {
+            triggerText.textContent = select.options[select.selectedIndex]?.textContent || 'Select...';
+            updateOptions();
+        });
+
+        document.addEventListener('click', () => {
+            container.classList.remove('open');
+        });
+    }
 })();

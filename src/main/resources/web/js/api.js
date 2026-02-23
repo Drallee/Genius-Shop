@@ -1,9 +1,19 @@
-// ===== API INTERACTION =====
+﻿// ===== API INTERACTION =====
 
 async function loadAllFiles() {
     try {
+        isLoadingFiles = true;
         console.log('[LOAD] Starting to load files');
-        updateSaveStatus(t('web-editor.shop.loading'), '#ffaa00');
+        showToast(t('web-editor.shop.loading'), 'info');
+        if (typeof renderSkeletons === 'function') {
+            renderSkeletons();
+        } else {
+            // Fallback skeleton while UI helpers are unavailable.
+            const container = document.getElementById('items-container') || document.getElementById('mainmenu-shops-container');
+            if (container) {
+                container.innerHTML = '<div class="skeleton skeleton-item"></div><div class="skeleton skeleton-item"></div>';
+            }
+        }
 
         const response = await fetch(`api/files?t=${Date.now()}`, {
             headers: {
@@ -23,18 +33,26 @@ async function loadAllFiles() {
         }
 
         const data = await response.json();
+        
+        // Load server info
+        if (data.serverInfo) {
+            serverInfo = data.serverInfo;
+            console.log('[LOAD] Server info:', serverInfo);
+        }
 
         // Load shop files and populate dropdown
         if (data.shops) {
             allShops = data.shops;
-            const shopSelector = document.getElementById('shop-selector');
+            const shopSelector = document.getElementById('shop-file-selector');
             if (shopSelector) {
                 shopSelector.innerHTML = '';
                 const shopFiles = Object.keys(allShops).sort();
                 shopFiles.forEach(filename => {
                     const option = document.createElement('option');
                     option.value = filename;
+                    
                     option.textContent = filename;
+                    
                     shopSelector.appendChild(option);
                 });
 
@@ -47,6 +65,7 @@ async function loadAllFiles() {
                     }
                     loadShopFromData(currentShopFile);
                 }
+                shopSelector.dispatchEvent(new Event('refresh'));
             }
         }
 
@@ -68,11 +87,14 @@ async function loadAllFiles() {
         if (data.guiSettings) {
             parseGuiSettingsYaml(data.guiSettings);
         }
+        if (data.priceFormat) {
+            parsePriceFormatPayload(data.priceFormat);
+        }
 
         // Update preview based on current active tab
         const previewSection = document.querySelector('.minecraft-preview-section');
         if (previewSection) {
-            previewSection.style.display = currentTab === 'guisettings' ? 'none' : 'block';
+            previewSection.style.display = (currentTab === 'guisettings') ? 'none' : 'block';
         }
 
         if (currentTab === 'mainmenu') {
@@ -85,13 +107,12 @@ async function loadAllFiles() {
             renderGuiSettings();
         }
 
-        updateSaveStatus('✓ ' + t('web-editor.modals.loaded', 'Loaded'), '#55ff55');
-        setTimeout(() => updateSaveStatus(''), 2000);
+        showToast(t('web-editor.modals.loaded'), 'success');
         isLoadingFiles = false;
         unsavedChanges = [];
     } catch (error) {
         console.error('Failed to load files:', error);
-        updateSaveStatus('✗ ' + t('web-editor.modals.load-failed', 'Load failed'), '#ff5555');
+        showToast(t('web-editor.modals.load-failed'), 'error');
         showAlert(t('web-editor.modals.connect-error', 'Failed to connect to server') + ': ' + error.message + '\n\n' + t('web-editor.modals.api-hint', 'Make sure the API is enabled in config.yml and the port is open.'));
         isLoadingFiles = false;
     }
@@ -116,7 +137,7 @@ async function saveCurrentShop(isSilent = false) {
     }
 
     isSaving = true;
-    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
+    if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
         const response = await fetch(`api/file/shops/${currentShopFile}`, {
@@ -149,15 +170,13 @@ async function saveCurrentShop(isSilent = false) {
                     }
                     return true;
                 });
-                updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
                 showToast(t('web-editor.modals.file-saved'), 'success');
-                setTimeout(() => updateSaveStatus(''), 2000);
             }
         }
     } catch (error) {
         console.error('Failed to save shop:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
@@ -168,7 +187,7 @@ async function saveCurrentShop(isSilent = false) {
 
 async function saveMainMenuYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
+    if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
         let yamlContent = `# Main shop menu configuration\n`;
@@ -189,7 +208,32 @@ async function saveMainMenuYaml(isSilent = false) {
                     yamlContent += `      - '${line}'\n`;
                 });
             }
-            if (shop.shopKey) yamlContent += `    shop-key: ${shop.shopKey}\n`;
+            let action = (shop.action || '').toString().trim().toLowerCase();
+            if (!action) {
+                if (shop.shopKey) {
+                    action = 'shop-key';
+                } else if (Array.isArray(shop.commands) && shop.commands.length > 0) {
+                    action = 'command';
+                } else {
+                    action = 'no-action';
+                }
+            }
+            if (action) yamlContent += `    action: ${action}\n`;
+
+            if (action === 'shop' || action === 'shop-key') {
+                if (shop.shopKey) yamlContent += `    shop-key: ${shop.shopKey}\n`;
+            } else if (action === 'command' || action === 'command-close') {
+                const commands = Array.isArray(shop.commands) ? shop.commands.filter(line => line && line.trim()) : [];
+                if (commands.length > 0) {
+                    yamlContent += `    commands:\n`;
+                    commands.forEach(line => {
+                        yamlContent += `      - '${line}'\n`;
+                    });
+                }
+                const runAs = (shop.runAs || 'player').toString().trim().toLowerCase();
+                yamlContent += `    run-as: ${runAs === 'console' ? 'console' : 'player'}\n`;
+            }
+
             if (shop.permission) yamlContent += `    permission: ${shop.permission}\n`;
             if (shop.hideAttributes) yamlContent += `    hide-attributes: true\n`;
             if (shop.hideAdditional) yamlContent += `    hide-additional: true\n`;
@@ -208,15 +252,13 @@ async function saveMainMenuYaml(isSilent = false) {
         
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'main-menu-button' && c.target !== 'main-menu-settings');
-            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
             showToast(t('web-editor.modals.file-saved'), 'success');
-            setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save main-menu.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
@@ -225,12 +267,13 @@ async function saveMainMenuYaml(isSilent = false) {
 
 async function savePurchaseMenuYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
+    if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
         let yamlContent = `# Purchase menu configuration\n`;
         yamlContent += `# This file contains settings for the item purchase interface\n\n`;
         yamlContent += `title-prefix: '${transactionSettings.purchase.titlePrefix}'\n`;
+        yamlContent += `rows: ${transactionSettings.purchase.rows || 6}\n`;
         yamlContent += `display-material: ${transactionSettings.purchase.displayMaterial}\n`;
         yamlContent += `display-slot: ${transactionSettings.purchase.displaySlot}\n`;
         yamlContent += `max-amount: ${transactionSettings.purchase.maxAmount}\n\n`;
@@ -273,18 +316,16 @@ async function savePurchaseMenuYaml(isSilent = false) {
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
+        
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'purchase-menu-button' && c.target !== 'purchase-menu-settings');
-            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
             showToast(t('web-editor.modals.file-saved'), 'success');
-            setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save purchase-menu.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
@@ -293,12 +334,13 @@ async function savePurchaseMenuYaml(isSilent = false) {
 
 async function saveSellMenuYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
+    if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
         let yamlContent = `# Sell menu configuration\n`;
         yamlContent += `# This file contains settings for the item sell interface\n\n`;
         yamlContent += `title-prefix: '${transactionSettings.sell.titlePrefix}'\n`;
+        yamlContent += `rows: ${transactionSettings.sell.rows || 6}\n`;
         yamlContent += `display-material: ${transactionSettings.sell.displayMaterial}\n`;
         yamlContent += `display-slot: ${transactionSettings.sell.displaySlot}\n`;
         yamlContent += `max-amount: ${transactionSettings.sell.maxAmount}\n\n`;
@@ -341,18 +383,16 @@ async function saveSellMenuYaml(isSilent = false) {
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
+        
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'sell-menu-button' && c.target !== 'sell-menu-settings');
-            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
             showToast(t('web-editor.modals.file-saved'), 'success');
-            setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save sell-menu.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
@@ -361,7 +401,7 @@ async function saveSellMenuYaml(isSilent = false) {
 
 async function saveGuiSettingsYaml(isSilent = false) {
     if (isLoadingFiles) return;
-    if (!isSilent) updateSaveStatus(t('web-editor.modals.saving', 'Saving...'), '#ffaa00');
+    if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
         const yamlContent = generateGuiSettingsYaml();
@@ -379,15 +419,13 @@ async function saveGuiSettingsYaml(isSilent = false) {
         
         if (!isSilent) {
             unsavedChanges = unsavedChanges.filter(c => c.target !== 'gui-settings');
-            updateSaveStatus('✓ ' + t('web-editor.modals.saved', 'Saved'), '#55ff55');
             showToast(t('web-editor.modals.file-saved'), 'success');
-            setTimeout(() => updateSaveStatus(''), 2000);
         }
         return true;
     } catch (error) {
         console.error('Failed to save gui-settings.yml:', error);
         if (!isSilent) {
-            updateSaveStatus('✗ ' + t('web-editor.modals.save-failed', 'Save failed'), '#ff5555');
+            showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
         }
         throw error;
@@ -414,22 +452,21 @@ async function confirmSave() {
     closeSaveConfirmationModal();
     
     if (activeSaveMode === 'publish') {
-        updateSaveStatus(t('web-editor.modals.publishing', 'Publishing...'), '#ffaa00');
+        showToast(t('web-editor.modals.publishing', 'Publishing...'), 'info');
         try {
             // Save all first
             await saveCurrentShop(true);
             await saveMainMenuYaml(true);
             await savePurchaseMenuYaml(true);
             await saveSellMenuYaml(true);
+            await saveGuiSettingsYaml(true);
             
             unsavedChanges = [];
             showToast(t('web-editor.modals.publish-success'), 'success', t('web-editor.modals.published', 'Published'));
-            updateSaveStatus('✓ ' + t('web-editor.modals.published', 'Published'), '#55ff55');
-            setTimeout(() => updateSaveStatus(''), 2000);
         } catch (error) {
             console.error('Publish failed:', error);
             showAlert(t('web-editor.modals.publish-error') + ': ' + error.message, 'error');
-            updateSaveStatus('✗ ' + t('web-editor.modals.publish-failed', 'Publish failed'), '#ff5555');
+            showToast(t('web-editor.modals.publish-error'), 'error');
         }
         return;
     }
@@ -442,6 +479,8 @@ async function confirmSave() {
         await savePurchaseMenuYaml();
     } else if (currentTab === 'sell') {
         await saveSellMenuYaml();
+    } else if (currentTab === 'guisettings') {
+        await saveGuiSettingsYaml();
     }
 }
 
@@ -462,14 +501,17 @@ async function createNewShop() {
         allShops[filename] = initialYaml;
         
         // Add to dropdown
-        const shopSelector = document.getElementById('shop-selector');
-        const option = document.createElement('option');
-        option.value = filename;
-        option.textContent = filename;
-        shopSelector.appendChild(option);
+        const shopSelector = document.getElementById('shop-file-selector');
+        if (shopSelector) {
+            const option = document.createElement('option');
+            option.value = filename;
+            option.textContent = filename;
+            shopSelector.appendChild(option);
+            shopSelector.value = filename;
+            shopSelector.dispatchEvent(new Event('refresh'));
+        }
         
         currentShopFile = filename;
-        shopSelector.value = filename;
         
         loadShopFromData(filename);
         await saveCurrentShop();
@@ -522,10 +564,12 @@ async function handleAutoLogin(token) {
             window.history.replaceState({}, document.title, window.location.pathname);
             window.location.reload();
         } else {
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">❌ Login Failed</div><div style="font-size: 14px; color: #888;">${data.message || 'Invalid or expired token'}</div><button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer; margin-top: 10px;">Go to Login Page</button></div>`;
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Login Failed</div><div style="font-size: 14px; color: #888;">${data.message || 'Invalid or expired token'}</div><button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer; margin-top: 10px;">Go to Login Page</button></div>`;
         }
     } catch (error) {
         console.error('Auto-login error:', error);
-        document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">❌ Connection Error</div><div style="font-size: 14px; color: #888;">Could not connect to the API server</div></div>`;
+        document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Connection Error</div><div style="font-size: 14px; color: #888;">Could not connect to the API server</div></div>`;
     }
 }
+
+

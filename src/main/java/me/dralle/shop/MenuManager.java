@@ -1,5 +1,7 @@
 package me.dralle.shop;
 
+import me.dralle.shop.util.ConfigUpdater;
+import me.dralle.shop.util.YamlUtil;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -16,6 +18,7 @@ public class MenuManager {
     private FileConfiguration mainMenuConfig;
     private FileConfiguration purchaseMenuConfig;
     private FileConfiguration sellMenuConfig;
+    private FileConfiguration bulkSellMenuConfig;
     private FileConfiguration guiSettingsConfig;
 
     public MenuManager(ShopPlugin plugin) {
@@ -32,7 +35,7 @@ public class MenuManager {
 
         // Check if we need to migrate from gui.yml
         if (oldGuiFile.exists() && !menusDir.exists()) {
-            plugin.getLogger().info("Detected old gui.yml format. Migrating to new menu structure...");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Detected old gui.yml format. Migrating to new menu structure...");
             migrateFromGuiYml(oldGuiFile, menusDir);
         }
 
@@ -45,15 +48,17 @@ public class MenuManager {
         saveDefaultMenuFile("main-menu.yml");
         saveDefaultMenuFile("purchase-menu.yml");
         saveDefaultMenuFile("sell-menu.yml");
+        saveDefaultMenuFile("bulk-sell-menu.yml");
         saveDefaultMenuFile("gui-settings.yml");
 
         // Load menu configurations
-        mainMenuConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "main-menu.yml"));
-        purchaseMenuConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "purchase-menu.yml"));
-        sellMenuConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "sell-menu.yml"));
-        guiSettingsConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "gui-settings.yml"));
+        mainMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "main-menu.yml"));
+        purchaseMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "purchase-menu.yml"));
+        sellMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "sell-menu.yml"));
+        bulkSellMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "bulk-sell-menu.yml"));
+        guiSettingsConfig = YamlUtil.loadUtf8(new File(menusDir, "gui-settings.yml"));
 
-        plugin.getLogger().info("Menu configurations loaded successfully");
+        me.dralle.shop.util.ConsoleLog.info(plugin, "Menu configurations loaded successfully");
     }
 
     /**
@@ -64,10 +69,10 @@ public class MenuManager {
             // Create backup
             File backupFile = new File(plugin.getDataFolder(), "gui.yml.backup");
             Files.copy(oldGuiFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            plugin.getLogger().info("Created backup: gui.yml.backup");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Created backup: gui.yml.backup");
 
             // Load old gui.yml
-            FileConfiguration oldConfig = YamlConfiguration.loadConfiguration(oldGuiFile);
+            FileConfiguration oldConfig = YamlUtil.loadUtf8(oldGuiFile);
 
             // Create menus directory
             menusDir.mkdirs();
@@ -79,19 +84,19 @@ public class MenuManager {
 
             // Don't migrate gui-settings - always use defaults from resources
             // Old gui.yml rarely has these settings, so extract fresh defaults
-            plugin.getLogger().info("Using default gui-settings.yml from resources");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Using default gui-settings.yml from resources");
 
-            plugin.getLogger().info("Migration completed successfully!");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Migration completed successfully!");
 
             // Delete the old gui.yml file after successful backup
             if (oldGuiFile.delete()) {
-                plugin.getLogger().info("Deleted old gui.yml (backup saved as gui.yml.backup)");
+                me.dralle.shop.util.ConsoleLog.info(plugin, "Deleted old gui.yml (backup saved as gui.yml.backup)");
             } else {
-                plugin.getLogger().warning("Failed to delete old gui.yml - you can manually delete it");
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to delete old gui.yml - you can manually delete it");
             }
 
         } catch (IOException e) {
-            plugin.getLogger().severe("Failed to migrate gui.yml: " + e.getMessage());
+            me.dralle.shop.util.ConsoleLog.error(plugin, "Failed to migrate gui.yml: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -109,8 +114,8 @@ public class MenuManager {
             newConfig.set("items", oldConfig.getConfigurationSection("gui.main.items"));
         }
 
-        newConfig.save(mainMenuFile);
-        plugin.getLogger().info("Created main-menu.yml");
+        YamlUtil.saveUtf8((YamlConfiguration) newConfig, mainMenuFile);
+        me.dralle.shop.util.ConsoleLog.info(plugin, "Created main-menu.yml");
     }
 
     private void migratePurchaseMenu(FileConfiguration oldConfig, File menusDir) throws IOException {
@@ -182,8 +187,8 @@ public class MenuManager {
             }
         }
 
-        newConfig.save(purchaseMenuFile);
-        plugin.getLogger().info("Created purchase-menu.yml");
+        YamlUtil.saveUtf8((YamlConfiguration) newConfig, purchaseMenuFile);
+        me.dralle.shop.util.ConsoleLog.info(plugin, "Created purchase-menu.yml");
     }
 
     private void migrateSellMenu(FileConfiguration oldConfig, File menusDir) throws IOException {
@@ -258,22 +263,13 @@ public class MenuManager {
             }
         }
 
-        newConfig.save(sellMenuFile);
-        plugin.getLogger().info("Created sell-menu.yml");
+        YamlUtil.saveUtf8((YamlConfiguration) newConfig, sellMenuFile);
+        me.dralle.shop.util.ConsoleLog.info(plugin, "Created sell-menu.yml");
     }
 
 
     private void saveDefaultMenuFile(String fileName) {
-        File file = new File(plugin.getDataFolder(), "menus/" + fileName);
-        if (!file.exists()) {
-            try {
-                plugin.saveResource("menus/" + fileName, false);
-                plugin.getLogger().info("Created default menu file: " + fileName);
-            } catch (IllegalArgumentException e) {
-                plugin.getLogger().severe("Failed to create menu file " + fileName + ": " + e.getMessage());
-                plugin.getLogger().severe("The resource 'menus/" + fileName + "' does not exist in the plugin JAR");
-            }
-        }
+        ConfigUpdater.update(plugin, "menus/" + fileName);
     }
 
     // Getters
@@ -289,6 +285,10 @@ public class MenuManager {
         return sellMenuConfig;
     }
 
+    public FileConfiguration getBulkSellMenuConfig() {
+        return bulkSellMenuConfig;
+    }
+
     public FileConfiguration getGuiSettingsConfig() {
         return guiSettingsConfig;
     }
@@ -298,9 +298,10 @@ public class MenuManager {
      */
     public void reload() {
         File menusDir = new File(plugin.getDataFolder(), "menus");
-        mainMenuConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "main-menu.yml"));
-        purchaseMenuConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "purchase-menu.yml"));
-        sellMenuConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "sell-menu.yml"));
-        guiSettingsConfig = YamlConfiguration.loadConfiguration(new File(menusDir, "gui-settings.yml"));
+        mainMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "main-menu.yml"));
+        purchaseMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "purchase-menu.yml"));
+        sellMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "sell-menu.yml"));
+        bulkSellMenuConfig = YamlUtil.loadUtf8(new File(menusDir, "bulk-sell-menu.yml"));
+        guiSettingsConfig = YamlUtil.loadUtf8(new File(menusDir, "gui-settings.yml"));
     }
 }

@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * Utility class for validating time-based shop restrictions.
  */
-public class TimeRestrictionUtil {
+public class ShopTimeUtil {
 
     /**
      * Check if a shop is currently available based on time restrictions.

@@ -1,21 +1,21 @@
-gui-name: '&d&lWeekend Market'
+gui-name: '<gradient:#FF21E7:#B09BFC>&lWeekend Market</gradient>'
 rows: 4
 permission: ''
 available-times:
-  - "SATURDAY-SUNDAY"    # Only Friday, Saturday, Sunday
+  - "FRIDAY-SUNDAY"    # Only Friday, Saturday, Sunday
   - "10:00AM-10:00PM"  # Only between 10 AM and 10 PMs
   # Example date range (will be formatted per config.yml date-format):
   # - "2024-12-20 to 2024-12-26"
 items:
   - material: DIAMOND_BLOCK
-    name: '&bDiamond Block'
+    name: '<gradient:#67E8F9:#3B82F6>Diamond Block</gradient>'
     price: 4500
     sell-price: 2250
     amount: 1
     lore:
       - '&7Weekend special pricing!'
   - material: EMERALD_BLOCK
-    name: '&aEmerald Block'
+    name: '<gradient:#34D399:#A7F3D0>Emerald Block</gradient>'
     price: 5400
     sell-price: 2700
     amount: 1
@@ -32,43 +32,55 @@ items:
     name: '&6&lEnchanted Golden Apple'
     price: 10000
     amount: 1
+    global-limit: 5
     lore:
       - '&7Rare weekend exclusive!'
       - '&cOnly available on weekends!'
+      - '&6Stock: &e%global-limit%'
   - material: TOTEM_OF_UNDYING
     name: '&eTotem of Undying'
     price: 25000
     amount: 1
+    global-limit: 10
     lore:
       - '&7Weekend exclusive item'
       - '&6Very powerful!'
+      - '&6Stock: &e%global-limit%'
   - material: NETHERITE_BLOCK
     name: '&8Netherite Block'
     price: 45000
     sell-price: 22500
     amount: 1
+    global-limit: 20
     lore:
       - '&7Weekend special pricing!'
+      - '&6Stock: &e%global-limit%'
   - material: ANCIENT_DEBRIS
     name: '&8Ancient Debris'
     price: 12000
     sell-price: 6000
     amount: 1
+    global-limit: 64
     lore:
       - '&7Weekend market exclusive'
+      - '&6Stock: &e%global-limit%'
   - material: TRIDENT
     name: '&bTrident'
     price: 18000
     amount: 1
+    global-limit: 3
     lore:
       - '&7Weekend exclusive weapon'
+      - '&6Stock: &e%global-limit%'
   - material: DRAGON_HEAD
     name: '&5Dragon Head'
     price: 35000
     amount: 1
+    global-limit: 2
     lore:
       - '&7Rare collectible'
       - '&dWeekend only!'
+      - '&6Stock: &e%global-limit%'
   - material: NETHER_STAR
     name: '&fNether Star'
     price: 15000

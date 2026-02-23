@@ -1,6 +1,8 @@
-# Genius Shop v1.4.1-BETA
+# Genius Shop v1.5.0
 
-A powerful, data-driven economy shop plugin with GUI, permissions, and Vault integration for Paper/Spigot servers.
+A powerful, data-driven economy shop plugin with GUI, permissions, and Vault integration for Bukkit/Spigot/Paper/Purpur servers.
+
+[View Changelog](CHANGELOG.md)
 
 ## ✨ Features
 
@@ -17,6 +19,7 @@ A powerful, data-driven economy shop plugin with GUI, permissions, and Vault int
 - Dynamic Pricing - Prices that change based on supply and demand
 - Item Guard - Require specific names or lore for selling items
 - Unstable TNT - Special handling for TNT that ignites on placement
+- Bulk Sell - New GUI to sell multiple items at once
 
 🎨 Modern User Interface
 - Interactive main menu - Centralized hub for all your shops
@@ -24,6 +27,7 @@ A powerful, data-driven economy shop plugin with GUI, permissions, and Vault int
 - Custom lore support - Add descriptions and tooltips to items
 - Purchase confirmation - Prevent accidental transactions with a dedicated confirmation GUI
 - Sell menu - Dedicated interface for selling inventory items
+- Bedrock Edition Support - Optimized GUI titles and compatibility via Floodgate integration
 
 🌐 Web-Based Editor
 - Live GUI preview - See changes in real-time with Minecraft textures
@@ -47,6 +51,7 @@ A powerful, data-driven economy shop plugin with GUI, permissions, and Vault int
 - Update checker - Automatic notifications for new versions in-game and console
 - Smart Config Updater - Automatically merges new config keys while preserving your changes
 - Permission system - Granular control over features, items, and administrative commands
+- Developer API - Comprehensive API with custom events and methods for external integration
 
 🎮 Player-Friendly
 - Simple commands - `/shop` to access shops instantly
@@ -56,7 +61,7 @@ A powerful, data-driven economy shop plugin with GUI, permissions, and Vault int
 
 ## 📋 Requirements
 
-- Minecraft: 1.20.6+ (Paper recommended)
+- Minecraft: 1.21+ (Bukkit, Spigot, Paper, and Purpur supported)
 - Java: 21+
 - Vault: Required for economy functionality
 - Economy Plugin: Any Vault-compatible economy plugin (e.g., EssentialsX)
@@ -89,14 +94,22 @@ Access the visual editor at `http://your-server:8080` after enabling the API in 
 - `/shop reload` - Reload all configurations
 - `/shop editor` - Generate a secure web editor login link
 - `/shop confirmlogin <token>` - Confirm a login attempt from a new IP
+- `/shop wiki` - Open the online documentation (permission-gated)
+- `/shop resetstock all|shop|item` - Manually reset stock counters
 
 ## 🔐 Permissions
 
 - `geniusshop.use` - Access shops (default: true)
 - `geniusshop.reload` - Reload the plugin configuration
 - `geniusshop.admin` - Full administrative access (reload, editor, etc.)
+- `geniusshop.wiki` - Access `/shop wiki`
 - `geniusshop.login.ip.bypass` - Permission to authorize new IPs for the web editor
 - `custom.permission` - Lock any shop behind a permission of your choice
+
+## 💽 Data Storage
+
+- Runtime shop data is stored in `plugins/GeniusShop/data.db` (SQLite).
+- Legacy `data.yml` is automatically migrated to SQLite on startup.
 
 ## 📈 Features at a Glance
 

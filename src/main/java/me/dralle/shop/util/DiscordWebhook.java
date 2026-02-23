@@ -52,7 +52,7 @@ public class DiscordWebhook {
                 JsonObject payload = buildMessage("purchase", playerName, itemName, amount, totalPrice, currencySymbol);
                 sendWebhook(payload);
             } catch (Exception e) {
-                plugin.getLogger().warning("Failed to send purchase webhook to Discord: " + e.getMessage());
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to send purchase webhook to Discord: " + e.getMessage());
                 if (plugin.getConfig().getBoolean("debug", false)) {
                     e.printStackTrace();
                 }
@@ -75,7 +75,7 @@ public class DiscordWebhook {
                 JsonObject payload = buildMessage("sell", playerName, itemName, amount, totalPrice, currencySymbol);
                 sendWebhook(payload);
             } catch (Exception e) {
-                plugin.getLogger().warning("Failed to send sell webhook to Discord: " + e.getMessage());
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to send sell webhook to Discord: " + e.getMessage());
                 if (plugin.getConfig().getBoolean("debug", false)) {
                     e.printStackTrace();
                 }
@@ -123,7 +123,7 @@ public class DiscordWebhook {
         ConfigurationSection embedSection = config.getConfigurationSection(type + ".embed");
 
         if (embedSection == null) {
-            plugin.getLogger().warning("No embed configuration found for " + type + " in discord.yml");
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "No embed configuration found for " + type + " in discord.yml");
             return buildPlainMessage(type, playerName, itemName, amount, totalPrice, currencySymbol);
         }
         JsonObject embed = new JsonObject();
@@ -225,7 +225,7 @@ public class DiscordWebhook {
         String webhookUrl = config.getString("webhook-url", "");
 
         if (webhookUrl.isEmpty() || webhookUrl.equals("WEBHOOK_URL_HERE")) {
-            plugin.getLogger().warning("Discord webhook URL not configured!");
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "Discord webhook URL not configured!");
             return;
         }
 
@@ -243,7 +243,7 @@ public class DiscordWebhook {
 
         int responseCode = connection.getResponseCode();
         if (responseCode < 200 || responseCode >= 300) {
-            plugin.getLogger().warning("Discord webhook returned non-success code: " + responseCode);
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "Discord webhook returned non-success code: " + responseCode);
         } else {
             plugin.debug("Discord webhook sent successfully (code: " + responseCode + ")");
         }
@@ -256,6 +256,6 @@ public class DiscordWebhook {
      */
     private String stripColorCodes(String text) {
         if (text == null) return "";
-        return text.replaceAll("[&§][0-9a-fk-or]", "");
+        return text.replaceAll("[&Â§][0-9a-fk-or]", "");
     }
 }

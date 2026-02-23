@@ -1,6 +1,7 @@
 package me.dralle.shop;
 
 import org.bukkit.configuration.ConfigurationSection;
+import me.dralle.shop.util.YamlUtil;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -25,7 +26,7 @@ public class ShopFileManager {
         // Ensure shops folder exists
         if (!shopsFolder.exists()) {
             if (!shopsFolder.mkdirs()) {
-                plugin.getLogger().warning("Failed to create shops folder!");
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to create shops folder!");
             }
         }
 
@@ -48,24 +49,24 @@ public class ShopFileManager {
 
         // Check if old format exists and if migration is needed
         if (!oldShopsFile.exists()) {
-            plugin.getLogger().info("No shops.yml found, using individual shop files from shops/ folder.");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "No shops.yml found, using individual shop files from shops/ folder.");
             return;
         }
 
         // Check if shops folder already has files (skip migration if it does)
         File[] existingFiles = shopsFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (existingFiles != null && existingFiles.length > 0) {
-            plugin.getLogger().info("Shop files already exist in shops/ folder. Skipping migration.");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Shop files already exist in shops/ folder. Skipping migration.");
             return;
         }
 
-        plugin.getLogger().info("Migrating shops.yml to individual shop files...");
+        me.dralle.shop.util.ConsoleLog.info(plugin, "Migrating shops.yml to individual shop files...");
 
-        FileConfiguration oldConfig = YamlConfiguration.loadConfiguration(oldShopsFile);
+        FileConfiguration oldConfig = YamlUtil.loadUtf8(oldShopsFile);
         ConfigurationSection shopsSection = oldConfig.getConfigurationSection("shops");
 
         if (shopsSection == null) {
-            plugin.getLogger().warning("No shops section found in shops.yml. Nothing to migrate.");
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "No shops section found in shops.yml. Nothing to migrate.");
             return;
         }
 
@@ -103,31 +104,31 @@ public class ShopFileManager {
             // Save to individual file
             File shopFile = new File(shopsFolder, shopKey + ".yml");
             try {
-                newShopConfig.save(shopFile);
+                YamlUtil.saveUtf8(newShopConfig, shopFile);
                 migratedCount++;
-                plugin.getLogger().info("Migrated shop: " + shopKey + " -> " + shopFile.getName());
+                me.dralle.shop.util.ConsoleLog.info(plugin, "Migrated shop: " + shopKey + " -> " + shopFile.getName());
             } catch (IOException e) {
-                plugin.getLogger().warning("Failed to save shop file: " + shopKey + ".yml - " + e.getMessage());
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to save shop file: " + shopKey + ".yml - " + e.getMessage());
             }
         }
 
         if (migratedCount > 0) {
-            plugin.getLogger().info("Successfully migrated " + migratedCount + " shops to individual files.");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Successfully migrated " + migratedCount + " shops to individual files.");
 
             // Create backup of old shops.yml
             File backupFile = new File(plugin.getDataFolder(), "shops.yml.backup");
             try {
                 java.nio.file.Files.copy(oldShopsFile.toPath(), backupFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                plugin.getLogger().info("Created backup: shops.yml.backup");
+                me.dralle.shop.util.ConsoleLog.info(plugin, "Created backup: shops.yml.backup");
 
                 // Delete the old shops.yml file after successful backup
                 if (oldShopsFile.delete()) {
-                    plugin.getLogger().info("Deleted old shops.yml (backup saved as shops.yml.backup)");
+                    me.dralle.shop.util.ConsoleLog.info(plugin, "Deleted old shops.yml (backup saved as shops.yml.backup)");
                 } else {
-                    plugin.getLogger().warning("Failed to delete old shops.yml - you can manually delete it");
+                    me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to delete old shops.yml - you can manually delete it");
                 }
             } catch (IOException e) {
-                plugin.getLogger().warning("Failed to create backup of shops.yml: " + e.getMessage());
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to create backup of shops.yml: " + e.getMessage());
             }
         }
     }
@@ -138,21 +139,21 @@ public class ShopFileManager {
     private void copyDefaultShopFiles() {
         // Check if config option is enabled
         if (!plugin.getConfig().getBoolean("create-default-shops", true)) {
-            plugin.getLogger().info("Skipping default shop creation (create-default-shops: false)");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Skipping default shop creation (create-default-shops: false)");
             return; // Config option disabled, don't create default files
         }
 
         // Check if shops folder already has files
         File[] existingFiles = shopsFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (existingFiles != null && existingFiles.length > 0) {
-            plugin.getLogger().info("shops folder already has " + existingFiles.length + " .yml file(s), skipping default shop creation");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "shops folder already has " + existingFiles.length + " .yml file(s), skipping default shop creation");
             return; // Already has shop files, don't copy defaults
         }
 
-        plugin.getLogger().info("No shop files found. Creating default shop files...");
+        me.dralle.shop.util.ConsoleLog.info(plugin, "No shop files found. Creating default shop files...");
 
         // List of default shop files to copy from resources
-        String[] defaultShops = {"blocks", "spawners", "farming", "premium", "misc", "weekend_market"};
+        String[] defaultShops = {"blocks", "spawners", "farming", "premium", "misc", "weekend_market", "potions", "special"};
 
         int copiedCount = 0;
         for (String shopName : defaultShops) {
@@ -164,20 +165,20 @@ public class ShopFileManager {
                 if (plugin.getResource(resourcePath) != null) {
                     plugin.saveResource(resourcePath, false);
                     copiedCount++;
-                    plugin.getLogger().info("Created default shop: " + shopName + ".yml");
+                    me.dralle.shop.util.ConsoleLog.info(plugin, "Created default shop: " + shopName + ".yml");
                 } else {
-                    plugin.getLogger().warning("Resource not found in JAR: " + resourcePath);
+                    me.dralle.shop.util.ConsoleLog.warn(plugin, "Resource not found in JAR: " + resourcePath);
                 }
             } catch (IllegalArgumentException e) {
-                plugin.getLogger().severe("Failed to create default shop file: " + shopName + ".yml - " + e.getMessage());
-                plugin.getLogger().severe("The resource '" + resourcePath + "' does not exist in the plugin JAR");
+                me.dralle.shop.util.ConsoleLog.error(plugin, "Failed to create default shop file: " + shopName + ".yml - " + e.getMessage());
+                me.dralle.shop.util.ConsoleLog.error(plugin, "The resource '" + resourcePath + "' does not exist in the plugin JAR");
             } catch (Exception e) {
-                plugin.getLogger().warning("Failed to create default shop file: " + shopName + ".yml - " + e.getMessage());
+                me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to create default shop file: " + shopName + ".yml - " + e.getMessage());
             }
         }
 
         if (copiedCount > 0) {
-            plugin.getLogger().info("Successfully created " + copiedCount + " default shop files.");
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Successfully created " + copiedCount + " default shop files.");
         }
     }
 
@@ -189,15 +190,15 @@ public class ShopFileManager {
 
         File[] shopFiles = shopsFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (shopFiles == null || shopFiles.length == 0) {
-            plugin.getLogger().warning("No shop files found in shops/ folder!");
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "No shop files found in shops/ folder!");
             return;
         }
 
         for (File shopFile : shopFiles) {
             String shopKey = shopFile.getName().replace(".yml", "");
-            FileConfiguration config = YamlConfiguration.loadConfiguration(shopFile);
+            FileConfiguration config = YamlUtil.loadUtf8(shopFile);
             shopConfigs.put(shopKey, config);
-            plugin.getLogger().info("Loaded shop: " + shopKey + " from " + shopFile.getName());
+            me.dralle.shop.util.ConsoleLog.info(plugin, "Loaded shop: " + shopKey + " from " + shopFile.getName());
         }
     }
 
@@ -232,7 +233,7 @@ public class ShopFileManager {
         }
 
         File shopFile = new File(shopsFolder, shopKey + ".yml");
-        config.save(shopFile);
+        YamlUtil.saveUtf8((YamlConfiguration) config, shopFile);
     }
 
     /**
@@ -249,8 +250,7 @@ public class ShopFileManager {
         config.set("rows", rows);
         config.set("permission", permission);
         config.set("items", new ArrayList<>());
-
-        config.save(shopFile);
+        YamlUtil.saveUtf8(config, shopFile);
         shopConfigs.put(shopKey, config);
     }
 }

@@ -1,64 +1,119 @@
-gui-name: '&8Farming Shop'
+gui-name: '<gradient:#78C850:#C8E06A:#F6D365>Farming Shop</gradient>'
 rows: 4
 permission: ''
+
+# Example shop-level stock behavior
+sell-adds-to-stock: true
+allow-sell-stock-overflow: false
+stock-reset:
+  enabled: true
+  type: MINUTE_INTERVAL
+  interval: 30
+  timezone: server
+
 items:
   - material: WHEAT_SEEDS
-    name: '&aWheat Seeds'
+    name: '<gradient:#8EEB6F:#C8F587>Wheat Seeds</gradient>'
     price: 10
     sell-price: 3
     amount: 16
+    global-limit: 640
+    show-stock: true
+    show-stock-reset-timer: true
+
   - material: WHEAT
     name: '&eWheat'
     price: 25
     sell-price: 8
     amount: 16
+    global-limit: 512
+    limit: 256
+    show-stock: true
+    show-stock-reset-timer: true
+    # Example item-level override (higher refresh cadence)
+    stock-reset:
+      enabled: true
+      type: SECOND_INTERVAL
+      interval: 45
+
   - material: CARROT
-    name: '&eCarrot'
+    name: '&6Carrot'
     price: 20
     sell-price: 6
     amount: 16
+    global-limit: 400
+    dynamic-pricing: true
+    min-price: 12
+    max-price: 40
+    price-change: 0.25
+    show-stock: true
+
   - material: POTATO
     name: '&ePotato'
     price: 20
     sell-price: 6
     amount: 16
-  - material: BEETROOT_SEEDS
-    name: '&cBeetroot Seeds'
-    price: 15
-    sell-price: 5
-    amount: 16
+    global-limit: 400
+
   - material: BEETROOT
     name: '&cBeetroot'
     price: 25
     sell-price: 8
     amount: 16
+
   - material: SUGAR_CANE
     name: '&aSugar Cane'
     price: 35
     sell-price: 10
     amount: 16
-  - material: CACTUS
-    name: '&aCactus'
-    price: 35
-    sell-price: 10
-    amount: 16
+
   - material: PUMPKIN
     name: '&6Pumpkin'
     price: 40
     sell-price: 12
     amount: 16
-  - material: MELON_SLICE
-    name: '&aMelon Slice'
-    price: 6
-    sell-price: 2
-    amount: 32
+    global-limit: 240
+    show-stock: true
+    # Example item-level sell behavior override
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
+
   - material: BONE_MEAL
     name: '&fBone Meal'
     price: 50
     sell-price: 10
     amount: 16
+
   - material: HAY_BLOCK
     name: '&eHay Bale'
     price: 160
     sell-price: 40
     amount: 8
+
+  - material: DIAMOND_HOE
+    name: '<gradient:#6EDC4B:#A8E063:#F6D365>&lMaster Farmer Hoe</gradient>'
+    price: 10000
+    amount: 1
+    enchantments:
+      efficiency: 5
+      unbreaking: 3
+      mending: 1
+    dynamic-pricing: true
+    min-price: 5000
+    max-price: 20000
+    price-change: 100
+    limit: 1
+    global-limit: 10
+    show-stock: true
+    show-stock-reset-timer: true
+    permission: geniusshop.shop.farming.masterhoe
+    lore:
+      - '&7This special hoe has dynamic pricing.'
+      - '&7Price updates with market activity.'
+      - '&7Use while stock lasts.'
+    # Example run-as + commands
+    commands:
+      - 'broadcast <gradient:#A8E063:#F6D365>%player% bought the Master Farmer Hoe!</gradient>'
+      - 'lp user %player% permission settemp geniusshop.bonus.harvest true 7d'
+    run-as: console
+    run-command-only: false
