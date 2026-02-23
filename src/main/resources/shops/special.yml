@@ -1,0 +1,68 @@
+gui-name: '<gradient:#8B5AFF:#9BECFC>&lSpecial Items</gradient>'
+rows: 4
+permission: ''
+items:
+  - material: NETHER_STAR
+    name: '<gradient:#7DD3FC:#A78BFA>&lVIP Rank</gradient>'
+    price: 50000
+    amount: 1
+    global-limit: 3
+    lore:
+      - '&7Purchase the VIP rank!'
+      - '&7Includes special permissions and kits.'
+      - '&6Stock: &e%global-limit%'
+      - '&c[Console Command]'
+    commands:
+      - 'lp user %player% parent add vip'
+      - 'broadcast &b%player% has purchased &lVIP &brank!'
+    run-command-only: true
+  - material: DIAMOND_SWORD
+    name: '<gradient:#FB7185:#F97316>&lBerserker Sword</gradient>'
+    price: 15000
+    amount: 1
+    global-limit: 15
+    lore:
+      - '&7A powerful sword with custom enchantments'
+      - '&7and a special title command!'
+      - '&6Stock: &e%global-limit%'
+    enchantments:
+      sharpness: 6
+      fire_aspect: 2
+      unbreaking: 3
+    commands:
+      - 'title %player% title {"text":"&4&lBerserker!","bold":true}'
+    run-command-only: false
+  - material: SPAWNER
+    name: '&bDiamond Spawner'
+    price: 1000000
+    amount: 1
+    global-limit: 5
+    spawner-item: DIAMOND
+    lore:
+      - '&7A legendary spawner that produces'
+      - '&bPure Diamonds&7!'
+      - '&6Stock: &e%global-limit%'
+      - '&8Requires SmartSpawner'
+  - material: NETHERITE_CHESTPLATE
+    name: '&8God Chestplate'
+    price: 75000
+    amount: 1
+    global-limit: 10
+    enchantments:
+      protection: 10
+      unbreaking: 5
+      mending: 1
+    lore:
+      - '&cLimited Edition!'
+      - '&7Only available for a short time.'
+      - '&6Stock: &e%global-limit%'
+    available-times:
+      - "FRIDAY-SUNDAY"
+  - material: GOLDEN_APPLE
+    name: '&6Secret Item'
+    price: 1000
+    amount: 1
+    permission: 'shop.special.secret'
+    lore:
+      - '&7This item is only visible to'
+      - '&7those with the secret permission!'

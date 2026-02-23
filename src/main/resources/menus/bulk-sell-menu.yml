@@ -1,0 +1,12 @@
+config-version: 2
+
+title: "&8Bulk Sell"
+rows: 6
+buttons:
+  confirm:
+    material: LIME_STAINED_GLASS
+    name: "&aConfirm Sell"
+    slot: 49
+    lore:
+      - "&7Click to sell all items"
+      - "&7in the GUI."

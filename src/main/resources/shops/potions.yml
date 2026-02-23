@@ -1,0 +1,35 @@
+gui-name: '<gradient:#2C7CF8:#45CCF8>Potions Shop</gradient>'
+rows: 3
+permission: ''
+items:
+  - material: POTION
+    name: '<gradient:#7DD3FC:#60A5FA>Potion of Swiftness</gradient>'
+    price: 500
+    sell-price: 100
+    amount: 1
+    potion-type: SPEED
+  - material: POTION
+    name: '<gradient:#FCA5A5:#F59E0B>Potion of Strength II</gradient>'
+    price: 1500
+    sell-price: 300
+    amount: 1
+    potion-type: STRENGTH
+    potion-level: 2
+  - material: SPLASH_POTION
+    name: '&fSplash Potion of Healing'
+    price: 800
+    sell-price: 150
+    amount: 1
+    potion-type: HEALING
+  - material: LINGERING_POTION
+    name: '&fLingering Potion of Regeneration'
+    price: 2500
+    sell-price: 500
+    amount: 1
+    potion-type: REGENERATION
+  - material: TIPPED_ARROW
+    name: '&fArrow of Slowness'
+    price: 100
+    sell-price: 20
+    amount: 8
+    potion-type: SLOWNESS
