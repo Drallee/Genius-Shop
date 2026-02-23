@@ -3,7 +3,7 @@ main: me.dralle.shop.ShopPlugin
 version: ${project.version}
 api-version: 1.21
 author: Dralle
-description: Data-driven shop with GUI, permissions and Vault
+description: Data-driven economy shop for Paper/Spigot with GUI menus, Vault, dynamic pricing, stock limits/resets, permissions, bulk sell, localization, and a built-in web editor.
 depend: [Vault]
 softdepend: [SmartSpawner]
 commands:

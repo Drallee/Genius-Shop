@@ -1,130 +1,130 @@
-# Genius Shop v1.5.0
+﻿# Genius Shop v1.5.0
 
-A powerful, data-driven economy shop plugin with GUI, permissions, and Vault integration for Bukkit/Spigot/Paper/Purpur servers.
+A modern, data-driven economy shop plugin for Bukkit/Spigot/Paper/Purpur with GUI menus, dynamic pricing, stock limits and resets, localization, and a built-in web editor.
 
-[View Changelog](CHANGELOG.md)
+[View Changelog](https://modrinth.com/plugin/genius-shop/changelog)
 
-## ✨ Features
+## Features
 
-🛒 Flexible Shop System
-- Data-driven configuration - Create unlimited shops with YAML files in `shops/` directory
-- Buy & sell functionality - Players can both purchase and sell items
-- Permission-based access - Control who can open specific shops
-- Multi-page support - Shops automatically paginate based on content
-- Time restrictions - Create limited-time or scheduled shops with natural language display
-- Customizable GUI - Full control over titles, colors, and layouts via `menus/` configuration
-- Multiple language support - Easily translate all messages and GUI text via `languages/` folder
-- Potion, Spawner & Enchantments & Custom Enchantments support - Full support for potions, tipped arrows, mob spawners
-- Player Limits - Set per-item purchase limits for players
-- Dynamic Pricing - Prices that change based on supply and demand
-- Item Guard - Require specific names or lore for selling items
-- Unstable TNT - Special handling for TNT that ignites on placement
-- Bulk Sell - New GUI to sell multiple items at once
+### Flexible Shop System
+- Data-driven shops: create unlimited shop files in `shops/`
+- Buy and sell support with per-item buy/sell control
+- Permission-based access for shops and individual items
+- Multi-page GUI support with slot-based item placement
+- Time-restricted shops/items with readable schedule output
+- Dynamic pricing with min/max bounds and price-change rules
+- Player limits and global stock limits
+- Stock reset automation: daily, hourly, minute interval, second interval, weekly, monthly, yearly, once
+- Shop-level and item-level stock behavior controls:
+  - `sell-adds-to-stock`
+  - `allow-sell-stock-overflow`
+- Item requirement guards for selling (name/lore checks)
+- Unstable TNT support
+- Full support for potions, tipped arrows, spawners, and custom enchantments
 
-🎨 Modern User Interface
-- Interactive main menu - Centralized hub for all your shops
-- Color-coded formatting - Rich text with Minecraft color codes
-- Custom lore support - Add descriptions and tooltips to items
-- Purchase confirmation - Prevent accidental transactions with a dedicated confirmation GUI
-- Sell menu - Dedicated interface for selling inventory items
-- Bedrock Edition Support - Optimized GUI titles and compatibility via Floodgate integration
+### Modern GUI and Formatting
+- Main menu + shop + purchase + sell + bulk sell interfaces
+- Rich formatting with legacy colors, HEX, and gradients
+- Multi-stop gradient support (`<gradient:#A:#B:#C>...</gradient>`)
+- Proper legacy style compatibility inside gradients (e.g. `&l`)
+- Configurable lore-format pipeline in `menus/gui-settings.yml`
+- New lore placeholders:
+  - `%global-limit%`
+  - `%player-limit%`
+  - `%stock-reset-timer%`
+- Per-item display toggles:
+  - `show-stock`
+  - `show-stock-reset-timer`
+- Live GUI updates while open for stock/price/lore changes
 
-🌐 Web-Based Editor
-- Live GUI preview - See changes in real-time with Minecraft textures
-- Intuitive interface - Easily arrange main menu items and shop contents
-- Visual shop builder - No YAML knowledge required
-- Secure authentication - UUID-based login system with IP verification
-- IP Bypass System - Securely access the editor from different IPs via in-game confirmation
-- Auto-save - Changes sync directly to server files and reload instantly
-- RESTful API - Built-in HTTP server for remote management
+### Web Editor
+- Real-time visual editing and live Minecraft-style preview
+- Main menu editor + shop/item editor + GUI settings editor
+- Section toggles for lore, enchantments, commands, limits, and available-times
+- `run-as` dropdown support for command execution context (player/console)
+- Safer language/preview behavior and improved history UX
+- Secure login flow with in-game confirmation for new IPs
+- Built-in REST API for remote management
 
-💰 Economy Integration
-- Vault support - Works with any economy plugin
-- Configurable prices - Set buy and sell prices independently
-- Transaction logging - Track all purchases and sales
-- Discord webhooks - Send transaction notifications to Discord
-- Economy statistics - Monitor server-wide shop activity
+### Economy, Integrations, and Runtime
+- Vault economy integration
+- Optional SmartSpawner integration
+- Optional Floodgate/Bedrock compatibility improvements
+- Discord webhook transaction notifications
+- SQLite runtime storage (`data.db`) with legacy `data.yml` migration
+- Update checks and in-game update notifications with configurable sound
+- Permission-aware `/shop` tab completion
+- Commands:
+  - `/shop`
+  - `/shop reload`
+  - `/shop editor`
+  - `/shop confirmlogin <token>`
+  - `/shop wiki`
+  - `/shop resetstock all|shop|item`
 
-📊 Admin Features
-- Live reload - Update shops without restarting the server (`/shop reload`)
-- Shop statistics - Track items bought, sold, and shop usage
-- Update checker - Automatic notifications for new versions in-game and console
-- Smart Config Updater - Automatically merges new config keys while preserving your changes
-- Permission system - Granular control over features, items, and administrative commands
-- Developer API - Comprehensive API with custom events and methods for external integration
+### Developer API
+- Public API for opening menus and querying shop data
+- Custom events for shop open, buy, sell, and transactions
 
-🎮 Player-Friendly
-- Simple commands - `/shop` to access shops instantly
-- Clickable links - Quick access to the web editor via chat links
-- Stack purchasing - Buy/sell items in bulk
-- Visual feedback - Clear success/error messages
+## Requirements
 
-## 📋 Requirements
-
-- Minecraft: 1.21+ (Bukkit, Spigot, Paper, and Purpur supported)
+- Minecraft: 1.21+ (Bukkit, Spigot, Paper, Purpur)
 - Java: 21+
-- Vault: Required for economy functionality
-- Economy Plugin: Any Vault-compatible economy plugin (e.g., EssentialsX)
+- Vault: required
+- Economy plugin: any Vault-compatible economy provider (e.g. EssentialsX)
 
-## 🚀 Quick Start
+## Dependencies
+
+### Required
+- Vault
+  - Spigot: https://www.spigotmc.org/resources/vault.34315/
+- Economy plugin (Vault-compatible, choose one)
+  - EssentialsX (Spigot): https://www.spigotmc.org/resources/essentialsx.9089/
+  - EssentialsX (Modrinth): https://modrinth.com/plugin/essentialsx
+
+### Optional
+- SmartSpawner (for advanced spawner item integration)
+  - Modrinth: https://modrinth.com/plugin/smartspawner
+- Floodgate (for Bedrock support improvements)
+  - Modrinth: https://modrinth.com/plugin/floodgate
+
+## Quick Start
 
 1. Install Vault and an economy plugin
-2. Drop Genius-Shop.jar into your plugins folder
-3. Restart the server
+2. Drop `Shop-x.x.x.jar` into your plugins folder
+3. Start the server
 4. Configure shops in `plugins/Genius-Shop/shops/`
 5. Configure menus in `plugins/Genius-Shop/menus/`
-6. Enable the web editor in `config.yml` (optional)
-7. Run `/shop reload` to apply changes
-8. Use `/shop` in-game to open the main menu
+6. (Optional) enable web editor API in `config.yml`
+7. Run `/shop reload`
+8. Use `/shop` in game
 
-## 🔧 Configuration
+## Configuration
 
-Shop Files  
-Create individual `.yml` files in `plugins/Genius-Shop/shops/`. See the `README.md` in that folder for a detailed guide.
+- Shop files: `plugins/Genius-Shop/shops/*.yml`
+- Menu files: `plugins/Genius-Shop/menus/*.yml`
+- Languages: `plugins/Genius-Shop/languages/*.yml`
+- Web editor/API settings: `config.yml`
 
-Menu Files  
-Customize the look and feel of GUIs in `plugins/Genius-Shop/menus/`.
+For detailed schema and examples, see:
+- `wiki/Configuration.md`
+- `wiki/Examples.md`
 
-Web Editor  
-Access the visual editor at `http://your-server:8080` after enabling the API in `config.yml`. Or use `/shop editor` in-game for a secure one-click login link.
+## Permissions
 
-## 📝 Commands
+- `geniusshop.use` - open and use shops
+- `geniusshop.sell` - use bulk sell
+- `geniusshop.reload` - reload plugin config
+- `geniusshop.resetstock` - run stock reset commands
+- `geniusshop.wiki` - access `/shop wiki`
+- `geniusshop.admin` - full admin access
+- `geniusshop.login.ip.bypass` - approve web-editor IP bypass flow
 
-- `/shop` - Open the main shop menu
-- `/shop reload` - Reload all configurations
-- `/shop editor` - Generate a secure web editor login link
-- `/shop confirmlogin <token>` - Confirm a login attempt from a new IP
-- `/shop wiki` - Open the online documentation (permission-gated)
-- `/shop resetstock all|shop|item` - Manually reset stock counters
+## Data Storage
 
-## 🔐 Permissions
+- Runtime counters and state: `plugins/GeniusShop/data.db` (SQLite)
+- Legacy migration: `data.yml` migrates automatically on startup
 
-- `geniusshop.use` - Access shops (default: true)
-- `geniusshop.reload` - Reload the plugin configuration
-- `geniusshop.admin` - Full administrative access (reload, editor, etc.)
-- `geniusshop.wiki` - Access `/shop wiki`
-- `geniusshop.login.ip.bypass` - Permission to authorize new IPs for the web editor
-- `custom.permission` - Lock any shop behind a permission of your choice
-
-## 💽 Data Storage
-
-- Runtime shop data is stored in `plugins/GeniusShop/data.db` (SQLite).
-- Legacy `data.yml` is automatically migrated to SQLite on startup.
-
-## 📈 Features at a Glance
-
-✅ Multi-shop support with unlimited items  
-✅ Web-based configuration editor with live preview  
-✅ Modular configuration (shops/ and menus/ folders)  
-✅ Buy and sell mechanics with Dynamic Pricing  
-✅ Potion, Spawner, Tipped Arrow and Custom Enchantment support  
-✅ Player purchase limits and item-specific restrictions  
-✅ Permission-based shop restrictions  
-✅ Time-restricted shops with scheduling  
-✅ Discord webhook integration  
-✅ Automatic config migration and smart updates  
-✅ Update notifications (In-game & Console)  
-
-## BStats Metrics
+## BStats
 
 ![BStats Metrics](https://bstats.org/signatures/bukkit/Genius-Shop.svg)
