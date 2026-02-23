@@ -1,6 +1,7 @@
 package me.dralle.shop;
 
 import me.dralle.shop.data.DataManager;
+import me.dralle.shop.data.ShopStateRepository;
 import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.gui.BulkSellMenu;
 import me.dralle.shop.gui.GenericShopGui;
@@ -12,6 +13,7 @@ import me.dralle.shop.metrics.MetricsWrapper;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.stock.StockResetService;
 import me.dralle.shop.util.ConfigUpdater;
+import me.dralle.shop.util.ErrorFileLogger;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.UpdateChecker;
 import org.bstats.bukkit.Metrics;
@@ -21,13 +23,17 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,6 +61,8 @@ public class ShopPlugin extends JavaPlugin {
     private me.dralle.shop.api.ConfigApiServer apiServer;
     private UpdateChecker updateChecker;
     private StockResetService stockResetService;
+    private ErrorFileLogger errorFileLogger;
+    private int dataFlushTaskId = -1;
 
     // Counters for metrics
     public int itemsBought = 0;
@@ -127,6 +135,8 @@ public class ShopPlugin extends JavaPlugin {
         // run smart updater on config first to get the language setting
         ConfigUpdater.update(this, "config.yml");
         reloadConfig();
+        this.errorFileLogger = new ErrorFileLogger(this);
+        this.errorFileLogger.startOrReload();
         
         // Load language from config
         String lang = getConfig().getString("language", "en_US");
@@ -151,8 +161,10 @@ public class ShopPlugin extends JavaPlugin {
         // managers
         this.messages = new MessageManager(this);
         this.dataManager = new DataManager(this);
+        startDataFlushTask();
         this.shopFileManager = new ShopFileManager(this); // Initialize before ShopManager
         this.shopManager = new ShopManager(this);
+        logCompileValidationSummary(this.shopManager);
         this.economy = new EconomyHook(this);
         this.genericShopGui = new GenericShopGui(this);
         this.bulkSellMenu = new BulkSellMenu(this);
@@ -187,7 +199,7 @@ public class ShopPlugin extends JavaPlugin {
                     sender.sendMessage(getMessages().getMessage("reload-success"));
                 } catch (Exception ex) {
                     sender.sendMessage(getMessages().getMessage("reload-failed"));
-                    ex.printStackTrace();
+                    me.dralle.shop.util.ConsoleLog.error(this, "Reload command failed: " + ex.getMessage(), ex);
                 }
                 return true;
             }
@@ -284,7 +296,7 @@ public class ShopPlugin extends JavaPlugin {
                 }
 
                 if (args.length < 2) {
-                    sender.sendMessage(ShopItemUtil.color("&cUsage: /shop confirmlogin <token>"));
+                    sender.sendMessage(getMessages().getMessage("usage-confirmlogin"));
                     return true;
                 }
 
@@ -314,6 +326,50 @@ public class ShopPlugin extends JavaPlugin {
                 player.sendMessage(ShopItemUtil.color("&7The IP &e" + confirmation.requestIp + " &7has been trusted."));
                 player.sendMessage(ShopItemUtil.color("&7You can now access the shop editor from this IP."));
 
+                return true;
+            }
+
+            // /shop exportitem [file-name]
+            if (args.length > 0 && args[0].equalsIgnoreCase("exportitem")) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(getMessages().getMessage("player-only"));
+                    return true;
+                }
+                if (!hasAdminAccess(sender) && !sender.hasPermission("geniusshop.exportitem")) {
+                    sender.sendMessage(getMessages().getMessage("no-permission"));
+                    return true;
+                }
+
+                ItemStack held = player.getInventory().getItemInMainHand();
+                if (held == null || held.getType() == Material.AIR) {
+                    sender.sendMessage(ShopItemUtil.color("&cHold the item you want to export in your main hand."));
+                    return true;
+                }
+
+                String baseName = args.length >= 2 ? args[1] : held.getType().name().toLowerCase(Locale.ROOT);
+                baseName = baseName.replaceAll("[^A-Za-z0-9._-]", "_");
+                if (baseName.isEmpty()) baseName = "item";
+                if (!baseName.toLowerCase(Locale.ROOT).endsWith(".json")) {
+                    baseName += ".json";
+                }
+
+                File exportDir = new File(getDataFolder(), "item-exports");
+                if (!exportDir.exists() && !exportDir.mkdirs()) {
+                    sender.sendMessage(ShopItemUtil.color("&cCould not create item-exports folder."));
+                    return true;
+                }
+
+                File target = new File(exportDir, baseName);
+                String itemKey = baseName.substring(0, baseName.length() - ".json".length());
+                String json = ShopItemUtil.exportHeldItemToJson(held, itemKey);
+                try {
+                    Files.writeString(target.toPath(), json, StandardCharsets.UTF_8);
+                    sender.sendMessage(ShopItemUtil.color("&aExported held item to &eplugins/GeniusShop/item-exports/" + target.getName()));
+                    sender.sendMessage(ShopItemUtil.color("&7Import this JSON in the web editor with the IMPORT button."));
+                } catch (IOException ex) {
+                    sender.sendMessage(ShopItemUtil.color("&cFailed to write item JSON: " + ex.getMessage()));
+                    me.dralle.shop.util.ConsoleLog.error(this, "Item export failed: " + ex.getMessage(), ex);
+                }
                 return true;
             }
 
@@ -389,9 +445,9 @@ public class ShopPlugin extends JavaPlugin {
                 }
 
                 if (args.length < 2) {
-                    sender.sendMessage(ShopItemUtil.color("&cUsage: /shop resetstock all"));
-                    sender.sendMessage(ShopItemUtil.color("&cUsage: /shop resetstock shop <shopKey>"));
-                    sender.sendMessage(ShopItemUtil.color("&cUsage: /shop resetstock item <shopKey> <slot>"));
+                    sender.sendMessage(getMessages().getMessage("usage-resetstock-all"));
+                    sender.sendMessage(getMessages().getMessage("usage-resetstock-shop"));
+                    sender.sendMessage(getMessages().getMessage("usage-resetstock-item"));
                     return true;
                 }
 
@@ -406,7 +462,7 @@ public class ShopPlugin extends JavaPlugin {
 
                 if (mode.equals("shop")) {
                     if (args.length < 3) {
-                        sender.sendMessage(ShopItemUtil.color("&cUsage: /shop resetstock shop <shopKey>"));
+                        sender.sendMessage(getMessages().getMessage("usage-resetstock-shop"));
                         return true;
                     }
                     String shopKey = args[2];
@@ -421,7 +477,7 @@ public class ShopPlugin extends JavaPlugin {
 
                 if (mode.equals("item")) {
                     if (args.length < 4) {
-                        sender.sendMessage(ShopItemUtil.color("&cUsage: /shop resetstock item <shopKey> <slot>"));
+                        sender.sendMessage(getMessages().getMessage("usage-resetstock-item"));
                         return true;
                     }
                     String shopKey = args[2];
@@ -445,7 +501,20 @@ public class ShopPlugin extends JavaPlugin {
                     return true;
                 }
 
-                sender.sendMessage(ShopItemUtil.color("&cUnknown mode. Use: all, shop, item"));
+                sender.sendMessage(getMessages().getMessage("resetstock-unknown-mode"));
+                return true;
+            }
+
+            // /shop validate-prices
+            if (args.length > 0 && args[0].equalsIgnoreCase("validate-prices")) {
+                if (!sender.hasPermission("geniusshop.validateprices")
+                        && !sender.hasPermission("geniusshop.admin")
+                        && !sender.hasPermission("shop.admin")
+                        && !(sender instanceof Player && ((Player) sender).isOp())) {
+                    sender.sendMessage(getMessages().getMessage("no-permission"));
+                    return true;
+                }
+                runPriceValidation(sender);
                 return true;
             }
 
@@ -521,11 +590,24 @@ public class ShopPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (dataFlushTaskId != -1) {
+            getServer().getScheduler().cancelTask(dataFlushTaskId);
+            dataFlushTaskId = -1;
+        }
         if (stockResetService != null) {
             stockResetService.stop();
         }
         if (apiServer != null) {
             apiServer.stop();
+        }
+        if (discordWebhook != null) {
+            discordWebhook.shutdown();
+        }
+        if (dataManager != null) {
+            dataManager.close();
+        }
+        if (errorFileLogger != null) {
+            errorFileLogger.stop();
         }
         
         try {
@@ -534,7 +616,7 @@ public class ShopPlugin extends JavaPlugin {
             // gui.yml is deprecated - menu configs are now in menus/ folder
             getDiscordConfig().save(new File(getDataFolder(), "discord.yml"));
         } catch (IOException e) {
-            e.printStackTrace();
+            me.dralle.shop.util.ConsoleLog.error(this, "Failed to save plugin files during shutdown: " + e.getMessage(), e);
         }
     }
 
@@ -553,6 +635,11 @@ public class ShopPlugin extends JavaPlugin {
         // smart updater
         ConfigUpdater.update(this, "config.yml");
         reloadConfig();
+        if (this.errorFileLogger == null) {
+            this.errorFileLogger = new ErrorFileLogger(this);
+        }
+        this.errorFileLogger.startOrReload();
+        startDataFlushTask();
         
         String lang = getConfig().getString("language", "en_US");
         ConfigUpdater.update(this, "languages/" + lang + ".yml");
@@ -568,18 +655,37 @@ public class ShopPlugin extends JavaPlugin {
         this.messages = new MessageManager(this);
         this.shopFileManager = new ShopFileManager(this); // Reload shop files
         this.shopManager = new ShopManager(this);
+        logCompileValidationSummary(this.shopManager);
 
         // re-hook economy
         this.economy = new EconomyHook(this);
 
         // reinitialize Discord webhook
+        if (this.discordWebhook != null) {
+            this.discordWebhook.shutdown();
+        }
         this.discordWebhook = new me.dralle.shop.util.DiscordWebhook(this);
         if (this.stockResetService == null) {
             this.stockResetService = new StockResetService(this);
         }
         this.stockResetService.start();
+        if (this.genericShopGui != null) {
+            this.genericShopGui.requestRefresh();
+        }
 
         me.dralle.shop.util.ConsoleLog.info(this, "Genius-Shop reloaded from disk.");
+    }
+
+    private void startDataFlushTask() {
+        if (dataFlushTaskId != -1) {
+            getServer().getScheduler().cancelTask(dataFlushTaskId);
+        }
+        long interval = 20L * Math.max(1, getConfig().getInt("data.flush-interval-seconds", 5));
+        dataFlushTaskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, () -> {
+            if (dataManager != null) {
+                dataManager.save();
+            }
+        }, interval, interval);
     }
 
     public void reloadAllConfigs() {
@@ -750,6 +856,19 @@ public class ShopPlugin extends JavaPlugin {
         return dataManager;
     }
 
+    public ShopStateRepository getStateRepository() {
+        return dataManager;
+    }
+
+    private void logCompileValidationSummary(ShopManager manager) {
+        if (manager == null) return;
+        var messages = manager.getValidationMessages();
+        if (messages == null || messages.isEmpty()) return;
+        long errors = messages.stream().filter(m -> m.severity() == me.dralle.shop.config.ValidationMessage.Severity.ERROR).count();
+        long warnings = messages.stream().filter(m -> m.severity() == me.dralle.shop.config.ValidationMessage.Severity.WARNING).count();
+        me.dralle.shop.util.ConsoleLog.warn(this, "Config validation: " + warnings + " warning(s), " + errors + " error(s).");
+    }
+
     public ShopFileManager getShopFileManager() {
         return shopFileManager;
     }
@@ -772,6 +891,10 @@ public class ShopPlugin extends JavaPlugin {
 
     public me.dralle.shop.util.DiscordWebhook getDiscordWebhook() {
         return discordWebhook;
+    }
+
+    public ErrorFileLogger getErrorFileLogger() {
+        return errorFileLogger;
     }
 
     public UpdateChecker getUpdateChecker() {
@@ -800,6 +923,8 @@ public class ShopPlugin extends JavaPlugin {
             if (canUseSell(sender)) options.add("sell");
             if (canUseWiki(sender)) options.add("wiki");
             if (canUseResetStock(sender)) options.add("resetstock");
+            if (canUseValidatePrices(sender)) options.add("validate-prices");
+            if (canUseExportItem(sender)) options.add("exportitem");
             return filterByPrefix(options, args[0]);
         }
 
@@ -868,10 +993,137 @@ public class ShopPlugin extends JavaPlugin {
         return sender.hasPermission("geniusshop.resetstock") || hasAdminAccess(sender);
     }
 
+    private boolean canUseValidatePrices(CommandSender sender) {
+        return sender.hasPermission("geniusshop.validateprices") || hasAdminAccess(sender);
+    }
+
+    private boolean canUseExportItem(CommandSender sender) {
+        return sender instanceof Player && (sender.hasPermission("geniusshop.exportitem") || hasAdminAccess(sender));
+    }
+
     private boolean hasAdminAccess(CommandSender sender) {
         return sender.hasPermission("geniusshop.admin")
                 || sender.hasPermission("shop.admin")
                 || sender.isOp();
+    }
+
+    private void runPriceValidation(CommandSender sender) {
+        final double hardMax = 1_000_000_000_000D;
+        final double configuredMaxUnit = getConfig().getDouble("economy-safety.max-unit-price", 0D);
+        final double configuredMaxTx = getConfig().getDouble("economy-safety.max-transaction-value", 0D);
+        final double maxBaseMultiplier = getConfig().getDouble("economy-safety.anti-spike.max-base-multiplier", 10.0D);
+
+        int shopsScanned = 0;
+        int itemsScanned = 0;
+        List<String> findings = new ArrayList<>();
+
+        for (String shopKey : getShopManager().getShopKeys()) {
+            ShopData shop = getShopManager().getShop(shopKey);
+            if (shop == null) continue;
+            shopsScanned++;
+
+            for (me.dralle.shop.model.ShopItem item : shop.getItems()) {
+                itemsScanned++;
+                String itemRef = "shop=" + shopKey + ", item=" + item.getUniqueKey() + ", material=" + item.getMaterial().name();
+                double buy = item.getPrice();
+                double sell = item.getSellPrice() != null ? item.getSellPrice() : 0D;
+
+                if (!Double.isFinite(buy) || buy < 0D) {
+                    findings.add(getMessages().getMessage("validate-prices-find-invalid-buy")
+                            .replace("%buy%", String.valueOf(buy))
+                            .replace("%ref%", itemRef));
+                }
+                if (!Double.isFinite(sell) || sell < 0D) {
+                    findings.add(getMessages().getMessage("validate-prices-find-invalid-sell")
+                            .replace("%sell%", String.valueOf(sell))
+                            .replace("%ref%", itemRef));
+                }
+                if (item.getAmount() <= 0) {
+                    findings.add(getMessages().getMessage("validate-prices-find-invalid-amount")
+                            .replace("%amount%", String.valueOf(item.getAmount()))
+                            .replace("%ref%", itemRef));
+                }
+
+                if (buy > hardMax || sell > hardMax) {
+                    findings.add(getMessages().getMessage("validate-prices-find-hard-cap")
+                            .replace("%ref%", itemRef));
+                }
+                if (configuredMaxUnit > 0D) {
+                    if (buy > configuredMaxUnit) findings.add(getMessages().getMessage("validate-prices-find-max-unit-buy")
+                            .replace("%ref%", itemRef));
+                    if (sell > configuredMaxUnit) findings.add(getMessages().getMessage("validate-prices-find-max-unit-sell")
+                            .replace("%ref%", itemRef));
+                }
+
+                int unitAmount = Math.max(1, item.getAmount());
+                double buyTotal = item.calculateBuyTotal(buy, unitAmount);
+                double sellTotal = item.calculateSellTotal(sell, unitAmount);
+                if (!Double.isFinite(buyTotal) || buyTotal < 0D || buyTotal > hardMax) {
+                    findings.add(getMessages().getMessage("validate-prices-find-invalid-buy-total")
+                            .replace("%total%", String.valueOf(buyTotal))
+                            .replace("%ref%", itemRef));
+                }
+                if (!Double.isFinite(sellTotal) || sellTotal < 0D || sellTotal > hardMax) {
+                    findings.add(getMessages().getMessage("validate-prices-find-invalid-sell-total")
+                            .replace("%total%", String.valueOf(sellTotal))
+                            .replace("%ref%", itemRef));
+                }
+                if (configuredMaxTx > 0D) {
+                    if (buyTotal > configuredMaxTx) findings.add(getMessages().getMessage("validate-prices-find-max-tx-buy")
+                            .replace("%ref%", itemRef));
+                    if (sellTotal > configuredMaxTx) findings.add(getMessages().getMessage("validate-prices-find-max-tx-sell")
+                            .replace("%ref%", itemRef));
+                }
+
+                if (item.isDynamicPricing()) {
+                    double min = item.getMinPrice();
+                    double max = item.getMaxPrice();
+                    double change = item.getPriceChange();
+                    if (min > 0D && max > 0D && min > max) {
+                        findings.add(getMessages().getMessage("validate-prices-find-min-gt-max")
+                                .replace("%ref%", itemRef));
+                    }
+                    if (min > 0D && buy + 1.0E-9D < min) {
+                        findings.add(getMessages().getMessage("validate-prices-find-base-below-min")
+                                .replace("%ref%", itemRef));
+                    }
+                    if (max > 0D && buy - 1.0E-9D > max) {
+                        findings.add(getMessages().getMessage("validate-prices-find-base-above-max")
+                                .replace("%ref%", itemRef));
+                    }
+                    if (buy > 0D && maxBaseMultiplier > 0D && Math.abs(change) > buy * maxBaseMultiplier) {
+                        findings.add(getMessages().getMessage("validate-prices-find-price-change-large")
+                                .replace("%ref%", itemRef));
+                    }
+                } else if (Math.abs(item.getPriceChange()) > 0D || item.getMinPrice() > 0D || item.getMaxPrice() > 0D) {
+                    findings.add(getMessages().getMessage("validate-prices-find-dynamic-fields-ignored")
+                            .replace("%ref%", itemRef));
+                }
+            }
+        }
+
+        sender.sendMessage(getMessages().getMessage("validate-prices-header"));
+        sender.sendMessage(
+                getMessages().getMessage("validate-prices-summary")
+                        .replace("%shops%", String.valueOf(shopsScanned))
+                        .replace("%items%", String.valueOf(itemsScanned))
+                        .replace("%findings%", String.valueOf(findings.size()))
+        );
+        if (findings.isEmpty()) {
+            sender.sendMessage(getMessages().getMessage("validate-prices-none"));
+            return;
+        }
+
+        int limit = Math.min(40, findings.size());
+        for (int i = 0; i < limit; i++) {
+            sender.sendMessage(ShopItemUtil.color(findings.get(i)));
+        }
+        if (findings.size() > limit) {
+            sender.sendMessage(
+                    getMessages().getMessage("validate-prices-more")
+                            .replace("%count%", String.valueOf(findings.size() - limit))
+            );
+        }
     }
 
     /**

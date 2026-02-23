@@ -49,6 +49,14 @@ items:
     price: 40
     sell-price: 10
     amount: 16
+  - material: APPLE
+    name: '&cFarmer Pack'
+    # Example: 16 apples for 16 currency (scaled by quantity, not flat).
+    amount: 16
+    price: 16
+    sell-price: 8
+    buy-price-per-item: false
+    sell-price-per-item: false
   - material: PAPER
     name: '&d&lCoupon'
     price: 5000

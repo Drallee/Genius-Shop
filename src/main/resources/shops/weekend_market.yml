@@ -6,6 +6,16 @@ available-times:
   - "10:00AM-10:00PM"  # Only between 10 AM and 10 PMs
   # Example date range (will be formatted per config.yml date-format):
   # - "2024-12-20 to 2024-12-26"
+# Campaign examples (you can also define these globally in campaigns.yml)
+campaigns:
+  - key: "weekend-boost"
+    name: "Weekend Boost"
+    start: "2026-03-01 00:00"
+    end: "2026-03-03 23:59"
+    timezone: "server"
+    buy-multiplier: 0.85
+    sell-multiplier: 1.10
+campaign: "weekend-boost"
 items:
   - material: DIAMOND_BLOCK
     name: '<gradient:#67E8F9:#3B82F6>Diamond Block</gradient>'
@@ -23,9 +33,14 @@ items:
       - '&7Weekend special pricing!'
   - material: GOLDEN_APPLE
     name: '&6Golden Apple'
+    # Bundle pricing example:
+    # amount=4 and buy-price-per-item=false means 4 apples cost 1000 total.
+    # Buying 8 apples would cost 2000 total.
     price: 1000
     sell-price: 400
     amount: 4
+    buy-price-per-item: false
+    sell-price-per-item: false
     lore:
       - '&7Limited time offer!'
   - material: ENCHANTED_GOLDEN_APPLE
@@ -60,7 +75,15 @@ items:
     price: 12000
     sell-price: 6000
     amount: 1
+    # Formula pricing example (works with dynamic pricing variables)
+    dynamic-pricing: true
+    price-change: 4
+    min-price: 9000
+    max-price: 18000
+    buy-price-formula: "max(min_price, dynamic)"
+    sell-price-formula: "max(0.01, min(dynamic * 0.5, base))"
     global-limit: 64
+    campaign: "weekend-boost"
     lore:
       - '&7Weekend market exclusive'
       - '&6Stock: &e%global-limit%'

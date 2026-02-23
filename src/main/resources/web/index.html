@@ -57,7 +57,7 @@
                     <h1 class="mb-8" data-i18n="web-editor.hero-title"> GENIUS SHOP EDITOR</h1>
                     <p class="mb-16" data-i18n="web-editor.hero-subtitle">Configure your shop with live Minecraft preview</p>
                     <div class="beta-badge" data-i18n="web-editor.beta-badge">
-                         BETA
+                         LIVE
                     </div>
                 </div>
             </div>
@@ -67,6 +67,9 @@
             <div class="tabs">
                 <button class="tab active" data-tab="mainmenu" data-i18n="web-editor.tabs.main-menu" onclick="switchTab('mainmenu')">MAIN MENU</button>
                 <button class="tab" data-tab="shop" data-i18n="web-editor.tabs.shop" onclick="switchTab('shop')">SHOP</button>
+                <button class="tab" data-tab="campaigns" onclick="switchTab('campaigns')">CAMPAIGNS</button>
+                <button class="tab" data-tab="stockanalytics" data-i18n="web-editor.tabs.stock-analytics" onclick="switchTab('stockanalytics')">STOCK</button>
+                <button class="tab" data-tab="dataeditor" onclick="switchTab('dataeditor')">DATA</button>
                 <button class="tab" data-tab="purchase" data-i18n="web-editor.tabs.purchase" onclick="switchTab('purchase')">PURCHASE</button>
                 <button class="tab" data-tab="sell" data-i18n="web-editor.tabs.sell" onclick="switchTab('sell')">SELL</button>
                 <button class="tab" data-tab="guisettings" data-i18n="web-editor.tabs.gui-settings" onclick="switchTab('guisettings')">GUI SETTINGS</button>
@@ -198,10 +201,21 @@
                 <div id="mainmenu-tab" class="tab-content active">
                     <div class="content-header flex justify-between items-center mb-24">
                         <div id="mainmenu-buttons-count" class="count-badge">0 buttons</div>
-                        <button class="btn btn-primary" onclick="addMainMenuShop()">
-                            <span class="btn-icon"></span>
-                            <span data-i18n="web-editor.add-new">ADD BUTTON</span>
-                        </button>
+                        <div class="flex items-center gap-12">
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openImportMenuModal('mainmenu')" title="Import Main Menu">
+                                <span style="font-size: 0.78rem; font-weight: 700;">IMPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openExportMenuModal('mainmenu')" title="Export Main Menu">
+                                <span style="font-size: 0.78rem; font-weight: 700;">EXPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="togglePreviewParityMode()" title="Preview Parity Mode">
+                                <span class="preview-parity-label" style="font-size: 0.78rem; font-weight: 700;">PARITY: OFF</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="addMainMenuShop()">
+                                <span class="btn-icon"></span>
+                                <span data-i18n="web-editor.add-new">ADD BUTTON</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="mainmenu-shops-container" class="grid-list"></div>
                 </div>
@@ -241,6 +255,15 @@
                                 <span class="search-icon"></span>
                                 <input type="text" id="item-search" name="item-search" placeholder="Search..." data-i18n="web-editor.shop.search-placeholder" oninput="handleItemSearch()">
                             </div>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openImportItemsModal()" title="Import Items">
+                                <span data-i18n="web-editor.modals.import-items" style="font-size: 0.78rem; font-weight: 700;">IMPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openExportModal()" title="Export">
+                                <span style="font-size: 0.78rem; font-weight: 700;">EXPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="togglePreviewParityMode()" title="Preview Parity Mode">
+                                <span class="preview-parity-label" style="font-size: 0.78rem; font-weight: 700;">PARITY: OFF</span>
+                            </button>
                             <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openShopSettingsModal()" title="Shop Settings"></button>
                             <button class="btn btn-primary" onclick="addItem()">
                                 <span class="btn-icon"></span>
@@ -251,13 +274,148 @@
                     <div id="items-container" class="grid-list"></div>
                 </div>
 
+                <!-- CAMPAIGNS TAB -->
+                <div id="campaigns-tab" class="tab-content">
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div id="campaigns-count" class="count-badge">0 campaigns</div>
+                        </div>
+                        <div class="flex items-center gap-12">
+                            <button class="btn btn-primary" onclick="addCampaignTemplate()">
+                                <span class="btn-icon"></span>
+                                <span>ADD CAMPAIGN</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="campaign-hub-grid">
+                        <section class="card-base campaign-hub-panel">
+                            <div class="campaign-hub-title">Campaign Selection</div>
+                            <div class="shop-file-selector-wrapper campaign-hub-select-wrap">
+                                <label for="campaign-hub-selected" class="sr-only">Selected Campaign</label>
+                                <select id="campaign-hub-selected" name="campaign-hub-selected" class="premium-select" onchange="updateCampaignHubSelected(this.value)"></select>
+                            </div>
+                            <div class="campaign-hub-meta" id="campaign-hub-selected-meta">No campaign selected.</div>
+                            <div class="campaign-hub-actions">
+                                <button class="btn btn-secondary" onclick="editSelectedCampaign()">EDIT SELECTED</button>
+                                <button class="btn btn-secondary" onclick="removeSelectedCampaign()">DELETE SELECTED</button>
+                            </div>
+                        </section>
+
+                        <section class="card-base campaign-hub-panel">
+                            <div class="campaign-hub-title">Assign To Shops</div>
+                            <div class="search-wrapper campaign-hub-search">
+                                <label for="campaign-shop-filter" class="sr-only">Filter shops</label>
+                                <span class="search-icon"></span>
+                                <input type="text" id="campaign-shop-filter" name="campaign-shop-filter" placeholder="Filter shops..." oninput="renderCampaignHubShopAssignments()">
+                            </div>
+                            <div id="campaign-shop-assignment-list" class="campaign-assignment-list"></div>
+                            <div class="campaign-hub-actions">
+                                <button class="btn btn-secondary" onclick="toggleCampaignHubShopSelection(true)">SELECT VISIBLE</button>
+                                <button class="btn btn-secondary" onclick="toggleCampaignHubShopSelection(false)">CLEAR SELECTED</button>
+                            </div>
+                            <div class="campaign-hub-actions">
+                                <button class="btn btn-primary" onclick="assignCampaignToSelectedShops()">ASSIGN SELECTED</button>
+                                <button class="btn btn-secondary" onclick="clearCampaignFromSelectedShops()">CLEAR CAMPAIGN</button>
+                            </div>
+                        </section>
+
+                        <section class="card-base campaign-hub-panel">
+                            <div class="campaign-hub-title">Assign To Items (Selected Shop)</div>
+                            <div class="shop-file-selector-wrapper campaign-hub-select-wrap">
+                                <label for="campaign-item-shop-select" class="sr-only">Item Assignment Shop</label>
+                                <select id="campaign-item-shop-select" name="campaign-item-shop-select" class="premium-select" onchange="updateCampaignHubItemShop(this.value)"></select>
+                            </div>
+                            <div class="campaign-hub-meta" id="campaign-item-shop-meta"></div>
+                            <div class="search-wrapper campaign-hub-search">
+                                <label for="campaign-item-filter" class="sr-only">Filter items</label>
+                                <span class="search-icon"></span>
+                                <input type="text" id="campaign-item-filter" name="campaign-item-filter" placeholder="Filter items..." oninput="renderCampaignHubItemAssignments()">
+                            </div>
+                            <div id="campaign-item-assignment-list" class="campaign-assignment-list"></div>
+                            <div class="campaign-hub-actions">
+                                <button class="btn btn-secondary" onclick="toggleCampaignHubItemSelection(true)">SELECT VISIBLE</button>
+                                <button class="btn btn-secondary" onclick="toggleCampaignHubItemSelection(false)">CLEAR SELECTED</button>
+                            </div>
+                            <div class="campaign-hub-actions">
+                                <button class="btn btn-primary" onclick="assignCampaignToSelectedItems()">ASSIGN SELECTED</button>
+                                <button class="btn btn-secondary" onclick="clearCampaignFromSelectedItems()">CLEAR CAMPAIGN</button>
+                            </div>
+                        </section>
+                    </div>
+                    <div id="campaigns-container" class="grid-list campaign-card-grid"></div>
+                </div>
+
+                <!-- STOCK ANALYTICS TAB -->
+                <div id="stockanalytics-tab" class="tab-content">
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div id="stock-analytics-generated" class="count-badge">No data yet</div>
+                            <div class="shop-file-selector-wrapper" style="min-width: 220px;">
+                                <label for="stock-analytics-shop-filter" class="sr-only">Filter shop</label>
+                                <select id="stock-analytics-shop-filter" name="stock-analytics-shop-filter" class="premium-select" onchange="renderStockAnalyticsDashboard()">
+                                    <option value="">All shops</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-12">
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="loadStockAnalyticsData(false)">
+                                <span style="font-size: 0.78rem; font-weight: 700;">REFRESH</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="stock-analytics-summary" class="stock-analytics-summary-grid"></div>
+                    <div id="stock-analytics-table" class="stock-analytics-table"></div>
+                </div>
+
+                <!-- DATA DB TAB -->
+                <div id="dataeditor-tab" class="tab-content">
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div id="data-editor-generated" class="count-badge">No data yet</div>
+                        </div>
+                        <div class="flex items-center gap-12">
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="loadDatabaseEditorData(false)">
+                                <span style="font-size: 0.78rem; font-weight: 700;">REFRESH</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="data-editor-summary" class="stock-analytics-summary-grid"></div>
+                    <div id="data-editor-sections"></div>
+                </div>
+
                 <!-- PURCHASE TAB -->
                 <div id="purchase-tab" class="tab-content">
+                    <div class="content-header flex justify-end items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openImportMenuModal('purchase')" title="Import Purchase Menu">
+                                <span style="font-size: 0.78rem; font-weight: 700;">IMPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openExportMenuModal('purchase')" title="Export Purchase Menu">
+                                <span style="font-size: 0.78rem; font-weight: 700;">EXPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="togglePreviewParityMode()" title="Preview Parity Mode">
+                                <span class="preview-parity-label" style="font-size: 0.78rem; font-weight: 700;">PARITY: OFF</span>
+                            </button>
+                        </div>
+                    </div>
                     <div id="purchase-buttons-list" class="flex-list"></div>
                 </div>
 
                 <!-- SELL TAB -->
                 <div id="sell-tab" class="tab-content">
+                    <div class="content-header flex justify-end items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openImportMenuModal('sell')" title="Import Sell Menu">
+                                <span style="font-size: 0.78rem; font-weight: 700;">IMPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openExportMenuModal('sell')" title="Export Sell Menu">
+                                <span style="font-size: 0.78rem; font-weight: 700;">EXPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="togglePreviewParityMode()" title="Preview Parity Mode">
+                                <span class="preview-parity-label" style="font-size: 0.78rem; font-weight: 700;">PARITY: OFF</span>
+                            </button>
+                        </div>
+                    </div>
                     <div id="sell-buttons-list" class="flex-list"></div>
                 </div>
 
@@ -524,10 +682,15 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
 
+    <script src="js/state-store.js"></script>
     <script src="js/core.js"></script>
+    <script src="js/schema.js"></script>
+    <script src="js/telemetry.js"></script>
     <script src="js/database.js"></script>
     <script src="js/modals.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/save-dispatcher.js"></script>
+    <script src="js/autosave-manager.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/events.js"></script>
 </body>

@@ -4,6 +4,9 @@ import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.stock.StockResetRule;
+import me.dralle.shop.util.CampaignUtil;
+import me.dralle.shop.util.ItemConditionUtil;
+import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
 import org.bukkit.Bukkit;
@@ -21,7 +24,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.time.Instant;
 import java.time.Duration;
 
@@ -43,8 +48,29 @@ public class GenericShopGui implements Listener {
         public Inventory getInventory() { return null; }
     }
 
+    public static class VariantHolder implements InventoryHolder {
+        private final String shopKey;
+        private final int returnPage;
+        private final List<ShopItem> variants;
+
+        public VariantHolder(String shopKey, int returnPage, List<ShopItem> variants) {
+            this.shopKey = shopKey;
+            this.returnPage = returnPage;
+            this.variants = variants;
+        }
+
+        public String getShopKey() { return shopKey; }
+        public int getReturnPage() { return returnPage; }
+        public List<ShopItem> getVariants() { return variants; }
+
+        @Override
+        public Inventory getInventory() { return null; }
+    }
+
     private final ShopPlugin plugin;
     private int refreshTaskId = -1;
+    private volatile boolean refreshDirty = true;
+    private volatile long lastRefreshAtMillis = 0L;
 
     public GenericShopGui(ShopPlugin plugin) {
         this.plugin = plugin;
@@ -60,7 +86,7 @@ public class GenericShopGui implements Listener {
 
         if (format == null || format.isEmpty()) {
             // Default legacy behavior
-            addPriceLines(lore, si, currency);
+            addPriceLines(lore, si, currency, shop);
 
             // Check if item has special properties (spawner, potion, enchantments, or custom lore)
             boolean hasSpecialProperties = si.getSpawnerType() != null ||
@@ -87,18 +113,18 @@ public class GenericShopGui implements Listener {
             }
 
             // Configurable hint lines
-            addHintLines(lore, si, currency);
+            addHintLines(lore, si, currency, shop);
         } else {
             for (String line : format) {
                 switch (line) {
                     case "%price-line%":
-                        addPriceLines(lore, si, currency);
+                        addPriceLines(lore, si, currency, shop);
                         break;
                     case "%buy-price-line%":
-                        addPriceLine(lore, si, currency, true);
+                        addPriceLine(lore, si, currency, true, shop);
                         break;
                     case "%sell-price-line%":
-                        addPriceLine(lore, si, currency, false);
+                        addPriceLine(lore, si, currency, false, shop);
                         break;
                     case "%custom-lore%":
                         addCustomLore(lore, viewer, si, availableTimesStr);
@@ -125,13 +151,13 @@ public class GenericShopGui implements Listener {
                         addPlayerLimitLine(lore, viewer, si);
                         break;
                     case "%hint-line%":
-                        addHintLines(lore, si, currency);
+                        addHintLines(lore, si, currency, shop);
                         break;
                     case "%buy-hint-line%":
-                        addHintLine(lore, si, currency, true);
+                        addHintLine(lore, si, currency, true, shop);
                         break;
                     case "%sell-hint-line%":
-                        addHintLine(lore, si, currency, false);
+                        addHintLine(lore, si, currency, false, shop);
                         break;
                     default:
                         if (line.isEmpty()) {
@@ -144,8 +170,12 @@ public class GenericShopGui implements Listener {
             }
         }
 
-        ItemStack item;
-        if (si.isSpawner()) {
+        ItemStack item = ShopItemUtil.deserializeItemStack(si.getItemStackData());
+        if (item != null) {
+            item = item.clone();
+            item.setAmount(Math.max(1, Math.min(si.getAmount(), item.getMaxStackSize())));
+            item = ShopItemUtil.create(item, si.getName(), lore);
+        } else if (si.isSpawner()) {
             if (si.getSpawnerItem() != null && !si.getSpawnerItem().isEmpty()) {
                 item = ShopItemUtil.getSpawnerItem(si.getSpawnerItem(), si.getAmount(), true);
             } else if (si.getSpawnerType() != null && !si.getSpawnerType().isEmpty()) {
@@ -180,6 +210,118 @@ public class GenericShopGui implements Listener {
         }
 
         return item;
+    }
+
+    private static class VariantGroupData {
+        private final String key;
+        private final int slot;
+        private final List<ShopItem> options = new ArrayList<>();
+
+        private VariantGroupData(String key, int slot) {
+            this.key = key;
+            this.slot = slot;
+        }
+    }
+
+    private Map<Integer, VariantGroupData> buildVariantGroups(ShopData shop, Player viewer, int start, int end) {
+        Map<String, VariantGroupData> byKey = new LinkedHashMap<>();
+        for (ShopItem si : shop.getItems()) {
+            if (!si.isVariantMenuEnabled()) continue;
+            String groupKey = si.getVariantGroupKey();
+            if (groupKey == null || groupKey.isEmpty()) continue;
+
+            if (si.getPermission() != null && !si.getPermission().isEmpty() && !viewer.hasPermission(si.getPermission())) {
+                continue;
+            }
+            ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, viewer, si);
+            if (!condition.allowed()) continue;
+
+            int groupSlot = si.getVariantGroupSlot() != null
+                    ? si.getVariantGroupSlot()
+                    : (si.getSlot() != null ? si.getSlot() : -1);
+            if (groupSlot < start || groupSlot >= end) continue;
+
+            VariantGroupData group = byKey.computeIfAbsent(groupKey, k -> new VariantGroupData(groupKey, groupSlot));
+            group.options.add(si);
+        }
+
+        Map<Integer, VariantGroupData> bySlot = new LinkedHashMap<>();
+        for (VariantGroupData group : byKey.values()) {
+            if (!group.options.isEmpty()) {
+                bySlot.put(group.slot, group);
+            }
+        }
+        return bySlot;
+    }
+
+    private ItemStack createVariantGroupIcon(Player viewer, ShopData shop, String shopKey, String availableTimesStr, String currency, VariantGroupData group) {
+        ShopItem first = group.options.get(0);
+        ItemStack icon = createGuiItem(viewer, first, shopKey, availableTimesStr, currency, shop);
+        ItemMeta meta = icon.getItemMeta();
+        if (meta == null) return icon;
+
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        if (!lore.isEmpty()) lore.add("");
+        lore.add(ShopItemUtil.color("&bVariants: &f" + group.options.size()));
+        lore.add(ShopItemUtil.color("&7Left/Right click to choose variant"));
+        meta.setLore(lore);
+        icon.setItemMeta(meta);
+        return icon;
+    }
+
+    private void openVariantSelector(Player player, ShopData shop, String shopKey, int returnPage, VariantGroupData group) {
+        int variantCount = group.options.size();
+        int rows = Math.max(2, Math.min(6, ((variantCount + 8) / 9) + 1));
+        int totalSlots = rows * 9;
+        int nav = totalSlots - 9;
+        int backSlot = nav + 4;
+
+        String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color("&8Choose Variant"));
+        Inventory inv = Bukkit.createInventory(new VariantHolder(shopKey, returnPage, new ArrayList<>(group.options)), totalSlots, title);
+        String currency = plugin.getCurrencySymbol();
+        String availableTimesStr = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
+
+        for (int i = 0; i < variantCount && i < nav; i++) {
+            ShopItem variant = group.options.get(i);
+            inv.setItem(i, createGuiItem(player, variant, shopKey, availableTimesStr, currency, shop));
+        }
+
+        String backName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.back-button.name", "&9Back");
+        List<String> backLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.back-button.lore");
+        inv.setItem(backSlot, ShopItemUtil.create(Material.ENDER_CHEST, 1, backName, backLore));
+
+        player.openInventory(inv);
+    }
+
+    private void handleShopItemAction(Player player, ShopItem item, String shopKey, int page, ClickType clickType) {
+        if (item.getPermission() != null && !item.getPermission().isEmpty()) {
+            if (!player.hasPermission(item.getPermission())) {
+                player.sendMessage(plugin.getMessages().getMessage("no-permission"));
+                return;
+            }
+        }
+
+        if (!ShopTimeUtil.isShopAvailable(item.getAvailableTimes())) {
+            String available = ShopTimeUtil.formatAvailableTimes(item.getAvailableTimes(), plugin);
+            player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
+                    .replace("%shop%", item.getName() != null ? ShopItemUtil.color(item.getName()) : item.getMaterial().name())
+                    .replace("%available-times%", available));
+            return;
+        }
+
+        ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, item);
+        if (!condition.allowed()) {
+            player.sendMessage(condition.message());
+            return;
+        }
+
+        if (clickType == ClickType.RIGHT && item.getSellPrice() != null && item.getSellPrice() > 0) {
+            Bukkit.getScheduler().runTask(plugin, () -> SellMenu.open(player, item, shopKey, page));
+            return;
+        }
+        if (clickType == ClickType.LEFT && item.getPrice() > 0) {
+            Bukkit.getScheduler().runTask(plugin, () -> PurchaseMenu.open(player, item, shopKey, page));
+        }
     }
 
     public void openShop(Player player, String shopKey, int page) {
@@ -251,13 +393,7 @@ public class GenericShopGui implements Listener {
             return;
         }
 
-        // Calculate total pages based on both item count and explicit slots
-        int maxSlot = allItems.size() - 1;
-        for (ShopItem si : allItems) {
-            if (si.getSlot() != null && si.getSlot() > maxSlot) {
-                maxSlot = si.getSlot();
-            }
-        }
+        int maxSlot = getDisplayMaxSlot(shop);
         int totalPages = (int) Math.ceil((double) (maxSlot + 1) / (double) usableSlots);
         if (totalPages < 1) totalPages = 1;
         if (page < 1) page = 1;
@@ -272,16 +408,23 @@ public class GenericShopGui implements Listener {
         // Fill items
         int start = (page - 1) * usableSlots;
         int end = start + usableSlots;
+        Map<Integer, VariantGroupData> variantGroupsBySlot = buildVariantGroups(shop, player, start, end);
 
-        for (ShopItem si : allItems) {
-            // Item-level permission check (hide if no permission)
-            if (si.getPermission() != null && !si.getPermission().isEmpty()) {
-                if (!player.hasPermission(si.getPermission())) continue;
-            }
+        for (int absoluteSlot = start; absoluteSlot < end; absoluteSlot++) {
+            ShopItem si = shop.getItemBySlot(absoluteSlot);
+            if (si == null) continue;
 
-            if (si.getSlot() != null && si.getSlot() >= start && si.getSlot() < end) {
-                inv.setItem(si.getSlot() - start, createGuiItem(player, si, shopKey, availableTimesStr, currency, shop));
+            if (si.getPermission() != null && !si.getPermission().isEmpty() && !player.hasPermission(si.getPermission())) {
+                continue;
             }
+            ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, si);
+            if (!condition.allowed()) continue;
+
+            inv.setItem(absoluteSlot - start, createGuiItem(player, si, shopKey, availableTimesStr, currency, shop));
+        }
+
+        for (VariantGroupData group : variantGroupsBySlot.values()) {
+            inv.setItem(group.slot - start, createVariantGroupIcon(player, shop, shopKey, availableTimesStr, currency, group));
         }
 
         // Navigation slots
@@ -320,18 +463,24 @@ public class GenericShopGui implements Listener {
     @EventHandler
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
-        if (!(e.getInventory().getHolder() instanceof GenericShopHolder holder)) return;
-
-        String shopKey = holder.getShopKey();
-        int page = holder.getPage();
-
-        ShopData shop = plugin.getShopManager().getShop(shopKey);
-        if (shop == null) return;
+        InventoryHolder inventoryHolder = e.getInventory().getHolder();
+        if (!(inventoryHolder instanceof GenericShopHolder) && !(inventoryHolder instanceof VariantHolder)) return;
 
         e.setCancelled(true);
 
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
+
+        if (inventoryHolder instanceof VariantHolder variantHolder) {
+            handleVariantMenuClick(player, variantHolder, e.getSlot(), e.getClick(), clicked);
+            return;
+        }
+
+        GenericShopHolder holder = (GenericShopHolder) inventoryHolder;
+        String shopKey = holder.getShopKey();
+        int page = holder.getPage();
+        ShopData shop = plugin.getShopManager().getShop(shopKey);
+        if (shop == null) return;
 
         int configuredRows = shop.getRows();
         int usableRows = Math.max(configuredRows, 1);
@@ -343,100 +492,92 @@ public class GenericShopGui implements Listener {
         int prev = nav + 3;
         int back = nav + 4;
         int next = nav + 5;
-
         int slot = e.getSlot();
 
-        // Calculate total pages consistently with openShop
-        int maxSlot = 0;
-        for (ShopItem si : shop.getItems()) {
-            if (si.getSlot() != null && si.getSlot() > maxSlot) {
-                maxSlot = si.getSlot();
-            }
-        }
+        int maxSlot = getDisplayMaxSlot(shop);
         int totalPages = (int) Math.ceil((double) (maxSlot + 1) / (double) usableSlots);
         if (totalPages < 1) totalPages = 1;
 
-        // BACK
         if (slot == back && clicked.getType() == Material.ENDER_CHEST) {
             Bukkit.getScheduler().runTask(plugin, () -> MainMenu.open(player));
             return;
         }
-
-        // PREVIOUS PAGE
         if (slot == prev && clicked.getType() == Material.ARROW && page > 1) {
             Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, page - 1));
             return;
         }
-
-        // NEXT PAGE
         if (slot == next && clicked.getType() == Material.ARROW && page < totalPages) {
             Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, page + 1));
             return;
         }
-
-        // Clicked in navigation row → ignore
         if (slot >= nav) return;
 
-        // Find the clicked shop item by its slot
-        int absoluteSlot = (page - 1) * usableSlots + slot;
-        ShopItem item = null;
-        for (ShopItem si : shop.getItems()) {
-            if (si.getSlot() != null && si.getSlot() == absoluteSlot) {
-                item = si;
-                break;
-            }
+        int start = (page - 1) * usableSlots;
+        int end = start + usableSlots;
+        int absoluteSlot = start + slot;
+
+        Map<Integer, VariantGroupData> groupsBySlot = buildVariantGroups(shop, player, start, end);
+        VariantGroupData group = groupsBySlot.get(absoluteSlot);
+        if (group != null && !group.options.isEmpty()) {
+            Bukkit.getScheduler().runTask(plugin, () -> openVariantSelector(player, shop, shopKey, page, group));
+            return;
         }
 
+        ShopItem item = shop.getItemBySlot(absoluteSlot);
+        if (item != null && item.isVariantMenuEnabled()) item = null;
         if (item == null) return;
-        final ShopItem finalItem = item;
 
-        // Item-level permission check
-        if (item.getPermission() != null && !item.getPermission().isEmpty()) {
-            if (!player.hasPermission(item.getPermission())) {
-                player.sendMessage(plugin.getMessages().getMessage("no-permission"));
-                return;
-            }
-        }
-
-        // Item-level time restriction check
-        if (!ShopTimeUtil.isShopAvailable(item.getAvailableTimes())) {
-            String available = ShopTimeUtil.formatAvailableTimes(item.getAvailableTimes(), plugin);
-            player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
-                    .replace("%shop%", item.getName() != null ? ShopItemUtil.color(item.getName()) : item.getMaterial().name())
-                    .replace("%available-times%", available));
-            return;
-        }
-
-        // RIGHT-CLICK = SELL
-        if (e.getClick() == ClickType.RIGHT && finalItem.getSellPrice() != null && finalItem.getSellPrice() > 0) {
-            Bukkit.getScheduler().runTask(plugin, () -> SellMenu.open(player, finalItem, shopKey, page));
-            return;
-        }
-
-        // LEFT-CLICK = BUY
-        if (e.getClick() == ClickType.LEFT && finalItem.getPrice() > 0) {
-            Bukkit.getScheduler().runTask(plugin, () -> PurchaseMenu.open(player, finalItem, shopKey, page));
-        }
+        handleShopItemAction(player, item, shopKey, page, e.getClick());
     }
 
+    private void handleVariantMenuClick(Player player, VariantHolder holder, int slot, ClickType clickType, ItemStack clicked) {
+        String shopKey = holder.getShopKey();
+        int returnPage = holder.getReturnPage();
+        ShopData shop = plugin.getShopManager().getShop(shopKey);
+        if (shop == null) return;
+
+        int rows = Math.max(2, Math.min(6, ((holder.getVariants().size() + 8) / 9) + 1));
+        int nav = (rows * 9) - 9;
+        int backSlot = nav + 4;
+
+        if (slot == backSlot && clicked.getType() == Material.ENDER_CHEST) {
+            Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, returnPage));
+            return;
+        }
+        if (slot < 0 || slot >= nav) return;
+        if (slot >= holder.getVariants().size()) return;
+
+        ShopItem selected = holder.getVariants().get(slot);
+        handleShopItemAction(player, selected, shopKey, returnPage, clickType);
+    }
     private void addPriceLines(List<String> lore, ShopItem si, String currency) {
-        addPriceLine(lore, si, currency, true);
-        addPriceLine(lore, si, currency, false);
+        ShopData shop = null;
+        addPriceLine(lore, si, currency, true, shop);
+        addPriceLine(lore, si, currency, false, shop);
     }
 
-    private void addPriceLine(List<String> lore, ShopItem si, String currency, boolean buy) {
+    private void addPriceLines(List<String> lore, ShopItem si, String currency, ShopData shop) {
+        addPriceLine(lore, si, currency, true, shop);
+        addPriceLine(lore, si, currency, false, shop);
+    }
+
+    private void addPriceLine(List<String> lore, ShopItem si, String currency, boolean buy, ShopData shop) {
         if (buy) {
-            double currentBuy = getCurrentBuyPrice(si);
-            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-price", true) && currentBuy > 0) {
+            double displayBuy = getDisplayBuyPriceForAmount(shop, si);
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-price", true) && displayBuy > 0) {
                 String buyPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-price-line", "&6Buy Price: &a%price%");
-                String processed = buyPriceLine.replace("%price%", plugin.formatCurrency(currentBuy));
+                double baseBuy = getBaseBuyPriceForAmount(si);
+                String displayText = formatCampaignPrice(baseBuy, displayBuy);
+                String processed = buyPriceLine.replace("%price%", displayText);
                 lore.addAll(ShopItemUtil.splitAndColor(processed));
             }
         } else {
-            Double currentSell = getCurrentSellPrice(si);
-            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-price", true) && currentSell != null && currentSell > 0) {
+            Double displaySell = getDisplaySellPriceForAmount(shop, si);
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-price", true) && displaySell != null && displaySell > 0) {
                 String sellPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-price-line", "&cSell Price: &a%sell-price%");
-                String processed = sellPriceLine.replace("%sell-price%", plugin.formatCurrency(currentSell));
+                Double baseSell = getBaseSellPriceForAmount(si);
+                String displayText = formatCampaignPrice(baseSell != null ? baseSell : displaySell, displaySell);
+                String processed = sellPriceLine.replace("%sell-price%", displayText);
                 lore.addAll(ShopItemUtil.splitAndColor(processed));
             }
         }
@@ -584,7 +725,22 @@ public class GenericShopGui implements Listener {
         if (refreshTaskId != -1) {
             Bukkit.getScheduler().cancelTask(refreshTaskId);
         }
-        refreshTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this::refreshOpenShopInventories, 20L, 20L);
+        refreshTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this::maybeRefreshOpenShopInventories, 20L, 20L);
+    }
+
+    public void requestRefresh() {
+        refreshDirty = true;
+    }
+
+    private void maybeRefreshOpenShopInventories() {
+        long now = System.currentTimeMillis();
+        long fallbackMs = Math.max(1L, plugin.getConfig().getLong("gui.live-refresh-fallback-seconds", 5L)) * 1000L;
+        if (!refreshDirty && (now - lastRefreshAtMillis) < fallbackMs) {
+            return;
+        }
+        refreshOpenShopInventories();
+        refreshDirty = false;
+        lastRefreshAtMillis = now;
     }
 
     private void refreshOpenShopInventories() {
@@ -603,20 +759,54 @@ public class GenericShopGui implements Listener {
             int end = start + usableSlots;
             String currency = plugin.getCurrencySymbol();
             String availableTimesStr = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
+            Map<Integer, VariantGroupData> variantGroupsBySlot = buildVariantGroups(shop, player, start, end);
 
             for (int slot = 0; slot < usableSlots; slot++) {
                 top.setItem(slot, null);
             }
 
-            for (ShopItem si : shop.getItems()) {
+            for (int absoluteSlot = start; absoluteSlot < end; absoluteSlot++) {
+                ShopItem si = shop.getItemBySlot(absoluteSlot);
+                if (si == null) continue;
                 if (si.getPermission() != null && !si.getPermission().isEmpty() && !player.hasPermission(si.getPermission())) {
                     continue;
                 }
-                if (si.getSlot() != null && si.getSlot() >= start && si.getSlot() < end) {
-                    top.setItem(si.getSlot() - start, createGuiItem(player, si, holder.getShopKey(), availableTimesStr, currency, shop));
-                }
+                ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, si);
+                if (!condition.allowed()) continue;
+                top.setItem(absoluteSlot - start, createGuiItem(player, si, holder.getShopKey(), availableTimesStr, currency, shop));
+            }
+
+            for (VariantGroupData group : variantGroupsBySlot.values()) {
+                top.setItem(group.slot - start, createVariantGroupIcon(player, shop, holder.getShopKey(), availableTimesStr, currency, group));
             }
         }
+    }
+
+    private int getDisplayMaxSlot(ShopData shop) {
+        int maxSlot = 0;
+        Map<String, Integer> variantGroupSlots = new LinkedHashMap<>();
+        for (ShopItem si : shop.getItems()) {
+            if (si.isVariantMenuEnabled()) {
+                String groupKey = si.getVariantGroupKey();
+                if (groupKey == null || groupKey.isEmpty()) continue;
+                int groupSlot = si.getVariantGroupSlot() != null
+                        ? si.getVariantGroupSlot()
+                        : (si.getSlot() != null ? si.getSlot() : -1);
+                if (groupSlot >= 0) {
+                    variantGroupSlots.putIfAbsent(groupKey, groupSlot);
+                }
+                continue;
+            }
+            if (si.getSlot() != null && si.getSlot() > maxSlot) {
+                maxSlot = si.getSlot();
+            }
+        }
+        for (Integer groupSlot : variantGroupSlots.values()) {
+            if (groupSlot != null && groupSlot > maxSlot) {
+                maxSlot = groupSlot;
+            }
+        }
+        return maxSlot;
     }
 
     private void addSpawnerTypeLine(List<String> lore, ShopItem si) {
@@ -647,45 +837,70 @@ public class GenericShopGui implements Listener {
     }
 
     private void addHintLines(List<String> lore, ShopItem si, String currency) {
-        addHintLine(lore, si, currency, true);
-        addHintLine(lore, si, currency, false);
+        addHintLine(lore, si, currency, true, null);
+        addHintLine(lore, si, currency, false, null);
     }
 
-    private void addHintLine(List<String> lore, ShopItem si, String currency, boolean buy) {
+    private void addHintLines(List<String> lore, ShopItem si, String currency, ShopData shop) {
+        addHintLine(lore, si, currency, true, shop);
+        addHintLine(lore, si, currency, false, shop);
+    }
+
+    private void addHintLine(List<String> lore, ShopItem si, String currency, boolean buy, ShopData shop) {
         if (buy) {
-            double currentBuy = getCurrentBuyPrice(si);
-            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-hint", true) && currentBuy > 0) {
+            double displayBuy = getDisplayBuyPriceForAmount(shop, si);
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-hint", true) && displayBuy > 0) {
                 String buyHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-hint-line", "&aLeft-click to buy");
-                String processed = buyHint.replace("%price%", plugin.formatCurrency(currentBuy));
+                String processed = buyHint.replace("%price%", plugin.formatCurrency(displayBuy));
                 lore.addAll(ShopItemUtil.splitAndColor(processed));
             }
         } else {
-            Double currentSell = getCurrentSellPrice(si);
-            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-hint", true) && currentSell != null) {
+            Double displaySell = getDisplaySellPriceForAmount(shop, si);
+            if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-hint", true) && displaySell != null) {
                 String sellHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-hint-line", "&eRight-click to sell");
-                String processed = sellHint.replace("%sell-price%", plugin.formatCurrency(currentSell));
+                String processed = sellHint.replace("%sell-price%", plugin.formatCurrency(displaySell));
                 lore.addAll(ShopItemUtil.splitAndColor(processed));
             }
         }
     }
 
-    private double getCurrentBuyPrice(ShopItem si) {
-        if (!si.isDynamicPricing()) return si.getPrice();
-        int globalCount = plugin.getDataManager().getGlobalCount(si.getUniqueKey());
-        double currentPrice = si.getPrice() + (globalCount * si.getPriceChange());
-        if (si.getMinPrice() > 0 && currentPrice < si.getMinPrice()) currentPrice = si.getMinPrice();
-        if (si.getMaxPrice() > 0 && currentPrice > si.getMaxPrice()) currentPrice = si.getMaxPrice();
-        return currentPrice;
+    private double getDisplayBuyPriceForAmount(ShopData shop, ShopItem si) {
+        double currentBuyUnitPrice = getCurrentBuyPrice(shop, si);
+        return si.calculateBuyTotal(currentBuyUnitPrice, Math.max(1, si.getAmount()));
     }
 
-    private Double getCurrentSellPrice(ShopItem si) {
+    private Double getDisplaySellPriceForAmount(ShopData shop, ShopItem si) {
+        Double currentSellUnitPrice = getCurrentSellPrice(shop, si);
+        if (currentSellUnitPrice == null) return null;
+        return si.calculateSellTotal(currentSellUnitPrice, Math.max(1, si.getAmount()));
+    }
+
+    private double getBaseBuyPriceForAmount(ShopItem si) {
+        double currentPrice = PriceFormulaUtil.resolveBuyBasePrice(plugin, si);
+        return si.calculateBuyTotal(currentPrice, Math.max(1, si.getAmount()));
+    }
+
+    private Double getBaseSellPriceForAmount(ShopItem si) {
         if (si.getSellPrice() == null) return null;
-        if (!si.isDynamicPricing()) return si.getSellPrice();
-        int globalCount = plugin.getDataManager().getGlobalCount(si.getUniqueKey());
-        double currentPrice = si.getSellPrice() + (globalCount * si.getPriceChange());
-        if (si.getMinPrice() > 0 && currentPrice < si.getMinPrice()) currentPrice = si.getMinPrice();
-        if (si.getMaxPrice() > 0 && currentPrice > si.getMaxPrice()) currentPrice = si.getMaxPrice();
-        if (currentPrice < 0.01) currentPrice = 0.01;
-        return currentPrice;
+        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, si);
+        return si.calculateSellTotal(currentPrice, Math.max(1, si.getAmount()));
+    }
+
+    private String formatCampaignPrice(double basePrice, double adjustedPrice) {
+        if (Math.abs(basePrice - adjustedPrice) < 0.0000001D) {
+            return plugin.formatCurrency(adjustedPrice);
+        }
+        return "&m" + plugin.formatCurrency(basePrice) + "&r &a" + plugin.formatCurrency(adjustedPrice);
+    }
+
+    private double getCurrentBuyPrice(ShopData shop, ShopItem si) {
+        double currentPrice = PriceFormulaUtil.resolveBuyBasePrice(plugin, si);
+        return CampaignUtil.applyBuyCampaign(shop, si, currentPrice);
+    }
+
+    private Double getCurrentSellPrice(ShopData shop, ShopItem si) {
+        if (si.getSellPrice() == null) return null;
+        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, si);
+        return CampaignUtil.applySellCampaign(shop, si, currentPrice);
     }
 }

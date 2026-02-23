@@ -111,6 +111,50 @@ messages:
       year:
         singular: "vuosi"
         plural: "vuotta"
+  # Economy safety and validation
+  safety-cooldown: "%prefix%&ePlease wait &f%seconds%s&e before &f%action%&e again."
+  safety-large-purchase-confirm: "%prefix%&eLarge purchase detected (&f%total%&e). Click confirm again within &f%seconds%s&e."
+  safety-transaction-blocked: "%prefix%&cTransaction blocked by safety rules. Please contact staff if this keeps happening."
+  economy-error-purchase: "%prefix%&cPurchase failed due to an economy error. Please contact staff."
+  economy-error-sell: "%prefix%&cSell failed due to an economy error. Please contact staff."
+  economy-error-bulk-sell: "%prefix%&cBulk sell failed due to an economy error. Please contact staff."
+  sell-stock-full: "%prefix%&cCannot sell that many: stock is already full."
+
+  # Command usage / validation output
+  usage-confirmlogin: "%prefix%&cUsage: /shop confirmlogin <token>"
+  usage-resetstock-all: "%prefix%&cUsage: /shop resetstock all"
+  usage-resetstock-shop: "%prefix%&cUsage: /shop resetstock shop <shopKey>"
+  usage-resetstock-item: "%prefix%&cUsage: /shop resetstock item <shopKey> <slot>"
+  resetstock-unknown-mode: "%prefix%&cUnknown mode. Use: all, shop, item"
+  validate-prices-header: "%prefix%&fPrice validation (dry-run)"
+  validate-prices-summary: "%prefix%&7Scanned shops: &f%shops%&7, items: &f%items%&7, findings: &f%findings%"
+  validate-prices-none: "%prefix%&aNo risky price configurations found."
+  validate-prices-more: "%prefix%&7... and &f%count%&7 more findings."
+  purchase-rollback-failed: "%prefix%&cPurchase failed and was rolled back."
+  bulk-sell-stock-skipped: "%prefix%&eSome items were not sold because stock was already full."
+  bulk-sell-safety-skipped: "%prefix%&eSome items were skipped by economy safety guards."
+  bulk-sell-stock-full: "%prefix%&cCould not sell items because stock is already full."
+  bulk-sell-safety-none: "%prefix%&cNo items were sold because safety guards blocked them."
+  condition-level-min: "%prefix%&cYou need at least level &e%level%&c for this item."
+  condition-level-max: "%prefix%&cYou must be level &e%level%&c or lower for this item."
+  condition-world-not-allowed: "%prefix%&cThis item is not available in your current world."
+  condition-world-denied: "%prefix%&cThis item is disabled in your current world."
+  condition-gamemode-required: "%prefix%&cYou must be in &e%gamemode%&c to use this item."
+  validate-prices-find-invalid-buy: "&c[ERROR] Invalid buy price (%buy%) for %ref%"
+  validate-prices-find-invalid-sell: "&c[ERROR] Invalid sell price (%sell%) for %ref%"
+  validate-prices-find-invalid-amount: "&c[ERROR] Invalid amount (%amount%) for %ref%"
+  validate-prices-find-hard-cap: "&c[ERROR] Unit price above hard cap for %ref%"
+  validate-prices-find-max-unit-buy: "&e[WARN] Buy price above economy-safety.max-unit-price for %ref%"
+  validate-prices-find-max-unit-sell: "&e[WARN] Sell price above economy-safety.max-unit-price for %ref%"
+  validate-prices-find-invalid-buy-total: "&c[ERROR] Invalid buy total for configured amount (%total%) for %ref%"
+  validate-prices-find-invalid-sell-total: "&c[ERROR] Invalid sell total for configured amount (%total%) for %ref%"
+  validate-prices-find-max-tx-buy: "&e[WARN] Buy total exceeds economy-safety.max-transaction-value for %ref%"
+  validate-prices-find-max-tx-sell: "&e[WARN] Sell total exceeds economy-safety.max-transaction-value for %ref%"
+  validate-prices-find-min-gt-max: "&c[ERROR] min-price > max-price for %ref%"
+  validate-prices-find-base-below-min: "&e[WARN] Base buy price is below min-price for %ref%"
+  validate-prices-find-base-above-max: "&e[WARN] Base buy price is above max-price for %ref%"
+  validate-prices-find-price-change-large: "&e[WARN] price-change is very large vs base buy price for %ref%"
+  validate-prices-find-dynamic-fields-ignored: "&e[WARN] Dynamic pricing fields set while dynamic-pricing=false for %ref%"
 web-editor:
   title: "Genius Shop - Asetusten Muokkain"
   hero-title: "GENIUS SHOP MUOKKAIN"
@@ -320,3 +364,7 @@ web-editor:
     issues: "Ilmoita ongelmista"
     made-with: "Tehty rakkaudella Drallelta Minecraft-yhteisölle"
     copyright: "© 2025 Genius Shop - Avoimen lähdekoodin projekti"
+
+
+
+

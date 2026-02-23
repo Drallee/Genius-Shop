@@ -14,7 +14,7 @@
                 "requirements-title": "Requirements",
                 "req1": "You must be logged into the Minecraft server",
                 "req2": "You need admin permissions (geniusshop.admin or OP)",
-                "req3": "Your password is your player UUID (or a login code)",
+                "req3": "Use /shop editor in-game and enter the 6-digit code",
                 "tab-uuid": "UUID Login",
                 "tab-code": "Code Login",
                 "code-label": "Login Code",
@@ -173,7 +173,7 @@
 
     loadTranslations();
 
-    let loginMethod = 'uuid';
+    let loginMethod = 'code';
 
     document.getElementById('tab-uuid').addEventListener('click', () => {
         loginMethod = 'uuid';
@@ -194,6 +194,9 @@
         document.getElementById('login-code').required = true;
         document.getElementById('password').required = false;
     });
+
+    // Default to the simpler flow: in-game generated 6-digit code login.
+    document.getElementById('tab-code').click();
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();

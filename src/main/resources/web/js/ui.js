@@ -57,8 +57,282 @@ function formatDisplayPrice(value) {
     return trim(num);
 }
 
+function calculateItemTotalPrice(item, isSell = false) {
+    const unitPrice = Number(isSell ? item.sellPrice : item.price) || 0;
+    const amount = Math.max(1, Number(item.amount) || 1);
+    const perItem = isSell
+        ? (item.sellPricePerItem !== false)
+        : (item.buyPricePerItem !== false);
+    return perItem ? (unitPrice * amount) : unitPrice;
+}
+
+function parseCampaignDate(raw, timezone) {
+    const input = String(raw || '').trim();
+    if (!input) return null;
+    const normalized = input.includes('T') ? input : input.replace(' ', 'T');
+    const hasZone = /Z$|[+-]\d{2}:\d{2}$/.test(normalized);
+    if (hasZone) {
+        const parsed = new Date(normalized);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    if (timezone && typeof timezone === 'string' && timezone.trim()) {
+        try {
+            const base = new Date(normalized);
+            if (isNaN(base.getTime())) return null;
+            return new Date(base.toLocaleString('en-US', { timeZone: timezone.trim() }));
+        } catch (e) {
+            const fallback = new Date(normalized);
+            return isNaN(fallback.getTime()) ? null : fallback;
+        }
+    }
+    const fallback = new Date(normalized);
+    return isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function isCampaignWindowActive(start, end, timezone) {
+    const now = new Date();
+    const startDate = parseCampaignDate(start, timezone);
+    const endDate = parseCampaignDate(end, timezone);
+    if (!startDate && !endDate) return false;
+    if (startDate && now < startDate) return false;
+    if (endDate && now > endDate) return false;
+    return true;
+}
+
+function resolveItemCampaign(item) {
+    if (!item) return null;
+    if (item.campaignEnabled && isCampaignWindowActive(item.campaignStart, item.campaignEnd, item.campaignTimezone)) {
+        return {
+            key: item.campaign || '',
+            name: item.campaignName || '',
+            buyMultiplier: Math.max(0.01, Number(item.campaignBuyMultiplier) || 1),
+            sellMultiplier: Math.max(0.01, Number(item.campaignSellMultiplier) || 1)
+        };
+    }
+
+    const findCampaign = (key) => (globalCampaigns || []).find(c => c && c.key === key);
+    const itemCampaign = item.campaign ? findCampaign(item.campaign) : null;
+    if (itemCampaign && isCampaignWindowActive(itemCampaign.start, itemCampaign.end, itemCampaign.timezone)) {
+        return {
+            key: itemCampaign.key,
+            name: itemCampaign.name || '',
+            buyMultiplier: Math.max(0.01, Number(itemCampaign.buyMultiplier) || 1),
+            sellMultiplier: Math.max(0.01, Number(itemCampaign.sellMultiplier) || 1)
+        };
+    }
+
+    const shopCampaign = currentShopSettings.campaign ? findCampaign(currentShopSettings.campaign) : null;
+    if (shopCampaign && isCampaignWindowActive(shopCampaign.start, shopCampaign.end, shopCampaign.timezone)) {
+        return {
+            key: shopCampaign.key,
+            name: shopCampaign.name || '',
+            buyMultiplier: Math.max(0.01, Number(shopCampaign.buyMultiplier) || 1),
+            sellMultiplier: Math.max(0.01, Number(shopCampaign.sellMultiplier) || 1)
+        };
+    }
+
+    return null;
+}
+
+function calculateCampaignAdjustedTotal(item, isSell = false) {
+    const base = calculateItemTotalPrice(item, isSell);
+    const campaign = resolveItemCampaign(item);
+    if (!campaign) {
+        return { base, total: base, active: false, campaign: null };
+    }
+    const multiplier = isSell ? campaign.sellMultiplier : campaign.buyMultiplier;
+    return { base, total: base * multiplier, active: Math.abs(multiplier - 1) > 0.0000001, campaign };
+}
+
+function updatePreviewParityLabel() {
+    const labels = document.querySelectorAll('.preview-parity-label');
+    labels.forEach(label => {
+        label.textContent = `PARITY: ${previewParityMode ? 'ON' : 'OFF'}`;
+    });
+}
+
+function togglePreviewParityMode() {
+    previewParityMode = !previewParityMode;
+    localStorage.setItem('previewParityMode', previewParityMode ? 'true' : 'false');
+    updatePreviewParityLabel();
+    if (currentTab === 'shop') {
+        updatePreview();
+    }
+}
+
+function buildGlobalLimitValue(item) {
+    const current = 0;
+    const limit = Math.max(0, Number(item.globalLimit) || 0);
+    const template = guiSettings.itemLore.globalLimitValueFormat || '%current%/%limit%';
+    return template
+        .replace('%current%', String(current))
+        .replace('%limit%', String(limit));
+}
+
+function buildPlayerLimitValue(item) {
+    const current = 0;
+    const limit = Math.max(0, Number(item.limit) || 0);
+    const template = guiSettings.itemLore.playerLimitValueFormat || '%current%/%limit%';
+    return template
+        .replace('%current%', String(current))
+        .replace('%limit%', String(limit));
+}
+
+function buildStockResetPreviewValue() {
+    const template = guiSettings.itemLore.stockResetTimerValueFormat || 'Stock resets in %time%';
+    return template.replace('%time%', '--');
+}
+
+function buildShopPriceLoreLines(item) {
+    const lines = [];
+    if (guiSettings.itemLore.showBuyPrice && (Number(item.price) || 0) > 0) {
+        const buyData = calculateCampaignAdjustedTotal(item, false);
+        const buyText = buyData.active
+            ? `&m$${formatDisplayPrice(buyData.base)}&r &a$${formatDisplayPrice(buyData.total)}`
+            : `$${formatDisplayPrice(buyData.total)}`;
+        lines.push((guiSettings.itemLore.buyPriceLine || '&6Buy Price: &a%price%')
+            .replace('%price%', buyText));
+    }
+    if (guiSettings.itemLore.showSellPrice && (Number(item.sellPrice) || 0) > 0) {
+        const sellData = calculateCampaignAdjustedTotal(item, true);
+        const sellText = sellData.active
+            ? `&m$${formatDisplayPrice(sellData.base)}&r &a$${formatDisplayPrice(sellData.total)}`
+            : `$${formatDisplayPrice(sellData.total)}`;
+        lines.push((guiSettings.itemLore.sellPriceLine || '&cSell Price: &a%sell-price%')
+            .replace('%sell-price%', sellText));
+    }
+    return lines;
+}
+
+function buildShopHintLoreLines(item) {
+    const lines = [];
+    if (guiSettings.itemLore.showBuyHint && (Number(item.price) || 0) > 0) {
+        lines.push(guiSettings.itemLore.buyHintLine || '&eLeft-click to buy');
+    }
+    if (guiSettings.itemLore.showSellHint && (Number(item.sellPrice) || 0) > 0) {
+        lines.push(guiSettings.itemLore.sellHintLine || '&aRight-click to sell');
+    }
+    return lines;
+}
+
+function replaceShopLorePlaceholders(line, item) {
+    const normalizeTimes = (value, fallback) => {
+        if (Array.isArray(value)) {
+            const cleaned = value.map(v => String(v || '').trim()).filter(Boolean);
+            return cleaned.length > 0 ? cleaned.join(', ') : fallback;
+        }
+        const raw = String(value || '').trim();
+        if (!raw) return fallback;
+        return raw.split('\n').map(v => v.trim()).filter(Boolean).join(', ');
+    };
+
+    const shopTimes = normalizeTimes(currentShopSettings.availableTimes, 'All day');
+    const itemTimes = normalizeTimes(item.availableTimes, shopTimes);
+    const globalLimitStr = (Number(item.globalLimit) || 0) > 0 ? buildGlobalLimitValue(item) : '';
+    const playerLimitStr = (Number(item.limit) || 0) > 0 ? buildPlayerLimitValue(item) : '';
+
+    return String(line || '')
+        .replace(/%available-times%/g, itemTimes)
+        .replace(/%global-limit%/g, globalLimitStr)
+        .replace(/%player-limit%/g, playerLimitStr)
+        .replace(/%limit%/g, (Number(item.limit) || 0) > 0 ? String(item.limit) : '')
+        .replace(/%stock-reset-timer%/g, '');
+}
+
+function buildShopTooltipLoreParity(item) {
+    const lore = [];
+    const format = Array.isArray(guiSettings.itemLore.loreFormat) && guiSettings.itemLore.loreFormat.length > 0
+        ? guiSettings.itemLore.loreFormat
+        : [
+            '%price-line%',
+            '',
+            '%custom-lore%',
+            '%spawner-type-line%',
+            '%spawner-item-line%',
+            '%potion-type-line%',
+            '%global-limit%',
+            '%player-limit%',
+            '%stock-reset-timer%',
+            '',
+            '%hint-line%'
+        ];
+
+    format.forEach(line => {
+        switch (line) {
+            case '%price-line%':
+                lore.push(...buildShopPriceLoreLines(item));
+                break;
+            case '%buy-price-line%':
+                lore.push(...buildShopPriceLoreLines({ ...item, sellPrice: 0 }));
+                break;
+            case '%sell-price-line%':
+                lore.push(...buildShopPriceLoreLines({ ...item, price: 0 }));
+                break;
+            case '%custom-lore%':
+                (item.lore || []).forEach(customLine => lore.push(replaceShopLorePlaceholders(customLine, item)));
+                break;
+            case '%spawner-type-line%':
+                if (item.spawnerType) {
+                    lore.push((guiSettings.itemLore.spawnerTypeLine || '&7Spawner Type: &e%type%').replace('%type%', item.spawnerType));
+                }
+                break;
+            case '%spawner-item-line%':
+                if (item.spawnerItem) {
+                    lore.push((guiSettings.itemLore.spawnerItemLine || '&7Spawner Item: &e%item%').replace('%item%', item.spawnerItem));
+                }
+                break;
+            case '%potion-type-line%':
+                if (item.potionType) {
+                    lore.push((guiSettings.itemLore.potionTypeLine || '&7Potion Type: &d%type%').replace('%type%', item.potionType));
+                }
+                break;
+            case '%stock-reset-timer-line%':
+            case '%stock-reset-timer%':
+                if (item.showStockResetTimer && item.stockResetRule && item.stockResetRule.enabled) {
+                    const timerLine = (guiSettings.itemLore.stockResetTimerLine || '&7%stock-reset-timer%')
+                        .replace('%stock-reset-timer%', buildStockResetPreviewValue());
+                    lore.push(timerLine);
+                }
+                break;
+            case '%global-limit%':
+            case '%global-limit-line%':
+                if (item.showStock && (Number(item.globalLimit) || 0) > 0) {
+                    lore.push((guiSettings.itemLore.globalLimitLine || '&7Stock: &e%global-limit%')
+                        .replace('%global-limit%', buildGlobalLimitValue(item)));
+                }
+                break;
+            case '%player-limit%':
+            case '%player-limit-line%':
+                if ((Number(item.limit) || 0) > 0) {
+                    lore.push((guiSettings.itemLore.playerLimitLine || '&7Your limit: &e%player-limit%')
+                        .replace('%player-limit%', buildPlayerLimitValue(item)));
+                }
+                break;
+            case '%hint-line%':
+                lore.push(...buildShopHintLoreLines(item));
+                break;
+            case '%buy-hint-line%':
+                if (guiSettings.itemLore.showBuyHint && (Number(item.price) || 0) > 0) {
+                    lore.push(guiSettings.itemLore.buyHintLine || '&eLeft-click to buy');
+                }
+                break;
+            case '%sell-hint-line%':
+                if (guiSettings.itemLore.showSellHint && (Number(item.sellPrice) || 0) > 0) {
+                    lore.push(guiSettings.itemLore.sellHintLine || '&aRight-click to sell');
+                }
+                break;
+            default:
+                lore.push(line || '');
+                break;
+        }
+    });
+
+    return lore;
+}
+
 function switchTab(tabName) {
-    currentTab = tabName;
+    setEditorState('currentTab', tabName);
+    updateQuickTips(tabName);
 
     // Toggle tab content visibility
     document.querySelectorAll('.tab-content').forEach(tab => {
@@ -68,7 +342,7 @@ function switchTab(tabName) {
     // Toggle preview section visibility
     const previewSection = document.querySelector('.minecraft-preview-section');
     if (previewSection) {
-        previewSection.style.display = (tabName === 'guisettings') ? 'none' : 'block';
+        previewSection.style.display = (tabName === 'guisettings' || tabName === 'campaigns' || tabName === 'stockanalytics' || tabName === 'dataeditor') ? 'none' : 'block';
     }
 
     // Toggle preview settings bar content
@@ -91,12 +365,20 @@ function switchTab(tabName) {
 
     // Sync preview settings bar
     updatePreviewSettingsBar();
+    updatePreviewParityLabel();
 
     // Handle tab specific logic
     if (tabName === 'mainmenu') {
         updateGuiPreview();
     } else if (tabName === 'shop') {
         updatePreview();
+    } else if (tabName === 'campaigns') {
+        renderCampaignsTab();
+    } else if (tabName === 'stockanalytics') {
+        loadStockAnalyticsData(true);
+    } else if (tabName === 'dataeditor') {
+        loadDatabaseEditorData(true);
+        renderDatabaseEditor();
     } else if (tabName === 'purchase') {
         updatePurchasePreview();
     } else if (tabName === 'sell') {
@@ -318,9 +600,96 @@ function updateCurrentTitle(value) {
 
 function updateAll() {
     updatePreview();
+    renderCampaignsTab();
     updateExport();
     updatePreviewSettingsBar();
     scheduleAutoSave();
+}
+
+function renderStockAnalyticsDashboard() {
+    const generatedEl = document.getElementById('stock-analytics-generated');
+    const summaryEl = document.getElementById('stock-analytics-summary');
+    const tableEl = document.getElementById('stock-analytics-table');
+    const shopFilterEl = document.getElementById('stock-analytics-shop-filter');
+    if (!summaryEl || !tableEl) return;
+
+    const payload = stockAnalyticsData || {};
+    const totals = payload.totals || {};
+    const entries = Array.isArray(payload.entries) ? payload.entries : [];
+
+    if (generatedEl) {
+        if (payload.generatedAt) {
+            generatedEl.textContent = `Updated ${new Date(payload.generatedAt).toLocaleString()}`;
+        } else {
+            generatedEl.textContent = 'No data yet';
+        }
+    }
+
+    if (shopFilterEl) {
+        const current = String(shopFilterEl.value || '');
+        const known = Array.from(new Set(entries.map(e => String(e.shopKey || '')).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+        shopFilterEl.innerHTML = '<option value="">All shops</option>' + known.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+        shopFilterEl.value = known.includes(current) ? current : '';
+        shopFilterEl.dispatchEvent(new Event('refresh'));
+    }
+
+    const activeShop = shopFilterEl ? String(shopFilterEl.value || '') : '';
+    const filtered = activeShop ? entries.filter(e => String(e.shopKey || '') === activeShop) : entries;
+    const outCount = filtered.filter(e => (Number(e.remaining) || 0) <= 0).length;
+    const lowCount = filtered.filter(e => {
+        const limit = Math.max(0, Number(e.globalLimit) || 0);
+        const remaining = Math.max(0, Number(e.remaining) || 0);
+        return limit > 0 && remaining > 0 && remaining <= Math.max(1, Math.round(limit * 0.2));
+    }).length;
+
+    summaryEl.innerHTML = `
+        <div class="stock-card"><div class="stock-card-label">Tracked Items</div><div class="stock-card-value">${filtered.length}</div></div>
+        <div class="stock-card"><div class="stock-card-label">Out Of Stock</div><div class="stock-card-value">${outCount}</div></div>
+        <div class="stock-card"><div class="stock-card-label">Low Stock</div><div class="stock-card-value">${lowCount}</div></div>
+        <div class="stock-card"><div class="stock-card-label">Global Fill</div><div class="stock-card-value">${formatDisplayPrice(Number(totals.fillPct) || 0)}%</div></div>
+    `;
+
+    if (filtered.length === 0) {
+        tableEl.innerHTML = `<div class="stock-table-row"><div class="stock-cell-main">No stock-limited items found for this filter.</div></div>`;
+        initCustomSelects();
+        return;
+    }
+
+    const rows = filtered.slice(0, 250).map(entry => {
+        const utilization = Number(entry.utilizationPct) || 0;
+        const statusClass = (Number(entry.remaining) || 0) <= 0 ? 'danger' : utilization >= 80 ? 'warn' : 'ok';
+        const statusText = (Number(entry.remaining) || 0) <= 0 ? 'OUT' : utilization >= 80 ? 'LOW' : 'OK';
+        const rawName = String(entry.name || '').trim();
+        const name = rawName ? parseMinecraftColors(rawName) : escapeHtml(entry.material || 'UNKNOWN');
+        return `
+            <div class="stock-table-row">
+                <div class="stock-cell-main">
+                    <div class="stock-item-name">${name}</div>
+                    <div class="stock-item-sub">${escapeHtml(entry.shopKey || '')} | ${escapeHtml(entry.itemKey || '')}</div>
+                </div>
+                <div class="stock-col-material">${escapeHtml(entry.material || '')}</div>
+                <div class="stock-col-slot">#${Number(entry.slot) || 0}</div>
+                <div>${Number(entry.current) || 0}</div>
+                <div>${Number(entry.globalLimit) || 0}</div>
+                <div>${Number(entry.remaining) || 0}</div>
+                <div><span class="stock-pill ${statusClass}">${statusText} ${formatDisplayPrice(utilization)}%</span></div>
+            </div>
+        `;
+    }).join('');
+
+    tableEl.innerHTML = `
+        <div class="stock-table-header">
+            <div>Item</div>
+            <div class="stock-col-material">Material</div>
+            <div class="stock-col-slot">Slot</div>
+            <div>Current</div>
+            <div>Limit</div>
+            <div>Remaining</div>
+            <div>Status</div>
+        </div>
+        ${rows}
+    `;
+    initCustomSelects();
 }
 
 function renderSkeletons() {
@@ -390,6 +759,73 @@ function toggleQuickTips() {
         list.style.display = isHidden ? 'block' : 'none';
         icon.textContent = isHidden ? '\u25B2' : '\u25BC';
     }
+}
+
+const QUICK_TIPS_BY_TAB = {
+    mainmenu: [
+        'Use slot numbers to keep category layout consistent.',
+        'Buttons can open shops, run commands, or do nothing.',
+        'Keep button names short so they stay readable in GUI.',
+        'Use parity mode to preview lore placeholders.',
+        'Save after large button rearrangements.'
+    ],
+    shop: [
+        'Click an item card or preview slot to edit details.',
+        'Sort and search before bulk edits to avoid mistakes.',
+        'Set slot explicitly when you need stable layout order.',
+        'Use campaign and stock flags only where needed.',
+        'Use import/export for faster cross-shop updates.'
+    ],
+    campaigns: [
+        'Create campaign keys once, then assign them in bulk.',
+        'Set timezone explicitly for predictable start/end windows.',
+        'Use shop-level campaign for broad promos.',
+        'Use item-level campaign to override specific products.',
+        'Save campaigns, then save affected shop files.'
+    ],
+    stockanalytics: [
+        'Use the shop filter to isolate stock bottlenecks.',
+        'Track out-of-stock and low-stock counts first.',
+        'High utilization means your global limit is near full.',
+        'Rows are sorted by highest utilization to surface risk.',
+        'Refresh after major buy/sell testing.'
+    ],
+    dataeditor: [
+        'Player Counts are per-player item limit counters.',
+        'Global Counts are shared stock counters per item key.',
+        'Stock Resets track last reset run times in epoch millis.',
+        'Edit carefully: these values affect live shop behavior.',
+        'Refresh after each change to verify persisted data.'
+    ],
+    purchase: [
+        'Keep confirm/cancel/back buttons on predictable slots.',
+        'Set max amount based on your economy balance.',
+        'Check display slot so preview item is always visible.',
+        'Match button labels with their configured amounts.',
+        'Use parity mode to validate lore output.'
+    ],
+    sell: [
+        'Place Sell All where users can find it quickly.',
+        'Keep remove/add/set amounts balanced for UX.',
+        'Lower max amount if economy abuse is a concern.',
+        'Verify sell lore lines match your placeholders.',
+        'Use parity mode before publishing menu changes.'
+    ],
+    guisettings: [
+        'Edit global lore formats carefully; all shops use them.',
+        'Test buy/sell hint visibility with real item states.',
+        'Use safety presets as a baseline, then fine-tune.',
+        'Set separators/decimals to match your server locale.',
+        'Save and retest one shop after major global changes.'
+    ]
+};
+
+function updateQuickTips(tabName = currentTab) {
+    const list = document.getElementById('quick-tips-list');
+    if (!list) return;
+
+    const tips = QUICK_TIPS_BY_TAB[tabName] || QUICK_TIPS_BY_TAB.shop;
+    list.innerHTML = tips.map(tip => `<li>${escapeHtml(tip)}</li>`).join('');
 }
 
 function switchShop(filename) {
@@ -670,9 +1106,18 @@ function renderItems() {
         }
         if (item.potionType) tagsHtml += `<span class="item-tag potion">Potion: ${escapeHtml(item.potionType)}</span>`;
         if (item.dynamicPricing) tagsHtml += `<span class="item-tag dynamic">Dynamic</span>`;
+        if (item.campaignEnabled) {
+            const campaignName = String(item.campaignName || '').trim();
+            tagsHtml += `<span class="item-tag active">Campaign${campaignName ? `: ${escapeHtml(campaignName)}` : ''}</span>`;
+        }
+        if (item.campaign) {
+            tagsHtml += `<span class="item-tag active">Campaign Key: ${escapeHtml(item.campaign)}</span>`;
+        }
         if (item.limit > 0) tagsHtml += `<span class="item-tag active">Player Limit: ${item.limit}</span>`;
         if (item.globalLimit > 0) tagsHtml += `<span class="item-tag active" style="background: rgba(255, 160, 0, 0.15); color: #ffa000; border-color: rgba(255, 160, 0, 0.3);">Global Limit: ${item.globalLimit}</span>`;
         if (item.permission) tagsHtml += `<span class="item-tag active" title="${escapeHtml(item.permission)}">Permission</span>`;
+        if (item.itemKey) tagsHtml += `<span class="item-tag active">Item Key: ${escapeHtml(item.itemKey)}</span>`;
+        if (item.variantKey) tagsHtml += `<span class="item-tag active">Variant: ${escapeHtml(item.variantKey)}</span>`;
         if (item.unstableTnt) tagsHtml += `<span class="item-tag active">Unstable TNT</span>`;
         if (item.requireName) tagsHtml += `<span class="item-tag active">Req Name</span>`;
         if (item.requireLore) tagsHtml += `<span class="item-tag active">Req Lore</span>`;
@@ -702,6 +1147,18 @@ function renderItems() {
         const itemsPerPage = rows * 9;
         const page = Math.floor(item.slot / itemsPerPage) + 1;
         const slotOnPage = item.slot % itemsPerPage;
+        const buyDisplay = calculateCampaignAdjustedTotal(item, false);
+        const sellDisplay = calculateCampaignAdjustedTotal(item, true);
+        const buyPriceHtml = item.price > 0
+            ? (buyDisplay.active
+                ? `<div class="item-price-tag" style="color: var(--success);"><span style="opacity:0.65;text-decoration:line-through;margin-right:6px;">$${formatDisplayPrice(buyDisplay.base)}</span>$${formatDisplayPrice(buyDisplay.total)}</div>`
+                : `<div class="item-price-tag" style="color: var(--success);">$${formatDisplayPrice(buyDisplay.total)}</div>`)
+            : '';
+        const sellPriceHtml = item.sellPrice > 0
+            ? (sellDisplay.active
+                ? `<div class="item-price-tag" style="color: var(--danger);"><span style="opacity:0.65;text-decoration:line-through;margin-right:6px;">$${formatDisplayPrice(sellDisplay.base)}</span>$${formatDisplayPrice(sellDisplay.total)}</div>`
+                : `<div class="item-price-tag" style="color: var(--danger);">$${formatDisplayPrice(sellDisplay.total)}</div>`)
+            : '';
 
         itemEl.innerHTML = `
             <div class="item-header">
@@ -717,8 +1174,8 @@ function renderItems() {
                     ${tagsHtml}
                 </div>
                 <div class="flex flex-col gap-8 items-end">
-                    ${item.price > 0 ? `<div class="item-price-tag" style="color: var(--success);">$${formatDisplayPrice(item.price)}</div>` : ''}
-                    ${item.sellPrice > 0 ? `<div class="item-price-tag" style="color: var(--danger);">$${formatDisplayPrice(item.sellPrice)}</div>` : ''}
+                    ${buyPriceHtml}
+                    ${sellPriceHtml}
                 </div>
             </div>
             ${loreHtml}
@@ -739,6 +1196,633 @@ function renderItems() {
     if (document.getElementById('shop-items-count')) {
         document.getElementById('shop-items-count').textContent = `${items.length} items`;
     }
+
+    initCustomSelects();
+}
+
+function updateShopCampaignAssignment(value) {
+    applyCampaignToShopFile(currentShopFile, value, true);
+}
+
+function getTopLevelCampaignFromShopYaml(yaml) {
+    if (!yaml || typeof yaml !== 'string') return '';
+    const lines = yaml.split('\n');
+    for (const raw of lines) {
+        const line = String(raw || '');
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const indent = line.search(/\S/);
+        if (indent !== 0) continue;
+        const match = trimmed.match(/^campaign:\s*(.*)$/i);
+        if (!match) continue;
+        return String(match[1] || '').replace(/['"]/g, '').trim();
+    }
+    return '';
+}
+
+function setTopLevelCampaignInShopYaml(yaml, campaignKey) {
+    const source = String(yaml || '');
+    const nextKey = String(campaignKey || '').trim();
+    const hasTrailingNewline = source.endsWith('\n');
+    const lines = source.split('\n');
+    const campaignLineIndex = lines.findIndex(line => {
+        const trimmed = String(line || '').trim();
+        if (!trimmed || trimmed.startsWith('#')) return false;
+        const indent = String(line || '').search(/\S/);
+        return indent === 0 && /^campaign:\s*/i.test(trimmed);
+    });
+
+    if (!nextKey) {
+        if (campaignLineIndex >= 0) lines.splice(campaignLineIndex, 1);
+    } else {
+        const escaped = nextKey.replace(/'/g, "''");
+        const replacement = `campaign: '${escaped}'`;
+        if (campaignLineIndex >= 0) {
+            lines[campaignLineIndex] = replacement;
+        } else {
+            const itemsIndex = lines.findIndex(line => /^items:\s*/i.test(String(line || '').trim()) && String(line || '').search(/\S/) === 0);
+            if (itemsIndex >= 0) lines.splice(itemsIndex, 0, replacement);
+            else lines.push(replacement);
+        }
+    }
+
+    let out = lines.join('\n');
+    if (hasTrailingNewline && !out.endsWith('\n')) out += '\n';
+    return out;
+}
+
+function getShopCampaignAssignment(shopFile) {
+    if (shopFile === currentShopFile) return String(currentShopSettings.campaign || '').trim();
+    return getTopLevelCampaignFromShopYaml(allShops[shopFile] || '');
+}
+
+function applyCampaignToShopFile(shopFile, campaignKey, refresh = false) {
+    const file = String(shopFile || '').trim();
+    if (!file) return false;
+
+    const next = String(campaignKey || '').trim();
+    const before = getShopCampaignAssignment(file);
+    if (before === next) return false;
+
+    if (file === currentShopFile) {
+        currentShopSettings.campaign = next;
+    } else {
+        const sourceYaml = allShops[file];
+        if (typeof sourceYaml !== 'string') return false;
+        allShops[file] = setTopLevelCampaignInShopYaml(sourceYaml, next);
+        campaignHubDirtyShopFiles.add(file);
+    }
+
+    addActivityEntry(
+        'updated',
+        'shop-settings',
+        { campaign: before },
+        { campaign: next },
+        { field: 'campaign', shopFile: file, campaignHub: true }
+    );
+
+    if (refresh) {
+        renderCampaignsTab();
+        updateAll();
+    }
+    return true;
+}
+
+function updateCampaignHubSelected(value) {
+    campaignHubSelectedKey = String(value || '').trim();
+    renderCampaignsTab();
+}
+
+function getCampaignHubItemShopFile() {
+    const available = Object.keys(allShops || {});
+    if (campaignHubItemShopFile && allShops[campaignHubItemShopFile]) {
+        return campaignHubItemShopFile;
+    }
+    if (currentShopFile && allShops[currentShopFile]) {
+        campaignHubItemShopFile = currentShopFile;
+        return campaignHubItemShopFile;
+    }
+    campaignHubItemShopFile = available.length > 0 ? available[0] : '';
+    return campaignHubItemShopFile;
+}
+
+function updateCampaignHubItemShop(value) {
+    campaignHubItemShopFile = String(value || '').trim();
+    renderCampaignsTab();
+}
+
+function withParsedShopContext(shopFile, handler) {
+    const targetFile = String(shopFile || '').trim();
+    if (!targetFile || !allShops[targetFile]) {
+        return handler ? handler([], {}) : null;
+    }
+    if (targetFile === currentShopFile) {
+        return handler ? handler(items, currentShopSettings) : null;
+    }
+
+    const originalShopFile = currentShopFile;
+    const originalItems = JSON.parse(JSON.stringify(items || []));
+    const originalSettings = JSON.parse(JSON.stringify(currentShopSettings || {}));
+    const originalItemIdCounter = itemIdCounter;
+    const exportOutput = document.getElementById('export-output');
+    const originalExport = exportOutput ? exportOutput.textContent : '';
+
+    try {
+        currentShopFile = targetFile;
+        parseShopYaml(allShops[targetFile]);
+        return handler ? handler(items, currentShopSettings) : null;
+    } finally {
+        currentShopFile = originalShopFile;
+        items = originalItems;
+        currentShopSettings = originalSettings;
+        itemIdCounter = originalItemIdCounter;
+        if (exportOutput) exportOutput.textContent = originalExport;
+    }
+}
+
+function getParsedShopYamlFromCurrentContext() {
+    if (typeof getCurrentShopYamlContent === 'function') {
+        return getCurrentShopYamlContent();
+    }
+    if (typeof updateExport === 'function') {
+        updateExport();
+    } else if (typeof generateShopYaml === 'function') {
+        generateShopYaml();
+    }
+    const exportOutput = document.getElementById('export-output');
+    return exportOutput ? exportOutput.textContent : '';
+}
+
+function getCampaignHubItemsForShop(shopFile) {
+    const target = String(shopFile || '').trim();
+    if (!target) return [];
+    if (target === currentShopFile) return JSON.parse(JSON.stringify(items || []));
+    return withParsedShopContext(target, (parsedItems) => JSON.parse(JSON.stringify(parsedItems || []))) || [];
+}
+
+function editSelectedCampaign() {
+    const index = (globalCampaigns || []).findIndex(c => c && c.key === campaignHubSelectedKey);
+    if (index < 0) {
+        showAlert('Select a campaign first.', 'warning');
+        return;
+    }
+    openCampaignEditorModal(index);
+}
+
+function removeSelectedCampaign() {
+    const index = (globalCampaigns || []).findIndex(c => c && c.key === campaignHubSelectedKey);
+    if (index < 0) {
+        showAlert('Select a campaign first.', 'warning');
+        return;
+    }
+    removeCampaignTemplate(index);
+}
+
+function renderCampaignHubShopAssignments() {
+    const listEl = document.getElementById('campaign-shop-assignment-list');
+    if (!listEl) return;
+
+    const filterInput = document.getElementById('campaign-shop-filter');
+    const filter = String(filterInput ? filterInput.value : '').toLowerCase().trim();
+    const files = Object.keys(allShops || {}).sort((a, b) => a.localeCompare(b));
+    const rows = files.filter(file => !filter || file.toLowerCase().includes(filter));
+
+    if (rows.length === 0) {
+        listEl.innerHTML = '<div class="campaign-assignment-row"><span class="campaign-assignment-sub">No shops match this filter.</span></div>';
+        return;
+    }
+
+    listEl.innerHTML = rows.map(file => {
+        const assigned = getShopCampaignAssignment(file);
+        const currentTag = file === currentShopFile ? ' (current)' : '';
+        return `
+            <label class="campaign-assignment-row" for="campaign-shop-check-${escapeHtml(file)}">
+                <div class="campaign-assignment-main">
+                    <input type="checkbox" id="campaign-shop-check-${escapeHtml(file)}" class="campaign-shop-check" value="${escapeHtml(file)}">
+                    <div>
+                        <div class="campaign-assignment-name">${escapeHtml(file)}${escapeHtml(currentTag)}</div>
+                        <div class="campaign-assignment-sub">Assigned: ${escapeHtml(assigned || 'None')}</div>
+                    </div>
+                </div>
+            </label>
+        `;
+    }).join('');
+}
+
+function renderCampaignHubItemAssignments() {
+    const listEl = document.getElementById('campaign-item-assignment-list');
+    const shopMeta = document.getElementById('campaign-item-shop-meta');
+    const selectedItemShop = getCampaignHubItemShopFile();
+    const itemSource = getCampaignHubItemsForShop(selectedItemShop);
+    if (shopMeta) {
+        shopMeta.textContent = `Shop: ${selectedItemShop || '-'} (${itemSource.length} items)`;
+    }
+    if (!listEl) return;
+
+    const filterInput = document.getElementById('campaign-item-filter');
+    const filter = String(filterInput ? filterInput.value : '').toLowerCase().trim();
+    const rows = itemSource.filter(item => {
+        if (!filter) return true;
+        const name = String(item.name || '').toLowerCase();
+        const mat = String(item.material || '').toLowerCase();
+        return name.includes(filter) || mat.includes(filter) || String(item.id).includes(filter);
+    });
+
+    if (rows.length === 0) {
+        listEl.innerHTML = '<div class="campaign-assignment-row"><span class="campaign-assignment-sub">No items match this filter.</span></div>';
+        return;
+    }
+
+    listEl.innerHTML = rows.map(item => `
+        <label class="campaign-assignment-row" for="campaign-item-check-${item.id}">
+            <div class="campaign-assignment-main">
+                <input type="checkbox" id="campaign-item-check-${item.id}" class="campaign-item-check" value="${item.id}">
+                <div>
+                    <div class="campaign-assignment-name">${escapeHtml((item.name || item.material || `Item ${item.id}`))}</div>
+                    <div class="campaign-assignment-sub">${escapeHtml(item.material || 'UNKNOWN')} x${Number(item.amount) || 1} | Slot ${Number(item.slot) || 0} | Assigned: ${escapeHtml(item.campaign || 'None')}</div>
+                </div>
+            </div>
+        </label>
+    `).join('');
+}
+
+function toggleCampaignHubShopSelection(selectAll) {
+    document.querySelectorAll('#campaign-shop-assignment-list .campaign-shop-check').forEach(cb => {
+        cb.checked = !!selectAll;
+    });
+}
+
+function toggleCampaignHubItemSelection(selectAll) {
+    document.querySelectorAll('#campaign-item-assignment-list .campaign-item-check').forEach(cb => {
+        cb.checked = !!selectAll;
+    });
+}
+
+function assignCampaignToSelectedShops() {
+    const key = String(campaignHubSelectedKey || '').trim();
+    if (!key) {
+        showAlert('Select a campaign first.', 'warning');
+        return;
+    }
+    const selectedFiles = Array.from(document.querySelectorAll('#campaign-shop-assignment-list .campaign-shop-check:checked'))
+        .map(el => el.value)
+        .filter(Boolean);
+    if (selectedFiles.length === 0) {
+        showAlert('Select at least one shop.', 'warning');
+        return;
+    }
+
+    let changed = 0;
+    selectedFiles.forEach(file => {
+        if (applyCampaignToShopFile(file, key, false)) changed++;
+    });
+    if (changed > 0) {
+        renderCampaignsTab();
+        updateAll();
+        showToast(`Assigned campaign to ${changed} shop(s).`, 'success');
+    }
+}
+
+function clearCampaignFromSelectedShops() {
+    const selectedFiles = Array.from(document.querySelectorAll('#campaign-shop-assignment-list .campaign-shop-check:checked'))
+        .map(el => el.value)
+        .filter(Boolean);
+    if (selectedFiles.length === 0) {
+        showAlert('Select at least one shop.', 'warning');
+        return;
+    }
+
+    let changed = 0;
+    selectedFiles.forEach(file => {
+        if (applyCampaignToShopFile(file, '', false)) changed++;
+    });
+    if (changed > 0) {
+        renderCampaignsTab();
+        updateAll();
+        showToast(`Cleared campaign on ${changed} shop(s).`, 'success');
+    }
+}
+
+function assignCampaignToSelectedItems() {
+    const key = String(campaignHubSelectedKey || '').trim();
+    if (!key) {
+        showAlert('Select a campaign first.', 'warning');
+        return;
+    }
+    const targetShop = getCampaignHubItemShopFile();
+    if (!targetShop) {
+        showAlert('Select a shop first.', 'warning');
+        return;
+    }
+    const selectedIds = Array.from(document.querySelectorAll('#campaign-item-assignment-list .campaign-item-check:checked'))
+        .map(el => parseInt(el.value, 10))
+        .filter(id => Number.isFinite(id));
+    if (selectedIds.length === 0) {
+        showAlert('Select at least one item.', 'warning');
+        return;
+    }
+
+    const before = [];
+    const after = [];
+    if (targetShop === currentShopFile) {
+        selectedIds.forEach(id => {
+            const item = items.find(it => it.id === id);
+            if (!item) return;
+            const prev = String(item.campaign || '').trim();
+            if (prev === key) return;
+            before.push({ id, campaign: prev });
+            item.campaign = key;
+            after.push({ id, campaign: key });
+        });
+    } else {
+        withParsedShopContext(targetShop, (parsedItems) => {
+            selectedIds.forEach(id => {
+                const item = parsedItems.find(it => it.id === id);
+                if (!item) return;
+                const prev = String(item.campaign || '').trim();
+                if (prev === key) return;
+                before.push({ id, campaign: prev });
+                item.campaign = key;
+                after.push({ id, campaign: key });
+            });
+            allShops[targetShop] = getParsedShopYamlFromCurrentContext();
+            campaignHubDirtyShopFiles.add(targetShop);
+        });
+    }
+    if (before.length === 0) return;
+
+    addActivityEntry(
+        'updated',
+        'shop-item',
+        { campaignAssignments: before },
+        { campaignAssignments: after },
+        { field: 'campaign', shopFile: targetShop, campaignHub: true, itemIds: before.map(e => e.id) }
+    );
+    renderCampaignsTab();
+    updateAll();
+    showToast(`Assigned campaign to ${before.length} item(s) in ${targetShop}.`, 'success');
+}
+
+function clearCampaignFromSelectedItems() {
+    const targetShop = getCampaignHubItemShopFile();
+    if (!targetShop) {
+        showAlert('Select a shop first.', 'warning');
+        return;
+    }
+    const selectedIds = Array.from(document.querySelectorAll('#campaign-item-assignment-list .campaign-item-check:checked'))
+        .map(el => parseInt(el.value, 10))
+        .filter(id => Number.isFinite(id));
+    if (selectedIds.length === 0) {
+        showAlert('Select at least one item.', 'warning');
+        return;
+    }
+
+    const before = [];
+    const after = [];
+    if (targetShop === currentShopFile) {
+        selectedIds.forEach(id => {
+            const item = items.find(it => it.id === id);
+            if (!item) return;
+            const prev = String(item.campaign || '').trim();
+            if (!prev) return;
+            before.push({ id, campaign: prev });
+            item.campaign = '';
+            after.push({ id, campaign: '' });
+        });
+    } else {
+        withParsedShopContext(targetShop, (parsedItems) => {
+            selectedIds.forEach(id => {
+                const item = parsedItems.find(it => it.id === id);
+                if (!item) return;
+                const prev = String(item.campaign || '').trim();
+                if (!prev) return;
+                before.push({ id, campaign: prev });
+                item.campaign = '';
+                after.push({ id, campaign: '' });
+            });
+            allShops[targetShop] = getParsedShopYamlFromCurrentContext();
+            campaignHubDirtyShopFiles.add(targetShop);
+        });
+    }
+    if (before.length === 0) return;
+
+    addActivityEntry(
+        'updated',
+        'shop-item',
+        { campaignAssignments: before },
+        { campaignAssignments: after },
+        { field: 'campaign', shopFile: targetShop, campaignHub: true, itemIds: before.map(e => e.id) }
+    );
+    renderCampaignsTab();
+    updateAll();
+    showToast(`Cleared campaign on ${before.length} item(s) in ${targetShop}.`, 'success');
+}
+
+function addCampaignTemplate() {
+    openCampaignEditorModal(-1);
+}
+
+function openCampaignEditorModal(index) {
+    const list = Array.isArray(globalCampaigns) ? globalCampaigns : [];
+    const editing = index >= 0 && index < list.length;
+    const campaign = editing ? list[index] : { key: '', name: '', start: '', end: '', timezone: '', buyMultiplier: 1, sellMultiplier: 1 };
+
+    openEditModal({
+        title: editing ? 'Edit Campaign' : 'Add Campaign',
+        fields: [
+            { id: 'modal-campaign-key', label: 'Key', value: campaign.key || '', hint: 'Unique id used by item/shop campaign selector.' },
+            { id: 'modal-campaign-name', label: 'Name', value: campaign.name || '' },
+            { id: 'modal-campaign-start', label: 'Start', value: campaign.start || '', hint: 'YYYY-MM-DD HH:mm (or ISO)' },
+            { id: 'modal-campaign-end', label: 'End', value: campaign.end || '', hint: 'YYYY-MM-DD HH:mm (or ISO)' },
+            { id: 'modal-campaign-timezone', label: 'Timezone', value: campaign.timezone || '', hint: 'Optional, e.g. UTC or Europe/Copenhagen' },
+            { id: 'modal-campaign-buy', label: 'Buy Multiplier', type: 'number', value: Number(campaign.buyMultiplier) || 1, min: 0.01, step: '0.01', row: true },
+            { id: 'modal-campaign-sell', label: 'Sell Multiplier', type: 'number', value: Number(campaign.sellMultiplier) || 1, min: 0.01, step: '0.01', row: true }
+        ],
+        onSave: (data) => {
+            const key = String(data['modal-campaign-key'] || '').trim();
+            if (!key) {
+                showAlert('Campaign key is required.', 'warning');
+                return;
+            }
+            const normalized = {
+                key,
+                name: String(data['modal-campaign-name'] || '').trim(),
+                start: String(data['modal-campaign-start'] || '').trim(),
+                end: String(data['modal-campaign-end'] || '').trim(),
+                timezone: String(data['modal-campaign-timezone'] || '').trim(),
+                buyMultiplier: Math.max(0.01, Number(data['modal-campaign-buy']) || 1),
+                sellMultiplier: Math.max(0.01, Number(data['modal-campaign-sell']) || 1)
+            };
+            const duplicate = list.findIndex((c, i) => c && c.key === key && i !== index);
+            if (duplicate !== -1) {
+                showAlert(`Campaign key '${key}' already exists.`, 'warning');
+                return;
+            }
+
+            const before = JSON.parse(JSON.stringify(globalCampaigns || []));
+            if (!Array.isArray(globalCampaigns)) globalCampaigns = [];
+            if (editing) globalCampaigns[index] = normalized;
+            else globalCampaigns.push(normalized);
+            campaignHubSelectedKey = normalized.key;
+            addActivityEntry('updated', 'campaign-settings', { campaigns: before }, { campaigns: JSON.parse(JSON.stringify(globalCampaigns)) }, { field: 'campaigns' });
+            renderCampaignsTab();
+            updateAll();
+        },
+        onDelete: editing ? (() => removeCampaignTemplate(index)) : null
+    });
+}
+
+function removeCampaignTemplate(index) {
+    if (!Array.isArray(globalCampaigns) || index < 0 || index >= globalCampaigns.length) return;
+    const beforeCampaigns = JSON.parse(JSON.stringify(globalCampaigns));
+    const beforeShopCampaign = currentShopSettings.campaign || '';
+    const affectedItemIds = [];
+    const removed = globalCampaigns[index];
+    globalCampaigns.splice(index, 1);
+    if (currentShopSettings.campaign === removed.key) currentShopSettings.campaign = '';
+    Object.keys(allShops || {}).forEach(file => {
+        if (file === currentShopFile) return;
+        if (getShopCampaignAssignment(file) !== removed.key) return;
+        applyCampaignToShopFile(file, '', false);
+    });
+    items.forEach(item => {
+        if (item.campaign === removed.key) {
+            item.campaign = '';
+            affectedItemIds.push(item.id);
+        }
+    });
+    addActivityEntry(
+        'updated',
+        'campaign-settings',
+        { campaigns: beforeCampaigns },
+        { campaigns: JSON.parse(JSON.stringify(globalCampaigns)) },
+        { field: 'campaigns' }
+    );
+    if (beforeShopCampaign !== (currentShopSettings.campaign || '')) {
+        addActivityEntry(
+            'updated',
+            'shop-settings',
+            { campaign: beforeShopCampaign },
+            { campaign: currentShopSettings.campaign || '' },
+            { field: 'campaign', shopFile: currentShopFile }
+        );
+    }
+    if (affectedItemIds.length > 0) {
+        addActivityEntry(
+            'updated',
+            'shop-item',
+            { campaign: removed.key, itemCount: affectedItemIds.length },
+            { campaign: '', itemCount: affectedItemIds.length },
+            { field: 'campaign', itemIds: affectedItemIds, shopFile: currentShopFile }
+        );
+    }
+    if (campaignHubSelectedKey === removed.key) {
+        campaignHubSelectedKey = '';
+    }
+    renderCampaignsTab();
+    updateAll();
+}
+
+function renderCampaignsTab() {
+    const container = document.getElementById('campaigns-container');
+    const count = document.getElementById('campaigns-count');
+    const campaignSelect = document.getElementById('campaign-hub-selected');
+    const itemShopSelect = document.getElementById('campaign-item-shop-select');
+    const selectedMeta = document.getElementById('campaign-hub-selected-meta');
+    const list = Array.isArray(globalCampaigns) ? globalCampaigns : [];
+
+    if (count) count.textContent = `${list.length} campaigns`;
+
+    if (list.length > 0 && !list.some(c => c && c.key === campaignHubSelectedKey)) {
+        campaignHubSelectedKey = list[0].key;
+    }
+    if (list.length === 0) {
+        campaignHubSelectedKey = '';
+    }
+
+    if (campaignSelect) {
+        campaignSelect.innerHTML = '';
+        list.forEach(c => {
+            if (!c || !c.key) return;
+            const opt = document.createElement('option');
+            opt.value = c.key;
+            opt.textContent = c.name ? `${c.name} (${c.key})` : c.key;
+            campaignSelect.appendChild(opt);
+        });
+        campaignSelect.value = campaignHubSelectedKey || '';
+        campaignSelect.dispatchEvent(new Event('refresh'));
+    }
+
+    if (itemShopSelect) {
+        itemShopSelect.innerHTML = '';
+        Object.keys(allShops || {}).sort((a, b) => a.localeCompare(b)).forEach(file => {
+            const opt = document.createElement('option');
+            opt.value = file;
+            opt.textContent = file;
+            itemShopSelect.appendChild(opt);
+        });
+        itemShopSelect.value = getCampaignHubItemShopFile();
+        itemShopSelect.dispatchEvent(new Event('refresh'));
+    }
+
+    if (selectedMeta) {
+        const selected = list.find(c => c && c.key === campaignHubSelectedKey) || null;
+        if (!selected) {
+            selectedMeta.textContent = 'No campaign selected.';
+        } else {
+            const active = isCampaignWindowActive(selected.start, selected.end, selected.timezone);
+            const assignedShops = Object.keys(allShops || {}).filter(file => getShopCampaignAssignment(file) === selected.key).length;
+            const selectedItemShop = getCampaignHubItemShopFile();
+            const selectedShopItems = getCampaignHubItemsForShop(selectedItemShop);
+            const assignedItems = selectedShopItems.filter(item => String(item.campaign || '').trim() === selected.key).length;
+            selectedMeta.textContent = `${active ? 'Active' : 'Inactive'} | Buy x${formatDisplayPrice(Number(selected.buyMultiplier) || 1)} | Sell x${formatDisplayPrice(Number(selected.sellMultiplier) || 1)} | Shops: ${assignedShops} | Selected Shop Items: ${assignedItems}`;
+        }
+    }
+
+    renderCampaignHubShopAssignments();
+    renderCampaignHubItemAssignments();
+
+    if (!container) return;
+    container.innerHTML = '';
+    if (list.length === 0) {
+        container.innerHTML = `<div class="text-center" style="padding: 2.5rem 0; opacity: 0.75;">No campaigns yet. Click ADD CAMPAIGN.</div>`;
+        initCustomSelects();
+        return;
+    }
+
+    list.forEach((campaign, index) => {
+        if (!campaign || !campaign.key) return;
+        const active = isCampaignWindowActive(campaign.start, campaign.end, campaign.timezone);
+        const assignedShops = Object.keys(allShops || {}).filter(file => getShopCampaignAssignment(file) === campaign.key).length;
+        const selectedItemShop = getCampaignHubItemShopFile();
+        const selectedShopItems = getCampaignHubItemsForShop(selectedItemShop);
+        const assignedItems = selectedShopItems.filter(item => String(item.campaign || '').trim() === campaign.key).length;
+        const card = document.createElement('div');
+        card.className = 'shop-item';
+        card.innerHTML = `
+            <div class="item-header">
+                <div class="flex-1">
+                    <div class="item-title">${escapeHtml(campaign.name || campaign.key)}</div>
+                    <div class="item-subtitle">${escapeHtml(campaign.key)}</div>
+                    <div class="item-tags">
+                        <span class="item-tag active">${active ? 'Active' : 'Inactive'}</span>
+                        <span class="item-tag">Buy x${formatDisplayPrice(Number(campaign.buyMultiplier) || 1)}</span>
+                        <span class="item-tag">Sell x${formatDisplayPrice(Number(campaign.sellMultiplier) || 1)}</span>
+                        <span class="item-tag">Shops: ${assignedShops}</span>
+                        <span class="item-tag">Selected Shop Items: ${assignedItems}</span>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-8 items-end">
+                    <button class="btn btn-secondary" style="padding: 6px 10px;" onclick="openCampaignEditorModal(${index})">EDIT</button>
+                </div>
+            </div>
+            <div class="item-subtitle" style="margin-top: 8px;">
+                ${escapeHtml(campaign.start || '...')} -> ${escapeHtml(campaign.end || '...')}
+                ${campaign.timezone ? ` (${escapeHtml(campaign.timezone)})` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
 
     initCustomSelects();
 }
@@ -884,6 +1968,7 @@ function updatePreview() {
     const grid = document.getElementById('preview-grid');
     if (!grid) return;
     grid.innerHTML = '';
+    updatePreviewParityLabel();
 
     const rows = currentShopSettings.rows || 3;
     const rowsInput = document.getElementById('shop-rows-input');
@@ -934,30 +2019,33 @@ function updatePreview() {
             
             slot.onclick = () => openShopItemModal(item.id);
             
-            let extraHtml = '';
-            
-            // Add global GUI lore settings
-            if (guiSettings.itemLore.showBuyPrice && item.price > 0) {
-                const processed = guiSettings.itemLore.buyPriceLine.replace('%price%', '$' + formatDisplayPrice(item.price));
-                extraHtml += `<div class="tooltip-line">${parseMinecraftColors(processed)}</div>`;
-            }
-            if (guiSettings.itemLore.showSellPrice && item.sellPrice > 0) {
-                const processed = guiSettings.itemLore.sellPriceLine.replace('%sell-price%', '$' + formatDisplayPrice(item.sellPrice));
-                extraHtml += `<div class="tooltip-line">${parseMinecraftColors(processed)}</div>`;
-            }
+            if (previewParityMode) {
+                setupTooltip(slot, item.name, buildShopTooltipLoreParity(item), '');
+            } else {
+                let extraHtml = '';
 
-            // Hints at the bottom
-            let hintHtml = '';
-            if (guiSettings.itemLore.showBuyHint && item.price > 0) {
-                hintHtml += `<div class="tooltip-line">${parseMinecraftColors(guiSettings.itemLore.buyHintLine)}</div>`;
+                // Add global GUI lore settings
+                if (guiSettings.itemLore.showBuyPrice && item.price > 0) {
+                    const processed = guiSettings.itemLore.buyPriceLine.replace('%price%', '$' + formatDisplayPrice(calculateItemTotalPrice(item, false)));
+                    extraHtml += `<div class="tooltip-line">${parseMinecraftColors(processed)}</div>`;
+                }
+                if (guiSettings.itemLore.showSellPrice && item.sellPrice > 0) {
+                    const processed = guiSettings.itemLore.sellPriceLine.replace('%sell-price%', '$' + formatDisplayPrice(calculateItemTotalPrice(item, true)));
+                    extraHtml += `<div class="tooltip-line">${parseMinecraftColors(processed)}</div>`;
+                }
+
+                // Hints at the bottom
+                let hintHtml = '';
+                if (guiSettings.itemLore.showBuyHint && item.price > 0) {
+                    hintHtml += `<div class="tooltip-line">${parseMinecraftColors(guiSettings.itemLore.buyHintLine)}</div>`;
+                }
+                if (guiSettings.itemLore.showSellHint && item.sellPrice > 0) {
+                    hintHtml += `<div class="tooltip-line">${parseMinecraftColors(guiSettings.itemLore.sellHintLine)}</div>`;
+                }
+
+                if (hintHtml) extraHtml += `<div style="margin-top: 8px;">${hintHtml}</div>`;
+                setupTooltip(slot, item.name, item.lore || [], extraHtml);
             }
-            if (guiSettings.itemLore.showSellHint && item.sellPrice > 0) {
-                hintHtml += `<div class="tooltip-line">${parseMinecraftColors(guiSettings.itemLore.sellHintLine)}</div>`;
-            }
-            
-            if (hintHtml) extraHtml += `<div style="margin-top: 8px;">${hintHtml}</div>`;
-            
-            setupTooltip(slot, item.name, item.lore || [], extraHtml);
         }
         
         grid.appendChild(slot);
@@ -999,6 +2087,8 @@ function hideMinecraftTooltip() {
 // ===== DRAG AND DROP HANDLERS =====
 
 function handleDragStart(e, index, source) {
+    if (!e || !e.dataTransfer) return;
+    if (!Number.isInteger(index) || index < 0) return;
     draggedSlotIndex = index;
     draggedItemSource = source;
     draggedFromPage = currentPreviewPage;
@@ -1058,6 +2148,7 @@ function handleDragLeave(e) {
 }
 
 function handleDrop(e, targetIndex, source) {
+    if (!e) return false;
     e.stopPropagation();
     e.preventDefault();
     
@@ -1066,14 +2157,17 @@ function handleDrop(e, targetIndex, source) {
         slot.classList.remove('dragging');
     });
 
-    if (draggedSlotIndex === null || draggedItemSource !== source) return;
-    if (draggedSlotIndex === targetIndex) return;
+    if (draggedSlotIndex === null || draggedItemSource !== source) return false;
+    if (!Number.isInteger(targetIndex) || targetIndex < 0) return false;
+    if (draggedSlotIndex === targetIndex) return false;
 
     if (source === 'shop') {
         const rows = currentShopSettings.rows || 3;
         const itemsPerPage = rows * 9;
+        if (!Number.isInteger(itemsPerPage) || itemsPerPage <= 0) return false;
         const fromAbsoluteSlot = (draggedFromPage * itemsPerPage) + draggedSlotIndex;
         const toAbsoluteSlot = (currentPreviewPage * itemsPerPage) + targetIndex;
+        if (fromAbsoluteSlot < 0 || toAbsoluteSlot < 0) return false;
 
         const fromItem = items.find(it => it.slot === fromAbsoluteSlot);
         const toItem = items.find(it => it.slot === toAbsoluteSlot);
@@ -1101,8 +2195,10 @@ function handleDrop(e, targetIndex, source) {
                     shopFile: currentShopFile
                 });
             }
+            if (window.EditorTelemetry) window.EditorTelemetry.track('drag_drop', { source: 'shop', swap: !!toItem }, true);
         }
     } else if (source === 'mainmenu') {
+        if (targetIndex > 53) return false;
         const fromItem = loadedGuiShops.find(s => s.slot === draggedSlotIndex);
         const toItem = loadedGuiShops.find(s => s.slot === targetIndex);
         
@@ -1128,9 +2224,11 @@ function handleDrop(e, targetIndex, source) {
             } else {
                 addActivityEntry('updated', 'main-menu-button', beforeFrom, JSON.parse(JSON.stringify(fromItem)));
             }
+            if (window.EditorTelemetry) window.EditorTelemetry.track('drag_drop', { source: 'mainmenu', swap: !!toItem }, true);
         }
     } else if (source === 'purchase' || source === 'sell') {
         const settings = transactionSettings[source];
+        if (!settings) return false;
         
         const findItem = (slot) => {
             for (const [key, btn] of Object.entries(settings.buttons)) {
@@ -1209,6 +2307,7 @@ function handleDrop(e, targetIndex, source) {
                     key: fromInfo.key
                 });
             }
+            if (window.EditorTelemetry) window.EditorTelemetry.track('drag_drop', { source, swap: !!toInfo }, true);
         }
     }
 
@@ -1271,6 +2370,97 @@ function renderGuiSettings() {
                 <div class="shop-item" onclick="openGuiButtonModal('nextButton', 'Next Page Button')">
                     <div class="item-title">${parseMinecraftColors(guiSettings.nextButton.name)}</div>
                     <div class="item-subtitle">Next Page Button</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-group card-base full-width" style="grid-column: 1 / -1;">
+            <div class="flex justify-between items-center mb-16">
+                <h3 class="group-title m-0">Economy Safety Guards</h3>
+                <div class="flex items-center gap-8">
+                    <button class="btn btn-secondary" style="padding: 6px 10px;" onclick="applyEconomySafetyPreset('strict')" title="Strict safety limits and confirmations">STRICT</button>
+                    <button class="btn btn-secondary" style="padding: 6px 10px;" onclick="applyEconomySafetyPreset('balanced')" title="Balanced defaults for most servers">BALANCED</button>
+                    <button class="btn btn-secondary" style="padding: 6px 10px;" onclick="applyEconomySafetyPreset('off')" title="Disable optional safety checks">OFF</button>
+                </div>
+            </div>
+            <div class="checkbox-grid" style="margin-bottom: 14px;">
+                <label class="flex items-center gap-8 cursor-pointer" title="Master toggle for economy safety checks">
+                    <input type="checkbox" ${economySafetySettings.enabled ? 'checked' : ''} onchange="updateEconomySafetySetting('enabled', this.checked)">
+                    <span>Enabled</span>
+                </label>
+                <label class="flex items-center gap-8 cursor-pointer" title="Enable anti-spike multiplier and step-change checks">
+                    <input type="checkbox" ${economySafetySettings.antiSpikeEnabled ? 'checked' : ''} onchange="updateEconomySafetySetting('antiSpikeEnabled', this.checked)">
+                    <span>Anti-Spike Enabled</span>
+                </label>
+                <label class="flex items-center gap-8 cursor-pointer" title="Enable per-action cooldowns">
+                    <input type="checkbox" ${economySafetySettings.cooldownsEnabled ? 'checked' : ''} onchange="updateEconomySafetySetting('cooldownsEnabled', this.checked)">
+                    <span>Cooldowns Enabled</span>
+                </label>
+                <label class="flex items-center gap-8 cursor-pointer" title="Require second confirm click above threshold">
+                    <input type="checkbox" ${economySafetySettings.largePurchaseConfirmEnabled ? 'checked' : ''} onchange="updateEconomySafetySetting('largePurchaseConfirmEnabled', this.checked)">
+                    <span>Large Purchase Confirm</span>
+                </label>
+                <label class="flex items-center gap-8 cursor-pointer" title="Notify admins on guard/economy failures">
+                    <input type="checkbox" ${economySafetySettings.adminAlertsEnabled ? 'checked' : ''} onchange="updateEconomySafetySetting('adminAlertsEnabled', this.checked)">
+                    <span>Admin Alerts Enabled</span>
+                </label>
+            </div>
+            <div class="form-row">
+                <div class="setting-item flex-1">
+                    <label title="0 disables this cap">Max Transaction Value</label>
+                    <input type="number" min="0" step="0.01" value="${economySafetySettings.maxTransactionValue}" onchange="updateEconomySafetySetting('maxTransactionValue', Number(this.value) || 0)">
+                </div>
+                <div class="setting-item flex-1">
+                    <label title="0 disables this cap">Max Unit Price</label>
+                    <input type="number" min="0" step="0.01" value="${economySafetySettings.maxUnitPrice}" onchange="updateEconomySafetySetting('maxUnitPrice', Number(this.value) || 0)">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="setting-item flex-1">
+                    <label title="Buy cooldown in ms">Buy Cooldown (ms)</label>
+                    <input type="number" min="0" step="1" value="${economySafetySettings.buyCooldownMs}" onchange="updateEconomySafetySetting('buyCooldownMs', Math.max(0, parseInt(this.value, 10) || 0))">
+                </div>
+                <div class="setting-item flex-1">
+                    <label title="Sell cooldown in ms">Sell Cooldown (ms)</label>
+                    <input type="number" min="0" step="1" value="${economySafetySettings.sellCooldownMs}" onchange="updateEconomySafetySetting('sellCooldownMs', Math.max(0, parseInt(this.value, 10) || 0))">
+                </div>
+                <div class="setting-item flex-1">
+                    <label title="Bulk sell cooldown in ms">Bulk Sell Cooldown (ms)</label>
+                    <input type="number" min="0" step="1" value="${economySafetySettings.bulkSellCooldownMs}" onchange="updateEconomySafetySetting('bulkSellCooldownMs', Math.max(0, parseInt(this.value, 10) || 0))">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="setting-item flex-1">
+                    <label title="Maximum unit/base multiplier">Anti-Spike Max Base Multiplier</label>
+                    <input type="number" min="0" step="0.01" value="${economySafetySettings.antiSpikeMaxBaseMultiplier}" onchange="updateEconomySafetySetting('antiSpikeMaxBaseMultiplier', Number(this.value) || 0)">
+                </div>
+                <div class="setting-item flex-1">
+                    <label title="Minimum unit/base multiplier (0 disables lower bound)">Anti-Spike Min Base Multiplier</label>
+                    <input type="number" min="0" step="0.01" value="${economySafetySettings.antiSpikeMinBaseMultiplier}" onchange="updateEconomySafetySetting('antiSpikeMinBaseMultiplier', Number(this.value) || 0)">
+                </div>
+                <div class="setting-item flex-1">
+                    <label title="Allowed relative step change from last successful trade">Anti-Spike Max Step Change Ratio</label>
+                    <input type="number" min="0" step="0.01" value="${economySafetySettings.antiSpikeMaxStepChangeRatio}" onchange="updateEconomySafetySetting('antiSpikeMaxStepChangeRatio', Number(this.value) || 0)">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="setting-item flex-1">
+                    <label title="Confirmation threshold amount">Large Purchase Threshold</label>
+                    <input type="number" min="0" step="0.01" value="${economySafetySettings.largePurchaseConfirmThreshold}" onchange="updateEconomySafetySetting('largePurchaseConfirmThreshold', Number(this.value) || 0)">
+                </div>
+                <div class="setting-item flex-1">
+                    <label title="Second-click timeout in seconds">Large Purchase Timeout (s)</label>
+                    <input type="number" min="1" step="1" value="${economySafetySettings.largePurchaseConfirmTimeoutSeconds}" onchange="updateEconomySafetySetting('largePurchaseConfirmTimeoutSeconds', Math.max(1, parseInt(this.value, 10) || 10))">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="setting-item flex-1">
+                    <label title="Permission that receives alert messages">Admin Notify Permission</label>
+                    <input type="text" value="${escapeHtml(economySafetySettings.adminNotifyPermission || 'geniusshop.admin')}" onchange="updateEconomySafetySetting('adminNotifyPermission', this.value)">
+                </div>
+                <div class="setting-item flex-1">
+                    <label title="Minimum time between alert broadcasts">Admin Alert Rate Limit (ms)</label>
+                    <input type="number" min="0" step="1" value="${economySafetySettings.adminAlertRateLimitMs}" onchange="updateEconomySafetySetting('adminAlertRateLimitMs', Math.max(0, parseInt(this.value, 10) || 0))">
                 </div>
             </div>
         </div>
@@ -1433,6 +2623,89 @@ function updateGuiSettingGroup(group, subGroup, field, value) {
     scheduleAutoSave();
 }
 
+function updateEconomySafetySetting(field, value) {
+    const beforeData = JSON.parse(JSON.stringify(economySafetySettings));
+    economySafetySettings[field] = value;
+
+    addActivityEntry('updated', 'config-settings', beforeData, JSON.parse(JSON.stringify(economySafetySettings)), {
+        section: 'economy-safety',
+        field
+    });
+    scheduleAutoSave();
+}
+
+function applyEconomySafetyPreset(mode) {
+    const beforeData = JSON.parse(JSON.stringify(economySafetySettings));
+    const presets = {
+        strict: {
+            enabled: true,
+            maxTransactionValue: 1000000,
+            maxUnitPrice: 100000,
+            antiSpikeEnabled: true,
+            antiSpikeMaxBaseMultiplier: 3,
+            antiSpikeMinBaseMultiplier: 0.2,
+            antiSpikeMaxStepChangeRatio: 1.5,
+            cooldownsEnabled: true,
+            buyCooldownMs: 500,
+            sellCooldownMs: 500,
+            bulkSellCooldownMs: 1000,
+            largePurchaseConfirmEnabled: true,
+            largePurchaseConfirmThreshold: 250000,
+            largePurchaseConfirmTimeoutSeconds: 12,
+            adminAlertsEnabled: true,
+            adminNotifyPermission: 'geniusshop.admin',
+            adminAlertRateLimitMs: 1500
+        },
+        balanced: {
+            enabled: true,
+            maxTransactionValue: 50000000,
+            maxUnitPrice: 10000000,
+            antiSpikeEnabled: true,
+            antiSpikeMaxBaseMultiplier: 10,
+            antiSpikeMinBaseMultiplier: 0,
+            antiSpikeMaxStepChangeRatio: 5,
+            cooldownsEnabled: true,
+            buyCooldownMs: 250,
+            sellCooldownMs: 250,
+            bulkSellCooldownMs: 500,
+            largePurchaseConfirmEnabled: true,
+            largePurchaseConfirmThreshold: 1000000,
+            largePurchaseConfirmTimeoutSeconds: 10,
+            adminAlertsEnabled: false,
+            adminNotifyPermission: 'geniusshop.admin',
+            adminAlertRateLimitMs: 3000
+        },
+        off: {
+            enabled: false,
+            maxTransactionValue: 0,
+            maxUnitPrice: 0,
+            antiSpikeEnabled: false,
+            antiSpikeMaxBaseMultiplier: 10,
+            antiSpikeMinBaseMultiplier: 0,
+            antiSpikeMaxStepChangeRatio: 5,
+            cooldownsEnabled: false,
+            buyCooldownMs: 0,
+            sellCooldownMs: 0,
+            bulkSellCooldownMs: 0,
+            largePurchaseConfirmEnabled: false,
+            largePurchaseConfirmThreshold: 0,
+            largePurchaseConfirmTimeoutSeconds: 10,
+            adminAlertsEnabled: false,
+            adminNotifyPermission: 'geniusshop.admin',
+            adminAlertRateLimitMs: 3000
+        }
+    };
+
+    if (!presets[mode]) return;
+    economySafetySettings = { ...economySafetySettings, ...presets[mode] };
+    addActivityEntry('updated', 'config-settings', beforeData, JSON.parse(JSON.stringify(economySafetySettings)), {
+        section: 'economy-safety',
+        preset: mode
+    });
+    renderGuiSettings();
+    scheduleAutoSave();
+}
+
 function openGuiButtonModal(buttonKey, title) {
     const btn = guiSettings[buttonKey];
     openEditModal({
@@ -1542,6 +2815,7 @@ function updateGuiPreview() {
     const grid = document.getElementById('preview-grid');
     if (!grid) return;
     grid.innerHTML = '';
+    updatePreviewParityLabel();
 
     // Handle paging visibility
     updatePaginationVisibility();
@@ -1576,14 +2850,20 @@ function updateGuiPreview() {
             
             slot.onclick = () => openMainMenuShopModal(loadedGuiShops.indexOf(shop));
 
-            // Replace placeholders in preview
-            const processedLore = (shop.lore || []).map(line => 
-                line.replace(/%available-times%/g, 'Available Times...')
-                    .replace(/%version%/g, serverInfo.version || '1.0.0')
-                    .replace(/%update-available%/g, '')
-            );
-
-            setupTooltip(slot, shop.name, processedLore);
+            if (previewParityMode) {
+                // Replace placeholders in preview
+                const processedLore = (shop.lore || []).map(line =>
+                    line.replace(/%available-times%/g, 'Available Times...')
+                        .replace(/%version%/g, serverInfo.version || '1.0.0')
+                        .replace(/%update-available%/g, '')
+                );
+                setupTooltip(slot, shop.name, processedLore);
+            } else {
+                setupTooltip(slot, shop.name, [
+                    `Slot: ${shop.slot}`,
+                    `Material: ${shop.material}`
+                ]);
+            }
         }
         
         grid.appendChild(slot);
@@ -1594,6 +2874,7 @@ function updatePurchasePreview() {
     const grid = document.getElementById('preview-grid');
     if (!grid) return;
     grid.innerHTML = '';
+    updatePreviewParityLabel();
 
     // Handle paging visibility
     updatePaginationVisibility();
@@ -1625,7 +2906,11 @@ function updatePurchasePreview() {
 
                 slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${btn.material.toLowerCase()}.png"></div>`;
                 slot.onclick = () => openTransactionButtonModal('purchase', 'main', key);
-                setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
+                if (previewParityMode) {
+                    setupTooltip(slot, btn.name, (btn.lore && btn.lore.length > 0) ? btn.lore : [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
+                } else {
+                    setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
+                }
             }
         });
 
@@ -1640,7 +2925,11 @@ function updatePurchasePreview() {
                     slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings[group].material.toLowerCase()}.png"></div>`;
                     slot.innerHTML += `<div class="slot-amount">${amount}</div>`;
                     slot.onclick = () => openTransactionButtonModal('purchase', group, amount);
-                    setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Action: ${group.toUpperCase()} ${amount}`]);
+                    if (previewParityMode) {
+                        setupTooltip(slot, btn.name, (btn.lore && btn.lore.length > 0) ? btn.lore : [`Slot: ${btn.slot}`, `Action: ${group.toUpperCase()} ${amount}`]);
+                    } else {
+                        setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Action: ${group.toUpperCase()} ${amount}`]);
+                    }
                 }
             });
         });
@@ -1654,7 +2943,16 @@ function updatePurchasePreview() {
 
             slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings.displayMaterial.toLowerCase()}.png"></div>`;
             slot.onclick = () => openMainTransactionItemModal('purchase');
-            setupTooltip(slot, "&eItem Preview", ["This is where the", "purchased item appears", "", "&7Click to edit"]);
+            if (previewParityMode) {
+                setupTooltip(slot, "&eItem Preview", [
+                    (guiSettings.itemLore.amountLine || '&eAmount: &7%amount%').replace('%amount%', '1'),
+                    (guiSettings.itemLore.totalLine || '&eTotal: &7%total%').replace('%total%', '$0'),
+                    '',
+                    '&7Click to edit'
+                ]);
+            } else {
+                setupTooltip(slot, "&eItem Preview", ["This is where the", "purchased item appears", "", "&7Click to edit"]);
+            }
         }
 
         grid.appendChild(slot);
@@ -1665,6 +2963,7 @@ function updateSellPreview() {
     const grid = document.getElementById('preview-grid');
     if (!grid) return;
     grid.innerHTML = '';
+    updatePreviewParityLabel();
 
     // Handle paging visibility
     updatePaginationVisibility();
@@ -1695,7 +2994,11 @@ function updateSellPreview() {
 
                 slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${btn.material.toLowerCase()}.png"></div>`;
                 slot.onclick = () => openTransactionButtonModal('sell', 'main', key);
-                setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
+                if (previewParityMode) {
+                    setupTooltip(slot, btn.name, (btn.lore && btn.lore.length > 0) ? btn.lore : [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
+                } else {
+                    setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
+                }
             }
         });
 
@@ -1709,7 +3012,11 @@ function updateSellPreview() {
                     slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings[group].material.toLowerCase()}.png"></div>`;
                     slot.innerHTML += `<div class="slot-amount">${amount}</div>`;
                     slot.onclick = () => openTransactionButtonModal('sell', group, amount);
-                    setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Action: ${group.toUpperCase()} ${amount}`]);
+                    if (previewParityMode) {
+                        setupTooltip(slot, btn.name, (btn.lore && btn.lore.length > 0) ? btn.lore : [`Slot: ${btn.slot}`, `Action: ${group.toUpperCase()} ${amount}`]);
+                    } else {
+                        setupTooltip(slot, btn.name, [`Slot: ${btn.slot}`, `Action: ${group.toUpperCase()} ${amount}`]);
+                    }
                 }
             });
         });
@@ -1722,7 +3029,16 @@ function updateSellPreview() {
 
             slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings.displayMaterial.toLowerCase()}.png"></div>`;
             slot.onclick = () => openMainTransactionItemModal('sell');
-            setupTooltip(slot, "&eItem Preview", ["This is where the", "sold item appears", "", "&7Click to edit"]);
+            if (previewParityMode) {
+                setupTooltip(slot, "&eItem Preview", [
+                    (guiSettings.itemLore.amountLine || '&eAmount: &7%amount%').replace('%amount%', '1'),
+                    (guiSettings.itemLore.totalLine || '&eTotal: &7%total%').replace('%total%', '$0'),
+                    '',
+                    '&7Click to edit'
+                ]);
+            } else {
+                setupTooltip(slot, "&eItem Preview", ["This is where the", "sold item appears", "", "&7Click to edit"]);
+            }
         }
 
         grid.appendChild(slot);
@@ -1930,5 +3246,258 @@ function removeMainMenuShop(index) {
         scheduleAutoSave();
         
         addActivityEntry('deleted', 'main-menu-button', beforeData, null);
+    }
+}
+
+function formatDatabaseTimestamp(epochMillis) {
+    const value = Number(epochMillis) || 0;
+    if (value <= 0) return 'Never';
+    try {
+        return new Date(value).toLocaleString();
+    } catch (e) {
+        return String(value);
+    }
+}
+
+function renderDatabaseEditor() {
+    const generatedEl = document.getElementById('data-editor-generated');
+    const summaryEl = document.getElementById('data-editor-summary');
+    const sectionsEl = document.getElementById('data-editor-sections');
+    if (!summaryEl || !sectionsEl) return;
+
+    const data = databaseEditorData || { totals: {}, playerCounts: [], globalCounts: [], stockResets: [] };
+    const totals = data.totals || {};
+    if (generatedEl) {
+        const generatedAt = data.generatedAt ? new Date(data.generatedAt).toLocaleString() : 'No data yet';
+        generatedEl.textContent = `Updated: ${generatedAt}`;
+    }
+
+    summaryEl.innerHTML = `
+        <div class="stock-card">
+            <div class="stock-card-label">Player Limits</div>
+            <div class="stock-card-value">${totals.playerCounts || 0}</div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-card-label">Global Stock Rows</div>
+            <div class="stock-card-value">${totals.globalCounts || 0}</div>
+        </div>
+        <div class="stock-card">
+            <div class="stock-card-label">Stock Reset Rows</div>
+            <div class="stock-card-value">${totals.stockResets || 0}</div>
+        </div>
+    `;
+
+    const playerRows = Array.isArray(data.playerCounts) ? data.playerCounts : [];
+    const globalRows = Array.isArray(data.globalCounts) ? data.globalCounts : [];
+    const stockRows = Array.isArray(data.stockResets) ? data.stockResets : [];
+
+    sectionsEl.innerHTML = `
+        <div class="settings-group card-base" style="margin-bottom: 14px;">
+            <div class="flex justify-between items-center mb-12">
+                <h3 class="m-0">Player Counts (player limits)</h3>
+                <button class="btn btn-primary" style="padding: 8px 12px;" onclick="addPlayerCountRow()">ADD ROW</button>
+            </div>
+            ${renderDatabasePlayerTable(playerRows)}
+        </div>
+        <div class="settings-group card-base" style="margin-bottom: 14px;">
+            <div class="flex justify-between items-center mb-12">
+                <h3 class="m-0">Global Counts (shared stock)</h3>
+                <button class="btn btn-primary" style="padding: 8px 12px;" onclick="addGlobalCountRow()">ADD ROW</button>
+            </div>
+            ${renderDatabaseGlobalTable(globalRows)}
+        </div>
+        <div class="settings-group card-base">
+            <div class="flex justify-between items-center mb-12">
+                <h3 class="m-0">Stock Resets (last run)</h3>
+                <button class="btn btn-primary" style="padding: 8px 12px;" onclick="addStockResetRow()">ADD ROW</button>
+            </div>
+            ${renderDatabaseStockTable(stockRows)}
+        </div>
+    `;
+}
+
+function renderDatabasePlayerTable(rows) {
+    if (!rows.length) return `<div class="stock-item-sub">No player count rows.</div>`;
+    const body = rows.map((row, index) => `
+        <div class="data-editor-row data-editor-player">
+            <input id="player-uuid-${index}" class="input-base data-editor-input" value="${escapeHtml(row.uuid || '')}" placeholder="Player UUID">
+            <input id="player-item-${index}" class="input-base data-editor-input" value="${escapeHtml(row.itemKey || '')}" placeholder="Item Key">
+            <input id="player-count-${index}" class="input-base data-editor-input" type="number" min="0" value="${Number(row.count) || 0}">
+            <div class="data-editor-actions">
+                <button class="btn btn-secondary" onclick="savePlayerCountRow(${index})">SAVE</button>
+                <button class="btn btn-danger" onclick="deletePlayerCountRow(${index})">DELETE</button>
+            </div>
+        </div>
+    `).join('');
+    return `<div class="data-editor-table">${body}</div>`;
+}
+
+function renderDatabaseGlobalTable(rows) {
+    if (!rows.length) return `<div class="stock-item-sub">No global count rows.</div>`;
+    const body = rows.map((row, index) => `
+        <div class="data-editor-row data-editor-global">
+            <input id="global-item-${index}" class="input-base data-editor-input" value="${escapeHtml(row.itemKey || '')}" placeholder="Item Key">
+            <input id="global-count-${index}" class="input-base data-editor-input" type="number" min="0" value="${Number(row.count) || 0}">
+            <div class="data-editor-actions">
+                <button class="btn btn-secondary" onclick="saveGlobalCountRow(${index})">SAVE</button>
+                <button class="btn btn-danger" onclick="deleteGlobalCountRow(${index})">DELETE</button>
+            </div>
+        </div>
+    `).join('');
+    return `<div class="data-editor-table">${body}</div>`;
+}
+
+function renderDatabaseStockTable(rows) {
+    if (!rows.length) return `<div class="stock-item-sub">No stock reset rows.</div>`;
+    const body = rows.map((row, index) => `
+        <div class="data-editor-row data-editor-stock">
+            <input id="stock-stored-${index}" class="input-base data-editor-input" value="${escapeHtml(row.storedResetId || '')}" placeholder="Stored Reset ID">
+            <input id="stock-lastrun-${index}" class="input-base data-editor-input" type="number" min="0" value="${Number(row.lastRun) || 0}">
+            <div class="stock-item-sub">${escapeHtml(row.resetId || '')}<br>${escapeHtml(formatDatabaseTimestamp(row.lastRun))}</div>
+            <div class="data-editor-actions">
+                <button class="btn btn-secondary" onclick="saveStockResetRow(${index})">SAVE</button>
+                <button class="btn btn-danger" onclick="deleteStockResetRow(${index})">DELETE</button>
+            </div>
+        </div>
+    `).join('');
+    return `<div class="data-editor-table">${body}</div>`;
+}
+
+async function savePlayerCountRow(index) {
+    const uuid = document.getElementById(`player-uuid-${index}`)?.value?.trim();
+    const itemKey = document.getElementById(`player-item-${index}`)?.value?.trim();
+    const count = Math.max(0, parseInt(document.getElementById(`player-count-${index}`)?.value || '0', 10) || 0);
+    if (!uuid || !itemKey) {
+        showAlert('Player UUID and Item Key are required.', 'warning');
+        return;
+    }
+    try {
+        await saveDatabaseEntry('player_counts', { uuid, itemKey, count });
+        renderDatabaseEditor();
+        showToast('Player count row saved', 'success');
+    } catch (error) {
+        showAlert(`Failed to save row: ${error.message}`, 'error');
+    }
+}
+
+async function deletePlayerCountRow(index) {
+    const uuid = document.getElementById(`player-uuid-${index}`)?.value?.trim();
+    const itemKey = document.getElementById(`player-item-${index}`)?.value?.trim();
+    if (!uuid || !itemKey) return;
+    const confirmed = await showConfirm(`Delete player count row for ${uuid} / ${itemKey}?`);
+    if (!confirmed) return;
+    try {
+        await deleteDatabaseEntry('player_counts', { uuid, itemKey });
+        renderDatabaseEditor();
+        showToast('Player count row deleted', 'success');
+    } catch (error) {
+        showAlert(`Failed to delete row: ${error.message}`, 'error');
+    }
+}
+
+async function saveGlobalCountRow(index) {
+    const itemKey = document.getElementById(`global-item-${index}`)?.value?.trim();
+    const count = Math.max(0, parseInt(document.getElementById(`global-count-${index}`)?.value || '0', 10) || 0);
+    if (!itemKey) {
+        showAlert('Item Key is required.', 'warning');
+        return;
+    }
+    try {
+        await saveDatabaseEntry('global_counts', { itemKey, count });
+        renderDatabaseEditor();
+        showToast('Global count row saved', 'success');
+    } catch (error) {
+        showAlert(`Failed to save row: ${error.message}`, 'error');
+    }
+}
+
+async function deleteGlobalCountRow(index) {
+    const itemKey = document.getElementById(`global-item-${index}`)?.value?.trim();
+    if (!itemKey) return;
+    const confirmed = await showConfirm(`Delete global count row for ${itemKey}?`);
+    if (!confirmed) return;
+    try {
+        await deleteDatabaseEntry('global_counts', { itemKey });
+        renderDatabaseEditor();
+        showToast('Global count row deleted', 'success');
+    } catch (error) {
+        showAlert(`Failed to delete row: ${error.message}`, 'error');
+    }
+}
+
+async function saveStockResetRow(index) {
+    const storedResetId = document.getElementById(`stock-stored-${index}`)?.value?.trim();
+    const lastRun = Math.max(0, parseInt(document.getElementById(`stock-lastrun-${index}`)?.value || '0', 10) || 0);
+    if (!storedResetId) {
+        showAlert('Stored Reset ID is required.', 'warning');
+        return;
+    }
+    try {
+        await saveDatabaseEntry('stock_resets', { storedResetId, lastRun });
+        renderDatabaseEditor();
+        showToast('Stock reset row saved', 'success');
+    } catch (error) {
+        showAlert(`Failed to save row: ${error.message}`, 'error');
+    }
+}
+
+async function deleteStockResetRow(index) {
+    const storedResetId = document.getElementById(`stock-stored-${index}`)?.value?.trim();
+    if (!storedResetId) return;
+    const confirmed = await showConfirm(`Delete stock reset row ${storedResetId}?`);
+    if (!confirmed) return;
+    try {
+        await deleteDatabaseEntry('stock_resets', { storedResetId });
+        renderDatabaseEditor();
+        showToast('Stock reset row deleted', 'success');
+    } catch (error) {
+        showAlert(`Failed to delete row: ${error.message}`, 'error');
+    }
+}
+
+async function addPlayerCountRow() {
+    const uuid = await showPrompt('Player UUID:', '', 'Add Player Count');
+    if (!uuid) return;
+    const itemKey = await showPrompt('Item Key:', '', 'Add Player Count');
+    if (!itemKey) return;
+    const countRaw = await showPrompt('Count:', '0', 'Add Player Count');
+    if (countRaw === null) return;
+    const count = Math.max(0, parseInt(countRaw, 10) || 0);
+    try {
+        await saveDatabaseEntry('player_counts', { uuid: uuid.trim(), itemKey: itemKey.trim(), count });
+        renderDatabaseEditor();
+        showToast('Player count row added', 'success');
+    } catch (error) {
+        showAlert(`Failed to add row: ${error.message}`, 'error');
+    }
+}
+
+async function addGlobalCountRow() {
+    const itemKey = await showPrompt('Item Key:', '', 'Add Global Count');
+    if (!itemKey) return;
+    const countRaw = await showPrompt('Count:', '0', 'Add Global Count');
+    if (countRaw === null) return;
+    const count = Math.max(0, parseInt(countRaw, 10) || 0);
+    try {
+        await saveDatabaseEntry('global_counts', { itemKey: itemKey.trim(), count });
+        renderDatabaseEditor();
+        showToast('Global count row added', 'success');
+    } catch (error) {
+        showAlert(`Failed to add row: ${error.message}`, 'error');
+    }
+}
+
+async function addStockResetRow() {
+    const storedResetId = await showPrompt('Stored Reset ID (usually base64 key):', '', 'Add Stock Reset');
+    if (!storedResetId) return;
+    const lastRunRaw = await showPrompt('Last Run Epoch Millis:', '0', 'Add Stock Reset');
+    if (lastRunRaw === null) return;
+    const lastRun = Math.max(0, parseInt(lastRunRaw, 10) || 0);
+    try {
+        await saveDatabaseEntry('stock_resets', { storedResetId: storedResetId.trim(), lastRun });
+        renderDatabaseEditor();
+        showToast('Stock reset row added', 'success');
+    } catch (error) {
+        showAlert(`Failed to add row: ${error.message}`, 'error');
     }
 }

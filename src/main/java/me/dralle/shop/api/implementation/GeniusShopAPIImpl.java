@@ -6,6 +6,7 @@ import me.dralle.shop.api.PriceLookupResult;
 import me.dralle.shop.gui.MainMenu;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
+import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
 import org.bukkit.entity.Player;
@@ -137,28 +138,10 @@ public class GeniusShopAPIImpl implements GeniusShopAPI {
     }
 
     private double calculateBuyPrice(ShopItem item) {
-        double base = item.getPrice();
-        if (!item.isDynamicPricing()) return base;
-
-        int globalCount = plugin.getDataManager().getGlobalCount(item.getUniqueKey());
-        double current = base + (globalCount * item.getPriceChange());
-
-        if (item.getMinPrice() > 0 && current < item.getMinPrice()) current = item.getMinPrice();
-        if (item.getMaxPrice() > 0 && current > item.getMaxPrice()) current = item.getMaxPrice();
-
-        return current;
+        return PriceFormulaUtil.resolveBuyBasePrice(plugin, item);
     }
 
     private double calculateSellPrice(ShopItem item) {
-        if (item.getSellPrice() == null) return 0;
-
-        double base = item.getSellPrice();
-        if (!item.isDynamicPricing()) return base;
-
-        int globalCount = plugin.getDataManager().getGlobalCount(item.getUniqueKey());
-        double current = base + (globalCount * item.getPriceChange());
-
-        if (current < 0.01D) current = 0.01D;
-        return current;
+        return PriceFormulaUtil.resolveSellBasePrice(plugin, item);
     }
 }

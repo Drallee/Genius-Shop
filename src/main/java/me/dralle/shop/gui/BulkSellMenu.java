@@ -2,8 +2,13 @@ package me.dralle.shop.gui;
 
 import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.ShopManager;
+import me.dralle.shop.economy.EconomyHook;
+import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
+import me.dralle.shop.util.CampaignUtil;
+import me.dralle.shop.util.ConsoleLog;
+import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.api.events.ShopSellEvent;
 import org.bukkit.Bukkit;
@@ -17,6 +22,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -97,11 +103,32 @@ public class BulkSellMenu implements Listener {
     }
 
     private void processSell(Player player, Inventory inv) {
+        class SalePlan {
+            final int slot;
+            final int soldAmount;
+            final double earned;
+            final ShopManager.SellInfo sellInfo;
+
+            SalePlan(int slot, int soldAmount, double earned, ShopManager.SellInfo sellInfo) {
+                this.slot = slot;
+                this.soldAmount = soldAmount;
+                this.earned = earned;
+                this.sellInfo = sellInfo;
+            }
+        }
+
         double totalEarned = 0;
         int totalItemsSold = 0;
         boolean stockLimitSkipped = false;
-        
+        boolean safetySkipped = false;
+        List<SalePlan> plans = new ArrayList<>();
+
         int confirmSlot = plugin.getMenuManager().getBulkSellMenuConfig().getInt("buttons.confirm.slot", 49);
+        TransactionSafetyGuard.GuardResult cooldownGuard = TransactionSafetyGuard.checkCooldown(plugin, player, TransactionSafetyGuard.ACTION_BULK_SELL);
+        if (!cooldownGuard.allowed()) {
+            player.sendMessage(cooldownGuard.message());
+            return;
+        }
 
         for (int i = 0; i < inv.getSize(); i++) {
             if (i == confirmSlot) continue;
@@ -144,32 +171,120 @@ public class BulkSellMenu implements Listener {
                     continue;
                 }
 
-                double price = sellInfo.item.getSellPrice() * amountToSell;
+                int sellUnitAmount = Math.max(1, sellInfo.item.getAmount());
+                ShopData priceShop = sellInfo.shopKey != null ? plugin.getShopManager().getShop(sellInfo.shopKey) : null;
+                double effectiveUnitPrice = calculateCurrentSellPrice(priceShop, sellInfo.item);
+                double price = sellInfo.item.isSellPricePerItem()
+                        ? effectiveUnitPrice * amountToSell
+                        : effectiveUnitPrice * (amountToSell / (double) sellUnitAmount);
+                double effectiveMinPrice = sellInfo.item.getMinPrice();
+                double effectiveMaxPrice = sellInfo.item.getMaxPrice();
+                double campaignMultiplier = CampaignUtil.getActiveSellMultiplier(priceShop, sellInfo.item);
+                if (effectiveMinPrice > 0D) effectiveMinPrice *= campaignMultiplier;
+                if (effectiveMaxPrice > 0D) effectiveMaxPrice *= campaignMultiplier;
+
+                boolean effectiveDynamicPricing = sellInfo.item.isDynamicPricing()
+                        || (sellInfo.item.getSellPriceFormula() != null && !sellInfo.item.getSellPriceFormula().trim().isEmpty());
+                TransactionSafetyGuard.GuardResult perItemGuard = TransactionSafetyGuard.validateTransaction(
+                        plugin,
+                        player,
+                        TransactionSafetyGuard.ACTION_SELL,
+                        sellInfo.shopKey,
+                        sellInfo.item.getUniqueKey(),
+                        sellInfo.item.getMaterial(),
+                        amountToSell,
+                        effectiveUnitPrice,
+                        PriceFormulaUtil.resolveSellBasePrice(plugin, sellInfo.item),
+                        price,
+                        effectiveDynamicPricing,
+                        effectiveMinPrice,
+                        effectiveMaxPrice
+                );
+                if (!perItemGuard.allowed()) {
+                    safetySkipped = true;
+                    continue;
+                }
+
                 totalEarned += price;
                 totalItemsSold += amountToSell;
-                
-                // Fire ShopSellEvent
-                ShopSellEvent sellEvent = new ShopSellEvent(player, sellInfo.item, amountToSell, price, sellInfo.shopKey);
-                Bukkit.getPluginManager().callEvent(sellEvent);
-
-                // Update counts
-                plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), sellInfo.item.getUniqueKey(), amountToSell);
-                boolean adjustForStock = sellInfo.item.getGlobalLimit() > 0 && sellAddsToStock;
-                boolean adjustForDynamicPricingOnly = sellInfo.item.isDynamicPricing() && sellInfo.item.getGlobalLimit() <= 0;
-                if (adjustForStock || adjustForDynamicPricingOnly) {
-                    plugin.getDataManager().incrementGlobalCount(sellInfo.item.getUniqueKey(), -amountToSell);
-                }
-                
-                if (amountToSell < item.getAmount()) {
-                    item.setAmount(item.getAmount() - amountToSell);
-                } else {
-                    inv.setItem(i, null); // Clear from GUI so it's not returned on close
-                }
+                plans.add(new SalePlan(i, amountToSell, price, sellInfo));
             }
         }
 
         if (totalEarned > 0) {
-            plugin.getEconomy().deposit(player, totalEarned);
+            TransactionSafetyGuard.GuardResult bulkGuard = TransactionSafetyGuard.validateTransaction(
+                    plugin,
+                    player,
+                    TransactionSafetyGuard.ACTION_BULK_SELL,
+                    null,
+                    null,
+                    Material.AIR,
+                    1,
+                    totalEarned,
+                    totalEarned,
+                    totalEarned,
+                    false,
+                    0D,
+                    0D
+            );
+            if (!bulkGuard.allowed()) {
+                player.sendMessage(bulkGuard.message());
+                return;
+            }
+
+            EconomyHook.EconomyOperationResult depositResult = plugin.getEconomy().tryDeposit(player, totalEarned);
+            if (!depositResult.success()) {
+                TransactionSafetyGuard.auditEconomyFailure(
+                        plugin,
+                        player,
+                        "bulk-deposit",
+                        null,
+                        null,
+                        Material.AIR,
+                        totalEarned,
+                        depositResult.errorMessage()
+                );
+                player.sendMessage(plugin.getMessages().getMessage("economy-error-bulk-sell"));
+                return;
+            }
+
+            for (SalePlan plan : plans) {
+                // Fire ShopSellEvent
+                ShopSellEvent sellEvent = new ShopSellEvent(player, plan.sellInfo.item, plan.soldAmount, plan.earned, plan.sellInfo.shopKey);
+                Bukkit.getPluginManager().callEvent(sellEvent);
+
+                // Update counts
+                plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), plan.sellInfo.item.getUniqueKey(), plan.soldAmount);
+                ShopData shopData = plan.sellInfo.shopKey != null ? plugin.getShopManager().getShop(plan.sellInfo.shopKey) : null;
+                boolean sellAddsToStock = resolveSellAddsToStock(shopData, plan.sellInfo.item);
+                boolean adjustForStock = plan.sellInfo.item.getGlobalLimit() > 0 && sellAddsToStock;
+                boolean adjustForDynamicPricingOnly = plan.sellInfo.item.isDynamicPricing() && plan.sellInfo.item.getGlobalLimit() <= 0;
+                if (adjustForStock || adjustForDynamicPricingOnly) {
+                    plugin.getDataManager().incrementGlobalCount(plan.sellInfo.item.getUniqueKey(), -plan.soldAmount);
+                }
+                TransactionSafetyGuard.rememberSuccessfulUnitPrice(
+                        TransactionSafetyGuard.ACTION_SELL,
+                        plan.sellInfo.item.getUniqueKey(),
+                        plan.sellInfo.item.isDynamicPricing()
+                                ? calculateCurrentSellPrice(
+                                        plan.sellInfo.shopKey != null ? plugin.getShopManager().getShop(plan.sellInfo.shopKey) : null,
+                                        plan.sellInfo.item
+                                )
+                                : CampaignUtil.applySellCampaign(
+                                        plan.sellInfo.shopKey != null ? plugin.getShopManager().getShop(plan.sellInfo.shopKey) : null,
+                                        plan.sellInfo.item,
+                                        plan.sellInfo.item.getSellPrice()
+                                )
+                );
+
+                ItemStack original = inv.getItem(plan.slot);
+                if (original == null || original.getType() == Material.AIR) continue;
+                if (plan.soldAmount < original.getAmount()) {
+                    original.setAmount(original.getAmount() - plan.soldAmount);
+                } else {
+                    inv.setItem(plan.slot, null); // Clear from GUI so it's not returned on close
+                }
+            }
             
             String msg = plugin.getMessages().getMessage("sell-all-success")
                     .replace("%amount%", String.valueOf(totalItemsSold))
@@ -183,11 +298,16 @@ public class BulkSellMenu implements Listener {
             // Discord webhook
             plugin.getDiscordWebhook().sendSellNotification(player.getName(), "Bulk Sell (" + totalItemsSold + " items)", totalItemsSold, totalEarned, plugin.getCurrencySymbol());
             if (stockLimitSkipped) {
-                player.sendMessage(ShopItemUtil.color("&eSome items were not sold because stock was already full."));
+                player.sendMessage(plugin.getMessages().getMessage("bulk-sell-stock-skipped"));
+            }
+            if (safetySkipped) {
+                player.sendMessage(plugin.getMessages().getMessage("bulk-sell-safety-skipped"));
             }
         } else {
             if (stockLimitSkipped) {
-                player.sendMessage(ShopItemUtil.color("&cCould not sell items because stock is already full."));
+                player.sendMessage(plugin.getMessages().getMessage("bulk-sell-stock-full"));
+            } else if (safetySkipped) {
+                player.sendMessage(plugin.getMessages().getMessage("bulk-sell-safety-none"));
             } else {
                 player.sendMessage(plugin.getMessages().getMessage("no-items-to-sell").replace("%item%", "items"));
             }
@@ -206,5 +326,13 @@ public class BulkSellMenu implements Listener {
             return item.getAllowSellStockOverflow();
         }
         return shop != null && shop.isAllowSellStockOverflow();
+    }
+
+    private double calculateCurrentSellPrice(ShopData shop, ShopItem item) {
+        if (item.getSellPrice() == null) {
+            return item.getSellPrice() != null ? item.getSellPrice() : 0D;
+        }
+        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, item);
+        return CampaignUtil.applySellCampaign(shop, item, currentPrice);
     }
 }

@@ -1,0 +1,75 @@
+gui-name: '<gradient:#9BE15D:#00E3AE>Variants Demo</gradient>'
+rows: 4
+permission: ''
+
+items:
+  # Shared base config + color variants.
+  - material: SHULKER_BOX
+    amount: 1
+    price: 1200
+    sell-price: 550
+    buy-price-per-item: true
+    sell-price-per-item: true
+    variant-menu: true
+    variant-group: shulker_colors
+    slot: 0
+    lore:
+      - '&7Portable storage.'
+      - '&8Pick your color variant below.'
+    variants:
+      - variant-key: white_box
+        item-key: shulker_white
+        material: WHITE_SHULKER_BOX
+        name: '&fWhite Shulker Box'
+      - variant-key: red_box
+        item-key: shulker_red
+        material: RED_SHULKER_BOX
+        name: '&cRed Shulker Box'
+      - variant-key: blue_box
+        item-key: shulker_blue
+        material: BLUE_SHULKER_BOX
+        name: '&9Blue Shulker Box'
+      - variant-key: lime_box
+        item-key: shulker_lime
+        material: LIME_SHULKER_BOX
+        name: '&aLime Shulker Box'
+
+  # Shared base config + wood variants.
+  - material: CHEST
+    amount: 16
+    price: 320
+    sell-price: 120
+    buy-price-per-item: false
+    sell-price-per-item: false
+    variant-menu: true
+    variant-group: plank_bundles
+    slot: 9
+    lore:
+      - '&7Bundle deal: &f16 per purchase'
+      - '&8Variant determines the wood type.'
+    variants:
+      - variant-key: oak_bundle
+        item-key: chest_oak_bundle
+        material: OAK_PLANKS
+        name: '&6Oak Planks Bundle'
+      - variant-key: spruce_bundle
+        item-key: chest_spruce_bundle
+        material: SPRUCE_PLANKS
+        name: '&6Spruce Planks Bundle'
+      - variant-key: birch_bundle
+        item-key: chest_birch_bundle
+        material: BIRCH_PLANKS
+        name: '&eBirch Planks Bundle'
+      - variant-key: dark_oak_bundle
+        item-key: chest_dark_oak_bundle
+        material: DARK_OAK_PLANKS
+        name: '&8Dark Oak Planks Bundle'
+
+  # Regular item (non-variant) in same shop.
+  - material: ENDER_CHEST
+    name: '&5Ender Chest'
+    amount: 1
+    price: 4800
+    sell-price: 2100
+    item-key: ender_chest_single
+    slot: 20

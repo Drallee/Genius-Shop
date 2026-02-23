@@ -5,7 +5,7 @@
 # smart updates, debugging, and more.
 # ==========================================================
 
-config-version: 12
+config-version: 13
 
 # When true, missing/outdated config files will automatically be updated
 # by merging new keys from defaults (your custom changes are kept).
@@ -32,6 +32,13 @@ updates:
 #        purchase/sell transactions, player balances, etc.
 # Useful for troubleshooting issues.
 debug: false
+
+# File logger for errors/exceptions (for support diagnostics).
+# This only works while 'debug' is true.
+# The file can be shared with support when troubleshooting.
+debug-error-log:
+  enabled: true
+  file: "debug/error.log"
 
 # How often to check scheduled stock reset rules (in seconds).
 # Lower = more precise schedule execution, higher = less overhead.
@@ -61,6 +68,53 @@ eco:
 
 # Fallback used ONLY if no Vault economy is available.
 fallback-currency-symbol: "$"
+
+# ==========================================================
+# Economy Safety Guards
+# ==========================================================
+# Server-side transaction protections to reduce risk from broken
+# economy providers, bad values, or extreme dynamic-price spikes.
+economy-safety:
+  # Master toggle
+  enabled: true
+
+  # Hard business cap per transaction total.
+  # Set to 0 to disable.
+  max-transaction-value: 50000000
+
+  # Optional cap for single unit price before amount scaling.
+  # Set to 0 to disable.
+  max-unit-price: 10000000
+
+  # Per-action cooldowns in milliseconds.
+  cooldowns:
+    enabled: true
+    buy-ms: 250
+    sell-ms: 250
+    bulk-sell-ms: 500
+
+  # Anti-spike checks for suspicious dynamic values.
+  anti-spike:
+    enabled: true
+    # Reject if current unit price > (base unit price * this value)
+    max-base-multiplier: 10.0
+    # Reject if current unit price < (base unit price * this value), 0 disables this lower-bound check
+    min-base-multiplier: 0.0
+    # Reject if unit price step-change against last successful trade for same item is larger than this ratio.
+    # Example: 5.0 = 500% jump.
+    max-step-change-ratio: 5.0
+
+  # Optional double-confirm flow for expensive purchases.
+  large-purchase-confirmation:
+    enabled: true
+    threshold: 1000000
+    timeout-seconds: 10
+
+  # Optional in-game admin alerts when safety/economy guard failures occur.
+  admin-alerts:
+    enabled: false
+    notify-permission: "geniusshop.admin"
+    rate-limit-ms: 3000
 
 # ==========================================================
 # Price Display Format

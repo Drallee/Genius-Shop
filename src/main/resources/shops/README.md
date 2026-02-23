@@ -28,6 +28,7 @@ items:
 | `rows` | Integer | No       | Number of rows in the shop GUI (1-6) |
 | `permission` | String | No       | Permission required to access this shop. Leave empty (`''`) for no permission |
 | `available-times` | List | No       | Time ranges when the shop is available (one per line). Examples: `Monday-Friday`, `08:00-17:00`, `2024-12-01 to 2024-12-31` |
+| `campaign` | String | No       | Campaign key to apply to all items in this shop |
 | `stock-reset` | Section/String | No       | Auto reset stock for the whole shop (resets global stock counters for all items in this shop) |
 | `sell-adds-to-stock` | Boolean | No       | If true, selling this shop's items replenishes global stock counters |
 | `allow-sell-stock-overflow` | Boolean | No       | If true, selling can push stock beyond its configured cap (overflow) |
@@ -41,6 +42,11 @@ items:
 | `price` | Integer | No       | Buy price for the item |
 | `sell-price` | Integer | No       | Sell price for the item. Omit if item cannot be sold back |
 | `amount` | Integer | No       | Quantity of items per transaction |
+| `buy-price-per-item` | Boolean | No       | `true` = price is per item, `false` = price is for configured `amount` bundle |
+| `sell-price-per-item` | Boolean | No       | `true` = sell-price is per item, `false` = sell-price is for configured `amount` bundle |
+| `buy-price-formula` | String | No       | Optional formula used to resolve buy base price |
+| `sell-price-formula` | String | No       | Optional formula used to resolve sell base price |
+| `campaign` | String | No       | Campaign key assignment for this specific item |
 | `enchantments` | Map | No       | Enchantments to apply to the item (format: `ENCHANTMENT: LEVEL`, one per line) |
 | `spawner-type` | String | No       | Mob type for spawners (e.g., `PIG`, `ZOMBIE`, `CREEPER`). Only for `SPAWNER` or `TRIAL_SPAWNER` materials |
 | `potion-type` | String | No       | Potion effect type (e.g., `SPEED`, `STRENGTH`, `REGENERATION`). Only for `POTION`, `SPLASH_POTION`, `LINGERING_POTION`, or `TIPPED_ARROW` materials |
@@ -49,6 +55,49 @@ items:
 | `stock-reset` | Section/String | No       | Auto reset stock for this item only (resets this item's global stock counter) |
 | `sell-adds-to-stock` | Boolean | No       | Item-level override for stock replenishment on sell |
 | `allow-sell-stock-overflow` | Boolean | No       | Item-level override for allowing stock overflow on sell |
+| `item-key` | String | No       | Stable unique identifier for this item entry (used in internal item keys, limits, and dynamic pricing state) |
+| `variant-key` | String | No       | Stable unique identifier for a specific variant entry |
+| `variants` | List | No       | Optional list of item variants. Each variant inherits base fields and can override any item setting |
+| `variant-menu` | Boolean | No       | If `true` on a base item with `variants`, show one slot that opens a variant selector menu |
+| `variant-group` | String | No       | Optional shared group key used when `variant-menu: true` |
+
+### Item Variants
+
+Use `variants` when several entries share mostly the same configuration. Each variant becomes a separate shop item.
+
+Rules:
+- Base item fields are inherited by each variant.
+- Variant fields override inherited values.
+- If base `slot` is set and variants do not set `slot`, slots are auto-assigned sequentially from the base slot.
+- Add `variant-key` (or `item-key`) per variant for a stable internal key.
+- Set `variant-menu: true` on the base item to show one entry in the shop that opens a variant selector menu.
+
+Example:
+
+```yaml
+items:
+  - material: SHULKER_BOX
+    amount: 1
+    buy-price-per-item: true
+    sell-price-per-item: true
+    price: 1200
+    sell-price: 600
+    variant-menu: true
+    variant-group: shulker_colors
+    variants:
+      - variant-key: white_box
+        material: WHITE_SHULKER_BOX
+        name: '&fWhite Shulker Box'
+        slot: 0
+      - variant-key: red_box
+        material: RED_SHULKER_BOX
+        name: '&cRed Shulker Box'
+        slot: 1
+      - variant-key: blue_box
+        material: BLUE_SHULKER_BOX
+        name: '&9Blue Shulker Box'
+        slot: 2
+```
 
 ## Advanced Item Configuration
 
@@ -202,6 +251,58 @@ items:
     lore:
       - '&7Produces diamonds.'
       - '&7Available: <gradient:#C8FF00:#9BFCA2>%available-times%</gradient>'
+```
+
+Price mode (per-item vs bundle):
+
+```yaml
+items:
+  - material: BREAD
+    amount: 16
+    price: 16
+    sell-price: 8
+    buy-price-per-item: false
+    sell-price-per-item: false
+```
+
+Formula pricing:
+
+```yaml
+items:
+  - material: DIAMOND
+    price: 1000
+    sell-price: 800
+    dynamic-pricing: true
+    price-change: 2
+    min-price: 500
+    max-price: 5000
+    buy-price-formula: "max(min_price, dynamic)"
+    sell-price-formula: "max(0.01, min(dynamic, base * 0.9))"
+```
+
+Campaigns:
+
+```yaml
+# campaigns.yml
+campaigns:
+  - key: "weekend-boost"
+    name: "Weekend Boost"
+    start: "2026-03-01 00:00"
+    end: "2026-03-03 23:59"
+    timezone: "server"
+    buy-multiplier: 0.85
+    sell-multiplier: 1.10
+```
+
+```yaml
+# shop file
+campaign: "weekend-boost"
+items:
+  - material: GOLDEN_APPLE
+    price: 100
+  - material: DIAMOND
+    price: 1200
+    campaign: "weekend-boost"
 ```
 
 ### Enchantments

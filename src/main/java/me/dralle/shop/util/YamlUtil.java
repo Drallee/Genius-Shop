@@ -1,5 +1,6 @@
 package me.dralle.shop.util;
 
+import me.dralle.shop.ShopPlugin;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -16,7 +17,12 @@ public class YamlUtil {
         try (InputStreamReader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
             config.load(reader);
         } catch (IOException | InvalidConfigurationException e) {
-            e.printStackTrace();
+            ShopPlugin plugin = ShopPlugin.getInstance();
+            if (plugin != null) {
+                ConsoleLog.error(plugin, "Failed to load YAML file '" + file.getName() + "': " + e.getMessage(), e);
+            } else {
+                e.printStackTrace();
+            }
         }
         return config;
     }

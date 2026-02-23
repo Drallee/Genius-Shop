@@ -8,7 +8,10 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import me.dralle.shop.model.ShopData;
+import me.dralle.shop.model.ShopItem;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.YamlUtil;
@@ -19,7 +22,13 @@ import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,6 +50,7 @@ public class ConfigApiServer {
     private static final long SESSION_DURATION = 3600000; // 1 hour
     private static final long AUTO_LOGIN_TOKEN_DURATION = 300000; // 5 minutes
     private static final long PENDING_CONFIRMATION_DURATION = 180000; // 3 minutes
+    private static final int MAX_ACTIVITY_ENTRIES = 400;
 
     public static class PendingLoginConfirmation {
         public String username;
@@ -319,7 +329,51 @@ public class ConfigApiServer {
                 if (method.equals("GET")) {
                     handleGetActivityLog(exchange);
                 } else if (method.equals("POST")) {
-                    handleSaveActivityLog(exchange);
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
+                }
+            } else if (path.equals("/api/activity-log/rollback")) {
+                if (method.equals("POST")) {
+                    handleRollbackActivityLog(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts POST requests");
+                }
+            } else if (path.equals("/api/activity-log/clear")) {
+                if (method.equals("POST")) {
+                    handleClearActivityLog(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts POST requests");
+                }
+            } else if (path.equals("/api/economy-safety")) {
+                if (method.equals("GET")) {
+                    handleGetEconomySafety(exchange);
+                } else if (method.equals("POST")) {
+                    handleSaveEconomySafety(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET and POST requests");
+                }
+            } else if (path.equals("/api/stock-analytics")) {
+                if (method.equals("GET")) {
+                    handleGetStockAnalytics(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
+                }
+            } else if (path.equals("/api/database")) {
+                if (method.equals("GET")) {
+                    handleGetDatabase(exchange);
+                } else if (method.equals("POST")) {
+                    handleUpsertDatabaseEntry(exchange);
+                } else if (method.equals("DELETE")) {
+                    handleDeleteDatabaseEntry(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET, POST, and DELETE requests");
+                }
+            } else if (path.equals("/api/telemetry")) {
+                if (method.equals("GET")) {
+                    handleGetTelemetry(exchange);
+                } else if (method.equals("POST")) {
+                    handlePostTelemetry(exchange);
                 } else {
                     sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET and POST requests");
                 }
@@ -524,17 +578,9 @@ public class ConfigApiServer {
         // Verify IP matches
         boolean ipMatches = requestIp.equals(tokenData.ipAddress);
 
-        // Allow localhost variations (IPv4 127.0.0.1, IPv6 ::1 or 0:0:0:0:0:0:0:1)
-        boolean playerIsLocalhost = tokenData.ipAddress.equals("127.0.0.1") ||
-                                   tokenData.ipAddress.equals("0:0:0:0:0:0:0:1") ||
-                                   tokenData.ipAddress.equals("::1");
-
-        boolean requestIsLocal = requestIp.equals("127.0.0.1") ||
-                                requestIp.equals("0:0:0:0:0:0:0:1") ||
-                                requestIp.equals("::1") ||
-                                requestIp.startsWith("192.168.") ||  // Local network
-                                requestIp.startsWith("10.") ||       // Local network
-                                requestIp.startsWith("172.");        // Local network
+        // Allow localhost + private network ranges (IPv4/IPv6)
+        boolean playerIsLocalhost = isLoopbackIp(tokenData.ipAddress);
+        boolean requestIsLocal = isLocalNetworkIp(requestIp);
 
         // If player is connecting via localhost and request is from local network, allow it
         if (!ipMatches && !(playerIsLocalhost && requestIsLocal)) {
@@ -647,19 +693,8 @@ public class ConfigApiServer {
         // Use same logic as auto-login: allow localhost/local network mixing
         boolean ipMatches = requestIp.equals(session.ipAddress);
 
-        boolean sessionIsLocal = session.ipAddress.equals("127.0.0.1") ||
-                                session.ipAddress.equals("0:0:0:0:0:0:0:1") ||
-                                session.ipAddress.equals("::1") ||
-                                session.ipAddress.startsWith("192.168.") ||
-                                session.ipAddress.startsWith("10.") ||
-                                session.ipAddress.startsWith("172.");
-
-        boolean requestIsLocal = requestIp.equals("127.0.0.1") ||
-                                requestIp.equals("0:0:0:0:0:0:0:1") ||
-                                requestIp.equals("::1") ||
-                                requestIp.startsWith("192.168.") ||
-                                requestIp.startsWith("10.") ||
-                                requestIp.startsWith("172.");
+        boolean sessionIsLocal = isLocalNetworkIp(session.ipAddress);
+        boolean requestIsLocal = isLocalNetworkIp(requestIp);
 
         // If session and request are both local, allow it
         if (!ipMatches && !(sessionIsLocal && requestIsLocal)) {
@@ -678,9 +713,7 @@ public class ConfigApiServer {
         // Don't check player IP changes if both are local network
         // (player might be IPv6 localhost while browser uses IPv4 LAN address)
         String playerIp = player.getAddress().getAddress().getHostAddress();
-        boolean playerIsLocalhost = playerIp.equals("127.0.0.1") ||
-                                   playerIp.equals("0:0:0:0:0:0:0:1") ||
-                                   playerIp.equals("::1");
+        boolean playerIsLocalhost = isLoopbackIp(playerIp);
 
         if (!playerIsLocalhost && !playerIp.equals(session.ipAddress) && !(sessionIsLocal && requestIsLocal)) {
             me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Session invalidated for '" + session.username + "': in-game IP changed");
@@ -694,6 +727,37 @@ public class ConfigApiServer {
         }
 
         return true;
+    }
+
+    private boolean isLoopbackIp(String ip) {
+        if (ip == null) return false;
+        return ip.equals("127.0.0.1") || ip.equals("::1") || ip.equals("0:0:0:0:0:0:0:1");
+    }
+
+    private boolean isLocalNetworkIp(String ip) {
+        if (ip == null || ip.isBlank()) return false;
+        if (isLoopbackIp(ip)) return true;
+
+        // IPv6 link-local + unique local
+        String lower = ip.toLowerCase();
+        if (lower.startsWith("fe80:") || lower.startsWith("fd") || lower.startsWith("fc")) {
+            return true;
+        }
+
+        // IPv4 RFC1918 ranges
+        if (ip.startsWith("10.") || ip.startsWith("192.168.")) return true;
+        if (ip.startsWith("172.")) {
+            String[] parts = ip.split("\\.");
+            if (parts.length >= 2) {
+                try {
+                    int second = Integer.parseInt(parts[1]);
+                    return second >= 16 && second <= 31;
+                } catch (NumberFormatException ignored) {
+                    return false;
+                }
+            }
+        }
+        return false;
     }
 
     private void handleListFiles(HttpExchange exchange) throws IOException {
@@ -730,6 +794,7 @@ public class ConfigApiServer {
 
         // discord.yml
         putIfPresent(response, "discord", new File(plugin.getDataFolder(), "discord.yml"));
+        putIfPresent(response, "campaignsFile", new File(plugin.getDataFolder(), "campaigns.yml"));
 
         // Sanitized price format config for web preview (no sensitive config values exposed).
         Map<String, Object> priceFormat = new HashMap<>();
@@ -740,6 +805,7 @@ public class ConfigApiServer {
         grouped.put("maxDecimals", plugin.getConfig().getInt("price-format.grouped.max-decimals", 2));
         priceFormat.put("grouped", grouped);
         response.put("priceFormat", priceFormat);
+        response.put("economySafety", getEconomySafetySettingsMap());
 
         // Add server info
         Map<String, Object> serverInfo = new HashMap<>();
@@ -820,6 +886,336 @@ public class ConfigApiServer {
         sendJsonResponse(exchange, 200, response);
     }
 
+    private void handleGetEconomySafety(HttpExchange exchange) throws IOException {
+        sendJsonResponse(exchange, 200, getEconomySafetySettingsMap());
+    }
+
+    private void handleGetStockAnalytics(HttpExchange exchange) throws IOException {
+        sendJsonResponse(exchange, 200, getStockAnalyticsMap());
+    }
+
+    private void handleGetDatabase(HttpExchange exchange) throws IOException {
+        sendJsonResponse(exchange, 200, getDatabaseEditorMap());
+    }
+
+    private void handleUpsertDatabaseEntry(HttpExchange exchange) throws IOException {
+        JsonObject body = parseJsonObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        if (body == null) {
+            sendError(exchange, 400, "Invalid JSON", "Request body must be valid JSON");
+            return;
+        }
+
+        String table = body.has("table") ? body.get("table").getAsString() : "";
+        if (table.isBlank()) {
+            sendError(exchange, 400, "Missing Field", "Field 'table' is required");
+            return;
+        }
+
+        try {
+            switch (table.toLowerCase(java.util.Locale.ROOT)) {
+                case "player_counts" -> {
+                    String uuid = body.has("uuid") ? body.get("uuid").getAsString() : "";
+                    String itemKey = body.has("itemKey") ? body.get("itemKey").getAsString() : "";
+                    int count = body.has("count") ? body.get("count").getAsInt() : 0;
+                    if (uuid.isBlank() || itemKey.isBlank()) {
+                        sendError(exchange, 400, "Missing Field", "Fields 'uuid' and 'itemKey' are required");
+                        return;
+                    }
+                    plugin.getDataManager().setPlayerCount(uuid, itemKey, count, true);
+                }
+                case "global_counts" -> {
+                    String itemKey = body.has("itemKey") ? body.get("itemKey").getAsString() : "";
+                    int count = body.has("count") ? body.get("count").getAsInt() : 0;
+                    if (itemKey.isBlank()) {
+                        sendError(exchange, 400, "Missing Field", "Field 'itemKey' is required");
+                        return;
+                    }
+                    plugin.getDataManager().setGlobalCount(itemKey, count, true);
+                }
+                case "stock_resets" -> {
+                    String storedResetId = body.has("storedResetId") ? body.get("storedResetId").getAsString() : "";
+                    long lastRun = body.has("lastRun") ? body.get("lastRun").getAsLong() : 0L;
+                    if (storedResetId.isBlank()) {
+                        sendError(exchange, 400, "Missing Field", "Field 'storedResetId' is required");
+                        return;
+                    }
+                    plugin.getDataManager().setLastStockResetStored(storedResetId, lastRun, true);
+                }
+                default -> {
+                    sendError(exchange, 400, "Invalid Table", "Unsupported table: " + table);
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            sendError(exchange, 400, "Invalid Payload", "Failed to process database entry payload");
+            return;
+        }
+
+        sendJsonResponse(exchange, 200, Map.of("success", true, "database", getDatabaseEditorMap()));
+    }
+
+    private void handleDeleteDatabaseEntry(HttpExchange exchange) throws IOException {
+        JsonObject body = parseJsonObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        if (body == null) {
+            sendError(exchange, 400, "Invalid JSON", "Request body must be valid JSON");
+            return;
+        }
+
+        String table = body.has("table") ? body.get("table").getAsString() : "";
+        if (table.isBlank()) {
+            sendError(exchange, 400, "Missing Field", "Field 'table' is required");
+            return;
+        }
+
+        switch (table.toLowerCase(java.util.Locale.ROOT)) {
+            case "player_counts" -> {
+                String uuid = body.has("uuid") ? body.get("uuid").getAsString() : "";
+                String itemKey = body.has("itemKey") ? body.get("itemKey").getAsString() : "";
+                if (uuid.isBlank() || itemKey.isBlank()) {
+                    sendError(exchange, 400, "Missing Field", "Fields 'uuid' and 'itemKey' are required");
+                    return;
+                }
+                plugin.getDataManager().removePlayerCount(uuid, itemKey);
+            }
+            case "global_counts" -> {
+                String itemKey = body.has("itemKey") ? body.get("itemKey").getAsString() : "";
+                if (itemKey.isBlank()) {
+                    sendError(exchange, 400, "Missing Field", "Field 'itemKey' is required");
+                    return;
+                }
+                plugin.getDataManager().removeGlobalCount(itemKey);
+            }
+            case "stock_resets" -> {
+                String storedResetId = body.has("storedResetId") ? body.get("storedResetId").getAsString() : "";
+                if (storedResetId.isBlank()) {
+                    sendError(exchange, 400, "Missing Field", "Field 'storedResetId' is required");
+                    return;
+                }
+                plugin.getDataManager().removeStockReset(storedResetId);
+            }
+            default -> {
+                sendError(exchange, 400, "Invalid Table", "Unsupported table: " + table);
+                return;
+            }
+        }
+
+        sendJsonResponse(exchange, 200, Map.of("success", true, "database", getDatabaseEditorMap()));
+    }
+
+    private void handleSaveEconomySafety(HttpExchange exchange) throws IOException {
+        String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        JsonObject root;
+        try {
+            root = JsonParser.parseString(body).getAsJsonObject();
+        } catch (Exception e) {
+            sendError(exchange, 400, "Invalid JSON", "Request body must be valid JSON");
+            return;
+        }
+
+        JsonObject src = root.has("settings") && root.get("settings").isJsonObject()
+                ? root.getAsJsonObject("settings")
+                : root;
+        if (src == null) {
+            sendError(exchange, 400, "Missing Settings", "No economy safety settings were provided");
+            return;
+        }
+
+        FileConfiguration cfg = plugin.getConfig();
+        setBooleanIfPresent(cfg, src, "enabled", "economy-safety.enabled");
+        setDoubleIfPresent(cfg, src, "maxTransactionValue", "economy-safety.max-transaction-value");
+        setDoubleIfPresent(cfg, src, "maxUnitPrice", "economy-safety.max-unit-price");
+
+        setBooleanIfPresent(cfg, src, "antiSpikeEnabled", "economy-safety.anti-spike.enabled");
+        setDoubleIfPresent(cfg, src, "antiSpikeMaxBaseMultiplier", "economy-safety.anti-spike.max-base-multiplier");
+        setDoubleIfPresent(cfg, src, "antiSpikeMinBaseMultiplier", "economy-safety.anti-spike.min-base-multiplier");
+        setDoubleIfPresent(cfg, src, "antiSpikeMaxStepChangeRatio", "economy-safety.anti-spike.max-step-change-ratio");
+
+        setBooleanIfPresent(cfg, src, "cooldownsEnabled", "economy-safety.cooldowns.enabled");
+        setLongIfPresent(cfg, src, "buyCooldownMs", "economy-safety.cooldowns.buy-ms");
+        setLongIfPresent(cfg, src, "sellCooldownMs", "economy-safety.cooldowns.sell-ms");
+        setLongIfPresent(cfg, src, "bulkSellCooldownMs", "economy-safety.cooldowns.bulk-sell-ms");
+
+        setBooleanIfPresent(cfg, src, "largePurchaseConfirmEnabled", "economy-safety.large-purchase-confirmation.enabled");
+        setDoubleIfPresent(cfg, src, "largePurchaseConfirmThreshold", "economy-safety.large-purchase-confirmation.threshold");
+        setLongIfPresent(cfg, src, "largePurchaseConfirmTimeoutSeconds", "economy-safety.large-purchase-confirmation.timeout-seconds");
+
+        setBooleanIfPresent(cfg, src, "adminAlertsEnabled", "economy-safety.admin-alerts.enabled");
+        setStringIfPresent(cfg, src, "adminNotifyPermission", "economy-safety.admin-alerts.notify-permission");
+        setLongIfPresent(cfg, src, "adminAlertRateLimitMs", "economy-safety.admin-alerts.rate-limit-ms");
+
+        plugin.saveConfig();
+        plugin.reloadPlugin();
+        sendJsonResponse(exchange, 200, Map.of("success", true, "economySafety", getEconomySafetySettingsMap()));
+    }
+
+    private Map<String, Object> getEconomySafetySettingsMap() {
+        Map<String, Object> out = new HashMap<>();
+        FileConfiguration cfg = plugin.getConfig();
+        out.put("enabled", cfg.getBoolean("economy-safety.enabled", true));
+        out.put("maxTransactionValue", cfg.getDouble("economy-safety.max-transaction-value", 0D));
+        out.put("maxUnitPrice", cfg.getDouble("economy-safety.max-unit-price", 0D));
+
+        out.put("antiSpikeEnabled", cfg.getBoolean("economy-safety.anti-spike.enabled", true));
+        out.put("antiSpikeMaxBaseMultiplier", cfg.getDouble("economy-safety.anti-spike.max-base-multiplier", 10D));
+        out.put("antiSpikeMinBaseMultiplier", cfg.getDouble("economy-safety.anti-spike.min-base-multiplier", 0D));
+        out.put("antiSpikeMaxStepChangeRatio", cfg.getDouble("economy-safety.anti-spike.max-step-change-ratio", 5D));
+
+        out.put("cooldownsEnabled", cfg.getBoolean("economy-safety.cooldowns.enabled", true));
+        out.put("buyCooldownMs", cfg.getLong("economy-safety.cooldowns.buy-ms", 250L));
+        out.put("sellCooldownMs", cfg.getLong("economy-safety.cooldowns.sell-ms", 250L));
+        out.put("bulkSellCooldownMs", cfg.getLong("economy-safety.cooldowns.bulk-sell-ms", 500L));
+
+        out.put("largePurchaseConfirmEnabled", cfg.getBoolean("economy-safety.large-purchase-confirmation.enabled", false));
+        out.put("largePurchaseConfirmThreshold", cfg.getDouble("economy-safety.large-purchase-confirmation.threshold", 0D));
+        out.put("largePurchaseConfirmTimeoutSeconds", cfg.getLong("economy-safety.large-purchase-confirmation.timeout-seconds", 10L));
+
+        out.put("adminAlertsEnabled", cfg.getBoolean("economy-safety.admin-alerts.enabled", false));
+        out.put("adminNotifyPermission", cfg.getString("economy-safety.admin-alerts.notify-permission", "geniusshop.admin"));
+        out.put("adminAlertRateLimitMs", cfg.getLong("economy-safety.admin-alerts.rate-limit-ms", 3000L));
+        return out;
+    }
+
+    private Map<String, Object> getStockAnalyticsMap() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        List<Map<String, Object>> entries = new ArrayList<>();
+        Map<String, Integer> globalCounts = plugin.getDataManager().getAllGlobalCounts();
+
+        int totalShops = 0;
+        int totalItems = 0;
+        int trackedItems = 0;
+        int outOfStock = 0;
+        int lowStock = 0;
+        long totalLimit = 0L;
+        long totalCount = 0L;
+
+        for (String shopKey : plugin.getShopManager().getShopKeys()) {
+            ShopData shop = plugin.getShopManager().getShop(shopKey);
+            if (shop == null) continue;
+            totalShops++;
+
+            for (ShopItem item : shop.getItems()) {
+                if (item == null) continue;
+                totalItems++;
+
+                int limit = Math.max(0, item.getGlobalLimit());
+                if (limit <= 0) continue;
+
+                trackedItems++;
+                int current = Math.max(0, globalCounts.getOrDefault(item.getUniqueKey(), 0));
+                int remaining = Math.max(0, limit - current);
+                long lowThreshold = Math.max(1L, Math.round(limit * 0.20D));
+                if (remaining <= 0) {
+                    outOfStock++;
+                } else if (remaining <= lowThreshold) {
+                    lowStock++;
+                }
+
+                totalLimit += limit;
+                totalCount += Math.min(current, limit);
+
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("shopKey", shopKey);
+                row.put("itemKey", item.getUniqueKey());
+                row.put("slot", item.getSlot() != null ? item.getSlot() : -1);
+                row.put("material", item.getMaterial() != null ? item.getMaterial().name() : "UNKNOWN");
+                row.put("name", item.getName() != null ? item.getName() : "");
+                row.put("globalLimit", limit);
+                row.put("current", current);
+                row.put("remaining", remaining);
+                row.put("utilizationPct", limit > 0 ? Math.min(100D, (current * 100D) / limit) : 0D);
+                row.put("showStock", item.isShowStock());
+                row.put("showStockResetTimer", item.isShowStockResetTimer());
+                row.put("dynamicPricing", item.isDynamicPricing());
+                entries.add(row);
+            }
+        }
+
+        entries.sort(Comparator
+                .comparingDouble((Map<String, Object> m) -> ((Number) m.getOrDefault("utilizationPct", 0D)).doubleValue())
+                .reversed()
+                .thenComparingInt((Map<String, Object> m) -> ((Number) m.getOrDefault("remaining", 0)).intValue())
+        );
+
+        out.put("generatedAt", Instant.now().toString());
+        out.put("totals", Map.of(
+                "shops", totalShops,
+                "items", totalItems,
+                "trackedItems", trackedItems,
+                "outOfStock", outOfStock,
+                "lowStock", lowStock,
+                "totalLimit", totalLimit,
+                "totalCount", totalCount,
+                "fillPct", totalLimit > 0 ? (totalCount * 100D) / totalLimit : 0D
+        ));
+        out.put("entries", entries);
+        return out;
+    }
+
+    private Map<String, Object> getDatabaseEditorMap() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        List<Map<String, Object>> playerRows = new ArrayList<>();
+        for (me.dralle.shop.data.DataManager.PlayerCountEntry entry : plugin.getDataManager().getAllPlayerCountEntries()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("uuid", entry.uuid());
+            row.put("itemKey", entry.itemKey());
+            row.put("count", entry.count());
+            playerRows.add(row);
+        }
+
+        List<Map<String, Object>> globalRows = new ArrayList<>();
+        for (me.dralle.shop.data.DataManager.GlobalCountEntry entry : plugin.getDataManager().getAllGlobalCountEntries()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("itemKey", entry.itemKey());
+            row.put("count", entry.count());
+            globalRows.add(row);
+        }
+
+        List<Map<String, Object>> stockRows = new ArrayList<>();
+        for (me.dralle.shop.data.DataManager.StockResetEntry entry : plugin.getDataManager().getAllStockResetEntries()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("storedResetId", entry.storedResetId());
+            row.put("resetId", entry.resetId());
+            row.put("lastRun", entry.lastRun());
+            row.put("lastRunIso", entry.lastRun() > 0 ? Instant.ofEpochMilli(entry.lastRun()).toString() : "");
+            stockRows.add(row);
+        }
+
+        out.put("generatedAt", Instant.now().toString());
+        out.put("playerCounts", playerRows);
+        out.put("globalCounts", globalRows);
+        out.put("stockResets", stockRows);
+        out.put("totals", Map.of(
+                "playerCounts", playerRows.size(),
+                "globalCounts", globalRows.size(),
+                "stockResets", stockRows.size()
+        ));
+        return out;
+    }
+
+    private void setBooleanIfPresent(FileConfiguration cfg, JsonObject src, String key, String path) {
+        if (src.has(key) && src.get(key).isJsonPrimitive()) {
+            cfg.set(path, src.get(key).getAsBoolean());
+        }
+    }
+
+    private void setLongIfPresent(FileConfiguration cfg, JsonObject src, String key, String path) {
+        if (src.has(key) && src.get(key).isJsonPrimitive()) {
+            cfg.set(path, src.get(key).getAsLong());
+        }
+    }
+
+    private void setDoubleIfPresent(FileConfiguration cfg, JsonObject src, String key, String path) {
+        if (src.has(key) && src.get(key).isJsonPrimitive()) {
+            cfg.set(path, src.get(key).getAsDouble());
+        }
+    }
+
+    private void setStringIfPresent(FileConfiguration cfg, JsonObject src, String key, String path) {
+        if (src.has(key) && src.get(key).isJsonPrimitive()) {
+            cfg.set(path, src.get(key).getAsString());
+        }
+    }
+
     private void ensureEditorFilesExist() {
         File menusDir = new File(plugin.getDataFolder(), "menus");
         File shopsDir = new File(plugin.getDataFolder(), "shops");
@@ -832,6 +1228,7 @@ public class ConfigApiServer {
         ensureDefaultResourceExists("menus/bulk-sell-menu.yml");
         ensureDefaultResourceExists("menus/gui-settings.yml");
         ensureDefaultResourceExists("discord.yml");
+        ensureTextFileExists(new File(plugin.getDataFolder(), "campaigns.yml"), "campaigns: []\n");
     }
 
     private void ensureDefaultResourceExists(String resourcePath) {
@@ -842,6 +1239,19 @@ public class ConfigApiServer {
             } catch (Exception e) {
                 me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create default resource '" + resourcePath + "': " + e.getMessage());
             }
+        }
+    }
+
+    private void ensureTextFileExists(File file, String content) {
+        if (file.exists()) return;
+        try {
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            Files.writeString(file.toPath(), content, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create default file '" + file.getName() + "': " + e.getMessage());
         }
     }
 
@@ -921,8 +1331,18 @@ public class ConfigApiServer {
             }
         }
 
+        String previousContent = readFileSafely(file);
+
         // Save file
         Files.writeString(file.toPath(), fileContent, StandardCharsets.UTF_8);
+
+        String username = getSessionUsername(exchange);
+        boolean existedBefore = previousContent != null;
+        if (!existedBefore) {
+            appendActivityEntry("created", "file", username, fileName, null, fileContent, null);
+        } else if (!previousContent.equals(fileContent)) {
+            appendActivityEntry("updated", "file", username, fileName, previousContent, fileContent, null);
+        }
 
         // Reload plugin configuration
         plugin.reloadPlugin();
@@ -957,6 +1377,8 @@ public class ConfigApiServer {
             return;
         }
 
+        String previousContent = readFileSafely(file);
+
         // Delete the file
         try {
             boolean deleted = file.delete();
@@ -969,11 +1391,10 @@ public class ConfigApiServer {
             }
 
             // Get session info for logging
-            String sessionToken = exchange.getRequestHeaders().getFirst("X-Session-Token");
-            SessionData session = sessions.get(sessionToken);
-            String username = session != null ? session.username : "unknown";
+            String username = getSessionUsername(exchange);
 
             me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Admin '" + username + "' deleted '" + fileName + "'");
+            appendActivityEntry("deleted", "file", username, fileName, previousContent, null, null);
 
             sendResponse(exchange, 200, "{\"success\": true}");
         } catch (Exception e) {
@@ -988,16 +1409,7 @@ public class ConfigApiServer {
     }
 
     private void handleGetActivityLog(HttpExchange exchange) throws IOException {
-        File activityLogFile = new File(plugin.getDataFolder(), "activity-log.json");
-
-        if (!activityLogFile.exists()) {
-            // Return empty array if file doesn't exist
-            sendResponse(exchange, 200, "[]");
-            return;
-        }
-
-        String content = Files.readString(activityLogFile.toPath(), StandardCharsets.UTF_8);
-        sendResponse(exchange, 200, content);
+        sendJsonResponse(exchange, 200, loadActivityEntries());
     }
 
     private void handleGetLanguage(HttpExchange exchange) throws IOException {
@@ -1063,24 +1475,95 @@ public class ConfigApiServer {
         sendJsonResponse(exchange, 200, languages);
     }
 
-    private void handleSaveActivityLog(HttpExchange exchange) throws IOException {
-        // Read request body
-        String content = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-
-        File activityLogFile = new File(plugin.getDataFolder(), "activity-log.json");
-
-        // Create parent directories if needed
-        if (!activityLogFile.getParentFile().exists()) {
-            boolean created = activityLogFile.getParentFile().mkdirs();
-            if (!created) {
-                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create activity log directory: " + activityLogFile.getParentFile());
-            }
+    private void handleRollbackActivityLog(HttpExchange exchange) throws IOException {
+        JsonObject body = parseJsonObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        if (body == null || !body.has("id")) {
+            sendError(exchange, 400, "Bad Request", "Request body must contain an activity-log entry id");
+            return;
         }
 
-        // Save file
-        Files.writeString(activityLogFile.toPath(), content, StandardCharsets.UTF_8);
+        long id;
+        try {
+            id = body.get("id").getAsLong();
+        } catch (Exception e) {
+            sendError(exchange, 400, "Bad Request", "Invalid activity-log entry id");
+            return;
+        }
 
-        sendResponse(exchange, 200, "{\"success\": true}");
+        List<Map<String, Object>> entries = loadActivityEntries();
+        Map<String, Object> entry = null;
+        for (Map<String, Object> candidate : entries) {
+            Object entryId = candidate.get("id");
+            if (entryId instanceof Number n && n.longValue() == id) {
+                entry = candidate;
+                break;
+            }
+        }
+        if (entry == null) {
+            sendError(exchange, 404, "Not Found", "Activity log entry not found");
+            return;
+        }
+
+        String action = String.valueOf(entry.getOrDefault("action", "")).toLowerCase(java.util.Locale.ROOT);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> details = entry.get("details") instanceof Map ? (Map<String, Object>) entry.get("details") : null;
+
+        String fileName = details != null ? toStringOrNull(details.get("fileName")) : null;
+        if (fileName == null || fileName.isEmpty()) {
+            fileName = inferFileNameFromEntry(entry);
+        }
+        if (fileName == null || fileName.isEmpty()) {
+            sendError(exchange, 400, "Rollback Failed", "Could not determine file for rollback entry");
+            return;
+        }
+
+        File file = resolveFile(fileName);
+        if (file == null) {
+            sendError(exchange, 400, "Rollback Failed", "Rollback entry references an invalid file path");
+            return;
+        }
+
+        String currentContent = readFileSafely(file);
+        String restoredContent = null;
+        boolean changed = false;
+
+        if (action.equals("created")) {
+            if (file.exists()) {
+                changed = file.delete();
+            }
+        } else {
+            String beforeContent = extractSnapshotContent(entry.get("beforeData"));
+            if (beforeContent == null) {
+                sendError(exchange, 400, "Rollback Failed", "Rollback entry has no restorable previous content");
+                return;
+            }
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            Files.writeString(file.toPath(), beforeContent, StandardCharsets.UTF_8);
+            restoredContent = beforeContent;
+            changed = true;
+        }
+
+        if (!changed) {
+            sendJsonResponse(exchange, 200, Map.of("success", true, "changed", false));
+            return;
+        }
+
+        plugin.reloadPlugin();
+
+        String username = getSessionUsername(exchange);
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("rolledBackEntryId", id);
+        appendActivityEntry("rollback", "file", username, fileName, currentContent, restoredContent, extra);
+
+        sendJsonResponse(exchange, 200, Map.of("success", true, "changed", true));
+    }
+
+    private void handleClearActivityLog(HttpExchange exchange) throws IOException {
+        saveActivityEntries(new ArrayList<>());
+        sendJsonResponse(exchange, 200, Map.of("success", true));
     }
 
     private File resolveFile(String fileName) {
@@ -1122,7 +1605,7 @@ public class ConfigApiServer {
 
         // Handle main config files
         if (fileName.equals("discord.yml") || fileName.equals("config.yml") || 
-            fileName.equals("gui.yml")) {
+            fileName.equals("gui.yml") || fileName.equals("campaigns.yml")) {
             return new File(plugin.getDataFolder(), fileName);
         }
 
@@ -1137,6 +1620,197 @@ public class ConfigApiServer {
             }
         } catch (Exception ignored) {}
         return null;
+    }
+
+    private JsonObject parseJsonObject(String json) {
+        try {
+            return JsonParser.parseString(json).getAsJsonObject();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String getSessionUsername(HttpExchange exchange) {
+        String sessionToken = exchange.getRequestHeaders().getFirst("X-Session-Token");
+        SessionData session = sessions.get(sessionToken);
+        return session != null ? session.username : "unknown";
+    }
+
+    private File getActivityLogFile() {
+        return new File(plugin.getDataFolder(), "activity-log.json");
+    }
+
+    private File getTelemetryLogFile() {
+        return new File(plugin.getDataFolder(), "telemetry-log.json");
+    }
+
+    private List<Map<String, Object>> loadTelemetryEntries() {
+        File logFile = getTelemetryLogFile();
+        if (!logFile.exists()) return new ArrayList<>();
+        try {
+            String json = Files.readString(logFile.toPath(), StandardCharsets.UTF_8);
+            if (json == null || json.trim().isEmpty()) return new ArrayList<>();
+            java.lang.reflect.Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+            List<Map<String, Object>> entries = GSON.fromJson(json, listType);
+            return entries != null ? entries : new ArrayList<>();
+        } catch (Exception e) {
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to read telemetry log: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    private void saveTelemetryEntries(List<Map<String, Object>> entries) {
+        File logFile = getTelemetryLogFile();
+        try {
+            if (!logFile.getParentFile().exists()) {
+                logFile.getParentFile().mkdirs();
+            }
+            Files.writeString(logFile.toPath(), GSON.toJson(entries), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to write telemetry log: " + e.getMessage());
+        }
+    }
+
+    private void handlePostTelemetry(HttpExchange exchange) throws IOException {
+        JsonObject body = parseJsonObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        if (body == null) {
+            sendError(exchange, 400, "Invalid JSON", "Request body must be valid JSON");
+            return;
+        }
+
+        String event = body.has("event") ? body.get("event").getAsString() : "";
+        if (event.isEmpty()) {
+            sendError(exchange, 400, "Missing Field", "Field 'event' is required");
+            return;
+        }
+
+        String username = getSessionUsername(exchange);
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("timestamp", Instant.now().toString());
+        row.put("event", event);
+        row.put("username", username != null ? username : "unknown");
+        row.put("tab", body.has("tab") ? body.get("tab").getAsString() : "");
+        row.put("mode", body.has("mode") ? body.get("mode").getAsString() : "");
+        row.put("durationMs", body.has("durationMs") ? body.get("durationMs").getAsLong() : 0L);
+        row.put("success", !body.has("success") || body.get("success").getAsBoolean());
+        row.put("metadata", body.has("metadata") ? body.get("metadata").toString() : "{}");
+
+        List<Map<String, Object>> entries = loadTelemetryEntries();
+        entries.add(row);
+        if (entries.size() > 2000) {
+            entries = new ArrayList<>(entries.subList(entries.size() - 2000, entries.size()));
+        }
+        saveTelemetryEntries(entries);
+        sendJsonResponse(exchange, 200, Map.of("success", true));
+    }
+
+    private void handleGetTelemetry(HttpExchange exchange) throws IOException {
+        List<Map<String, Object>> entries = loadTelemetryEntries();
+        Map<String, Integer> totals = new LinkedHashMap<>();
+        for (Map<String, Object> row : entries) {
+            String event = String.valueOf(row.getOrDefault("event", "unknown"));
+            totals.put(event, totals.getOrDefault(event, 0) + 1);
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("count", entries.size());
+        response.put("totals", totals);
+        response.put("recent", entries.stream()
+                .sorted((a, b) -> String.valueOf(b.getOrDefault("timestamp", "")).compareTo(String.valueOf(a.getOrDefault("timestamp", ""))))
+                .limit(100)
+                .toList());
+        sendJsonResponse(exchange, 200, response);
+    }
+
+    private synchronized List<Map<String, Object>> loadActivityEntries() {
+        File logFile = getActivityLogFile();
+        if (!logFile.exists()) return new ArrayList<>();
+        try {
+            String raw = Files.readString(logFile.toPath(), StandardCharsets.UTF_8);
+            if (raw == null || raw.trim().isEmpty()) return new ArrayList<>();
+            java.lang.reflect.Type type = new TypeToken<List<Map<String, Object>>>() {}.getType();
+            List<Map<String, Object>> parsed = GSON.fromJson(raw, type);
+            return parsed != null ? parsed : new ArrayList<>();
+        } catch (Exception e) {
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to read activity log: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    private synchronized void saveActivityEntries(List<Map<String, Object>> entries) {
+        File logFile = getActivityLogFile();
+        try {
+            File parent = logFile.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            Files.writeString(logFile.toPath(), GSON.toJson(entries), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to write activity log: " + e.getMessage());
+        }
+    }
+
+    private synchronized void appendActivityEntry(
+            String action,
+            String target,
+            String username,
+            String fileName,
+            String beforeContent,
+            String afterContent,
+            Map<String, Object> extraDetails
+    ) {
+        List<Map<String, Object>> entries = loadActivityEntries();
+        Map<String, Object> entry = new LinkedHashMap<>();
+        long id = System.currentTimeMillis() * 1000L + (long) (Math.random() * 1000L);
+        entry.put("id", id);
+        entry.put("timestamp", Instant.now().toString());
+        entry.put("username", username == null ? "unknown" : username);
+        entry.put("action", action);
+        entry.put("target", target);
+        entry.put("beforeData", makeFileSnapshot(fileName, beforeContent));
+        entry.put("afterData", makeFileSnapshot(fileName, afterContent));
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("fileName", fileName);
+        if (extraDetails != null) {
+            details.putAll(extraDetails);
+        }
+        entry.put("details", details);
+
+        entries.add(0, entry);
+        if (entries.size() > MAX_ACTIVITY_ENTRIES) {
+            entries = new ArrayList<>(entries.subList(0, MAX_ACTIVITY_ENTRIES));
+        }
+        saveActivityEntries(entries);
+    }
+
+    private Map<String, Object> makeFileSnapshot(String fileName, String content) {
+        if (content == null) return null;
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("fileName", fileName);
+        snapshot.put("content", content);
+        return snapshot;
+    }
+
+    private String extractSnapshotContent(Object snapshotObj) {
+        if (!(snapshotObj instanceof Map<?, ?> map)) return null;
+        Object content = map.get("content");
+        return toStringOrNull(content);
+    }
+
+    private String inferFileNameFromEntry(Map<String, Object> entry) {
+        String fileName = inferFileNameFromSnapshot(entry.get("afterData"));
+        if (fileName != null && !fileName.isEmpty()) return fileName;
+        return inferFileNameFromSnapshot(entry.get("beforeData"));
+    }
+
+    private String inferFileNameFromSnapshot(Object snapshotObj) {
+        if (!(snapshotObj instanceof Map<?, ?> map)) return null;
+        return toStringOrNull(map.get("fileName"));
+    }
+
+    private String toStringOrNull(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private Map<String, Object> recursiveSectionToMap(org.bukkit.configuration.ConfigurationSection section) {

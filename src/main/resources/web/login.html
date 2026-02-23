@@ -32,13 +32,13 @@
             <ul>
                 <li data-i18n="web-editor.login.req1">You must be logged into the Minecraft server</li>
                 <li data-i18n="web-editor.login.req2">You need admin permissions (geniusshop.admin or OP)</li>
-                <li data-i18n="web-editor.login.req3">Your password is your player UUID (or a login code)</li>
+                <li data-i18n="web-editor.login.req3">Use /shop editor in-game and enter the 6-digit code</li>
             </ul>
         </div>
 
         <div class="login-tabs">
-            <button class="tab-btn active" id="tab-uuid" type="button" data-i18n="web-editor.login.tab-uuid">UUID Login</button>
-            <button class="tab-btn" id="tab-code" type="button" data-i18n="web-editor.login.tab-code">Code Login</button>
+            <button class="tab-btn" id="tab-uuid" type="button" data-i18n="web-editor.login.tab-uuid">UUID Login</button>
+            <button class="tab-btn active" id="tab-code" type="button" data-i18n="web-editor.login.tab-code">Code Login</button>
         </div>
 
         <form id="login-form">
@@ -47,7 +47,7 @@
                 <input type="text" id="username" name="username" placeholder="Your in-game name" data-i18n="web-editor.login.username-placeholder" required autocomplete="username">
             </div>
 
-            <div id="uuid-fields">
+            <div id="uuid-fields" style="display: none;">
                 <div class="form-group">
                     <label for="password" data-i18n="web-editor.login.password-label">Password (Your UUID)</label>
                     <input type="password" id="password" name="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" data-i18n="web-editor.login.password-placeholder" autocomplete="current-password">
@@ -57,10 +57,10 @@
                 </div>
             </div>
 
-            <div id="code-fields" style="display: none;">
+            <div id="code-fields">
                 <div class="form-group">
                     <label for="login-code" data-i18n="web-editor.login.code-label">Login Code</label>
-                    <input type="text" id="login-code" name="login-code" placeholder="6-digit code (e.g. 123456)" data-i18n="web-editor.login.code-placeholder" maxlength="6">
+                    <input type="text" id="login-code" name="login-code" placeholder="6-digit code (e.g. 123456)" data-i18n="web-editor.login.code-placeholder" maxlength="6" required>
                     <div class="input-hint" data-i18n="web-editor.login.code-hint">
                         Generate a code in-game using /shop editor
                     </div>

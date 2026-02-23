@@ -1,5 +1,9 @@
 package me.dralle.shop.util;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import me.dralle.shop.ShopPlugin;
 import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
@@ -16,7 +20,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.potion.PotionType;
+import org.bukkit.util.io.BukkitObjectInputStream;
+import org.bukkit.util.io.BukkitObjectOutputStream;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -31,6 +39,7 @@ import java.util.regex.Pattern;
 
 public class ShopItemUtil {
 
+    private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Pattern HEX_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("(?is)<gradient:((?:#?[A-F0-9]{6}:)*#?[A-F0-9]{6})>(.*?)</gradient>");
     private static final Pattern PREFIX_STYLE_GRADIENT_PATTERN = Pattern.compile("(?is)((?:[&\u00A7][K-OR])+)(<gradient:(?:#?[A-F0-9]{6}:)*#?[A-F0-9]{6}>.*?</gradient>)");
@@ -629,6 +638,15 @@ public class ShopItemUtil {
 
     public static boolean isSameItem(ItemStack stack, me.dralle.shop.model.ShopItem shopItem) {
         if (stack == null || shopItem == null) return false;
+        if (shopItem.getItemStackData() != null && !shopItem.getItemStackData().isEmpty()) {
+            ItemStack expected = deserializeItemStack(shopItem.getItemStackData());
+            if (expected != null) {
+                expected.setAmount(Math.max(1, stack.getAmount()));
+                ItemStack actual = stack.clone();
+                actual.setAmount(expected.getAmount());
+                return actual.isSimilar(expected);
+            }
+        }
         if (stack.getType() != shopItem.getMaterial()) return false;
 
         if (shopItem.isSpawner()) {
@@ -656,6 +674,90 @@ public class ShopItemUtil {
         }
 
         return true;
+    }
+
+    public static String serializeItemStack(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return "";
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             BukkitObjectOutputStream out = new BukkitObjectOutputStream(bytes)) {
+            out.writeObject(item);
+            return Base64.getEncoder().encodeToString(bytes.toByteArray());
+        } catch (Exception ex) {
+            ConsoleLog.warn(ShopPlugin.getInstance(), "Failed to serialize item stack: " + ex.getMessage());
+            return "";
+        }
+    }
+
+    public static ItemStack deserializeItemStack(String data) {
+        if (data == null || data.trim().isEmpty()) return null;
+        try (ByteArrayInputStream bytes = new ByteArrayInputStream(Base64.getDecoder().decode(data.trim()));
+             BukkitObjectInputStream in = new BukkitObjectInputStream(bytes)) {
+            Object value = in.readObject();
+            return value instanceof ItemStack ? (ItemStack) value : null;
+        } catch (Exception ex) {
+            ConsoleLog.warn(ShopPlugin.getInstance(), "Failed to deserialize item stack: " + ex.getMessage());
+            return null;
+        }
+    }
+
+    public static String exportHeldItemToJson(ItemStack item, String itemKey) {
+        JsonObject root = new JsonObject();
+        root.addProperty("type", "geniusshop-item");
+        root.addProperty("formatVersion", 1);
+
+        JsonObject exportedItem = new JsonObject();
+        exportedItem.addProperty("material", item.getType().name());
+        exportedItem.addProperty("amount", Math.max(1, item.getAmount()));
+        exportedItem.addProperty("price", 0);
+        exportedItem.addProperty("sellPrice", 0);
+        exportedItem.addProperty("buyPricePerItem", true);
+        exportedItem.addProperty("sellPricePerItem", true);
+        exportedItem.addProperty("itemStack", serializeItemStack(item));
+        exportedItem.addProperty("itemKey", itemKey == null ? "" : itemKey);
+        exportedItem.addProperty("requireName", true);
+        exportedItem.addProperty("requireLore", true);
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            if (meta.hasDisplayName()) {
+                exportedItem.addProperty("name", sectionToAmpersand(meta.getDisplayName()));
+            } else {
+                exportedItem.addProperty("name", "&e" + item.getType().name());
+            }
+            if (meta.hasLore() && meta.getLore() != null) {
+                JsonArray lore = new JsonArray();
+                for (String line : meta.getLore()) {
+                    lore.add(sectionToAmpersand(line));
+                }
+                exportedItem.add("lore", lore);
+            }
+            if (meta.hasEnchants()) {
+                JsonObject enchantments = new JsonObject();
+                for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet()) {
+                    NamespacedKey key = entry.getKey().getKey();
+                    enchantments.addProperty(key.toString(), entry.getValue());
+                }
+                exportedItem.add("enchantments", enchantments);
+            }
+            exportedItem.addProperty("hideAttributes", meta.hasItemFlag(ItemFlag.HIDE_ATTRIBUTES));
+            try {
+                exportedItem.addProperty("hideAdditional", meta.hasItemFlag(ItemFlag.valueOf("HIDE_ADDITIONAL_TOOLTIP")));
+            } catch (Exception ignored) {
+                exportedItem.addProperty("hideAdditional", false);
+            }
+        } else {
+            exportedItem.addProperty("name", "&e" + item.getType().name());
+            exportedItem.add("lore", new JsonArray());
+            exportedItem.addProperty("hideAttributes", false);
+            exportedItem.addProperty("hideAdditional", false);
+        }
+
+        root.add("item", exportedItem);
+        return PRETTY_GSON.toJson(root);
+    }
+
+    private static String sectionToAmpersand(String text) {
+        return text == null ? "" : text.replace('\u00A7', '&');
     }
 
     /**

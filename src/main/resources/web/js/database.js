@@ -56,6 +56,72 @@ function appendStockResetYaml(yaml, indent, rule) {
     return yaml;
 }
 
+function parseCampaignsFileYaml(yamlContent) {
+    globalCampaigns = [];
+    if (!yamlContent || typeof yamlContent !== 'string') return;
+    const lines = yamlContent.split('\n');
+    let inCampaigns = false;
+    let currentCampaign = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const indent = line.search(/\S/);
+
+        if (indent === 0 && trimmed === 'campaigns:') {
+            inCampaigns = true;
+            continue;
+        }
+        if (indent === 0 && inCampaigns && trimmed.endsWith(':') && trimmed !== 'campaigns:') {
+            break;
+        }
+        if (!inCampaigns) continue;
+
+        if (indent === 2 && trimmed.startsWith('-')) {
+            if (currentCampaign && currentCampaign.key) globalCampaigns.push(currentCampaign);
+            currentCampaign = { key: '', name: '', start: '', end: '', timezone: '', buyMultiplier: 1, sellMultiplier: 1 };
+            const inline = trimmed.substring(1).trim();
+            if (inline.includes(':')) {
+                const [kRaw, ...vParts] = inline.split(':');
+                const k = kRaw.trim().replace(/['"]/g, '');
+                const v = vParts.join(':').trim().replace(/['"]/g, '');
+                if (k === 'key') currentCampaign.key = v;
+                else if (k === 'name') currentCampaign.name = v;
+            }
+            continue;
+        }
+        if (currentCampaign && indent === 4 && trimmed.includes(':')) {
+            const [kRaw, ...vParts] = trimmed.split(':');
+            const k = kRaw.trim().replace(/['"]/g, '');
+            const v = vParts.join(':').trim().replace(/['"]/g, '');
+            if (k === 'key') currentCampaign.key = v;
+            else if (k === 'name') currentCampaign.name = v;
+            else if (k === 'start') currentCampaign.start = v;
+            else if (k === 'end') currentCampaign.end = v;
+            else if (k === 'timezone') currentCampaign.timezone = v;
+            else if (k === 'buy-multiplier') currentCampaign.buyMultiplier = parseFloat(v) || 1;
+            else if (k === 'sell-multiplier') currentCampaign.sellMultiplier = parseFloat(v) || 1;
+        }
+    }
+    if (currentCampaign && currentCampaign.key) globalCampaigns.push(currentCampaign);
+}
+
+function generateCampaignsFileYaml() {
+    let yaml = `campaigns:\n`;
+    (globalCampaigns || []).forEach(c => {
+        if (!c || !c.key) return;
+        yaml += `  - key: '${c.key}'\n`;
+        if (c.name) yaml += `    name: '${c.name}'\n`;
+        if (c.start) yaml += `    start: '${c.start}'\n`;
+        if (c.end) yaml += `    end: '${c.end}'\n`;
+        if (c.timezone) yaml += `    timezone: '${c.timezone}'\n`;
+        yaml += `    buy-multiplier: ${Math.max(0.01, parseFloat(c.buyMultiplier) || 1)}\n`;
+        yaml += `    sell-multiplier: ${Math.max(0.01, parseFloat(c.sellMultiplier) || 1)}\n`;
+    });
+    return yaml;
+}
+
 function parseShopYaml(yamlContent) {
     items = [];
     itemIdCounter = 0;
@@ -63,6 +129,8 @@ function parseShopYaml(yamlContent) {
         guiName: '&8Shop',
         rows: 3,
         permission: '',
+        campaign: '',
+        campaigns: [],
         availableTimes: '',
         sellAddsToStock: false,
         allowSellStockOverflow: false,
@@ -76,8 +144,12 @@ function parseShopYaml(yamlContent) {
     let currentItem = null;
     let inLore = false;
     let inCommands = false;
+    let inAllowedWorlds = false;
+    let inDeniedWorlds = false;
     let inItemsSection = false;
     let inAvailableTimes = false;
+    let inCampaigns = false;
+    let currentCampaign = null;
     let inShopStockReset = false;
     let inItemStockReset = false;
     let availableTimesList = [];
@@ -101,30 +173,48 @@ function parseShopYaml(yamlContent) {
             if (cleanKey === 'gui-name') {
                 currentShopSettings.guiName = value;
                 inAvailableTimes = false;
+                inCampaigns = false;
                 inShopStockReset = false;
             } else if (cleanKey === 'rows') {
                 currentShopSettings.rows = parseInt(value) || 3;
                 inAvailableTimes = false;
+                inCampaigns = false;
                 inShopStockReset = false;
             } else if (cleanKey === 'permission') {
                 currentShopSettings.permission = value;
+                inAvailableTimes = false;
+                inCampaigns = false;
+                inShopStockReset = false;
+            } else if (cleanKey === 'campaign') {
+                currentShopSettings.campaign = value;
+                inAvailableTimes = false;
+                inCampaigns = false;
+                inShopStockReset = false;
+            } else if (cleanKey === 'campaigns') {
+                inCampaigns = true;
+                currentCampaign = null;
+                currentShopSettings.campaigns = [];
                 inAvailableTimes = false;
                 inShopStockReset = false;
             } else if (cleanKey === 'sell-adds-to-stock') {
                 currentShopSettings.sellAddsToStock = value.toLowerCase() === 'true';
                 inAvailableTimes = false;
+                inCampaigns = false;
                 inShopStockReset = false;
             } else if (cleanKey === 'allow-sell-stock-overflow') {
                 currentShopSettings.allowSellStockOverflow = value.toLowerCase() === 'true';
                 inAvailableTimes = false;
+                inCampaigns = false;
                 inShopStockReset = false;
             } else if (cleanKey === 'available-times') {
                 inAvailableTimes = true;
+                inCampaigns = false;
                 inShopStockReset = false;
                 availableTimesList = [];
             } else if (cleanKey === 'stock-reset') {
                 inShopStockReset = true;
                 inAvailableTimes = false;
+                inCampaigns = false;
                 currentShopSettings.stockResetRule = sanitizeStockResetRule({
                     ...currentShopSettings.stockResetRule,
                     enabled: true
@@ -139,6 +229,36 @@ function parseShopYaml(yamlContent) {
         if (inAvailableTimes && indent === 2 && trimmed.startsWith('-')) {
             const timeValue = trimmed.substring(1).trim().replace(/['"]/g, '');
             availableTimesList.push(timeValue);
+        }
+        if (!inItemsSection && inCampaigns) {
+            if (indent === 2 && trimmed.startsWith('-')) {
+                if (currentCampaign && currentCampaign.key) {
+                    currentShopSettings.campaigns.push(currentCampaign);
+                }
+                currentCampaign = { key: '', name: '', start: '', end: '', timezone: '', buyMultiplier: 1, sellMultiplier: 1 };
+                const inline = trimmed.substring(1).trim();
+                if (inline.includes(':')) {
+                    const [kRaw, ...vParts] = inline.split(':');
+                    const k = kRaw.trim().replace(/['"]/g, '');
+                    const v = vParts.join(':').trim().replace(/['"]/g, '');
+                    if (k === 'key') currentCampaign.key = v;
+                    else if (k === 'name') currentCampaign.name = v;
+                }
+                continue;
+            }
+            if (currentCampaign && indent === 4 && trimmed.includes(':')) {
+                const [kRaw, ...vParts] = trimmed.split(':');
+                const k = kRaw.trim().replace(/['"]/g, '');
+                const v = vParts.join(':').trim().replace(/['"]/g, '');
+                if (k === 'key') currentCampaign.key = v;
+                else if (k === 'name') currentCampaign.name = v;
+                else if (k === 'start') currentCampaign.start = v;
+                else if (k === 'end') currentCampaign.end = v;
+                else if (k === 'timezone') currentCampaign.timezone = v;
+                else if (k === 'buy-multiplier') currentCampaign.buyMultiplier = parseFloat(v) || 1;
+                else if (k === 'sell-multiplier') currentCampaign.sellMultiplier = parseFloat(v) || 1;
+                continue;
+            }
         }
         if (!inItemsSection && inShopStockReset && indent === 2 && !trimmed.startsWith('-') && trimmed.includes(':')) {
             const [rawKey, ...valueParts] = trimmed.split(':');
@@ -162,6 +282,11 @@ function parseShopYaml(yamlContent) {
         if (indent === 0 && trimmed === 'items:') {
             inItemsSection = true;
             inAvailableTimes = false;
+            if (currentCampaign && currentCampaign.key) {
+                currentShopSettings.campaigns.push(currentCampaign);
+                currentCampaign = null;
+            }
+            inCampaigns = false;
             inShopStockReset = false;
             // Set available-times state
             currentShopSettings.availableTimes = availableTimesList.join('\n');
@@ -182,10 +307,23 @@ function parseShopYaml(yamlContent) {
                 id: itemIdCounter++,
                 material: material,
                 name: '&eItem',
+                itemKey: '',
+                variantKey: '',
                 headTexture: '',
                 headOwner: '',
+                itemStack: '',
                 price: 0,
                 sellPrice: 0,
+                buyPricePerItem: true,
+                sellPricePerItem: true,
+                campaignEnabled: false,
+                campaign: '',
+                campaignName: '',
+                campaignStart: '',
+                campaignEnd: '',
+                campaignTimezone: '',
+                campaignBuyMultiplier: 1,
+                campaignSellMultiplier: 1,
                 amount: 1,
                 lore: [],
                 enchantments: {},
@@ -200,12 +338,19 @@ function parseShopYaml(yamlContent) {
                 potionLevel: 0,
                 commands: [],
                 runAs: 'console',
+                minPlayerLevel: 0,
+                maxPlayerLevel: 0,
+                requiredGamemode: '',
+                allowedWorlds: [],
+                deniedWorlds: [],
                 limit: 0,
                 globalLimit: 0,
                 dynamicPricing: false,
                 minPrice: 0,
                 maxPrice: 0,
                 priceChange: 0,
+                buyPriceFormula: '',
+                sellPriceFormula: '',
                 stockResetRule: createDefaultStockResetRule(),
                 showStock: false,
                 showStockResetTimer: false,
@@ -217,6 +362,8 @@ function parseShopYaml(yamlContent) {
             };
             inLore = false;
             inCommands = false;
+            inAllowedWorlds = false;
+            inDeniedWorlds = false;
             inItemStockReset = false;
         } else if (inItemsSection && trimmed === '-') {
             if (currentItem) {
@@ -226,10 +373,23 @@ function parseShopYaml(yamlContent) {
                 id: itemIdCounter++,
                 material: 'STONE',
                 name: '&eItem',
+                itemKey: '',
+                variantKey: '',
                 headTexture: '',
                 headOwner: '',
+                itemStack: '',
                 price: 0,
                 sellPrice: 0,
+                buyPricePerItem: true,
+                sellPricePerItem: true,
+                campaignEnabled: false,
+                campaign: '',
+                campaignName: '',
+                campaignStart: '',
+                campaignEnd: '',
+                campaignTimezone: '',
+                campaignBuyMultiplier: 1,
+                campaignSellMultiplier: 1,
                 amount: 1,
                 lore: [],
                 enchantments: {},
@@ -244,12 +404,19 @@ function parseShopYaml(yamlContent) {
                 potionLevel: 0,
                 commands: [],
                 runAs: 'console',
+                minPlayerLevel: 0,
+                maxPlayerLevel: 0,
+                requiredGamemode: '',
+                allowedWorlds: [],
+                deniedWorlds: [],
                 limit: 0,
                 globalLimit: 0,
                 dynamicPricing: false,
                 minPrice: 0,
                 maxPrice: 0,
                 priceChange: 0,
+                buyPriceFormula: '',
+                sellPriceFormula: '',
                 stockResetRule: createDefaultStockResetRule(),
                 showStock: false,
                 showStockResetTimer: false,
@@ -261,6 +428,8 @@ function parseShopYaml(yamlContent) {
             };
             inLore = false;
             inCommands = false;
+            inAllowedWorlds = false;
+            inDeniedWorlds = false;
             inItemStockReset = false;
         } else if (currentItem && indent >= 2) {
             if (inItemStockReset && indent >= 4 && !trimmed.startsWith('-') && trimmed.includes(':')) {
@@ -287,6 +456,8 @@ function parseShopYaml(yamlContent) {
             const value = valueParts.join(':').trim().replace(/['"]/g, '');
             if (indent === 2 && key !== 'stock-reset') {
                 inItemStockReset = false;
+                if (key !== 'allowed-worlds') inAllowedWorlds = false;
+                if (key !== 'denied-worlds') inDeniedWorlds = false;
             }
 
             if (key === 'material') {
@@ -301,11 +472,50 @@ function parseShopYaml(yamlContent) {
             } else if (key.trim() === 'sell-price') {
                 currentItem.sellPrice = parseFloat(value) || 0;
                 inLore = false;
+            } else if (key.trim() === 'buy-price-per-item' || key.trim() === 'price-per-item') {
+                currentItem.buyPricePerItem = value === 'true';
+                inLore = false;
+            } else if (key.trim() === 'sell-price-per-item') {
+                currentItem.sellPricePerItem = value === 'true';
+                inLore = false;
+            } else if (key.trim() === 'campaign-enabled') {
+                currentItem.campaignEnabled = value === 'true';
+                inLore = false;
+            } else if (key.trim() === 'campaign') {
+                currentItem.campaign = value;
+                inLore = false;
+            } else if (key.trim() === 'item-key') {
+                currentItem.itemKey = value;
+                inLore = false;
+            } else if (key.trim() === 'variant-key') {
+                currentItem.variantKey = value;
+                inLore = false;
+            } else if (key.trim() === 'campaign-name') {
+                currentItem.campaignName = value;
+                inLore = false;
+            } else if (key.trim() === 'campaign-start') {
+                currentItem.campaignStart = value;
+                inLore = false;
+            } else if (key.trim() === 'campaign-end') {
+                currentItem.campaignEnd = value;
+                inLore = false;
+            } else if (key.trim() === 'campaign-timezone') {
+                currentItem.campaignTimezone = value;
+                inLore = false;
+            } else if (key.trim() === 'campaign-buy-multiplier') {
+                currentItem.campaignBuyMultiplier = parseFloat(value) || 1;
+                inLore = false;
+            } else if (key.trim() === 'campaign-sell-multiplier') {
+                currentItem.campaignSellMultiplier = parseFloat(value) || 1;
+                inLore = false;
             } else if (key.trim() === 'amount') {
                 currentItem.amount = parseInt(value) || 1;
                 inLore = false;
             } else if (key.trim() === 'lore') {
                 inLore = true;
+                inCommands = false;
+                inAllowedWorlds = false;
+                inDeniedWorlds = false;
             } else if (key.trim() === 'enchantments') {
                 inLore = false;
                 // Basic enchantment parsing if on same line (rare)
@@ -342,6 +552,12 @@ function parseShopYaml(yamlContent) {
             } else if (key.trim() === 'price-change') {
                 currentItem.priceChange = parseFloat(value) || 0;
                 inLore = false;
+            } else if (key.trim() === 'buy-price-formula') {
+                currentItem.buyPriceFormula = value;
+                inLore = false;
+            } else if (key.trim() === 'sell-price-formula') {
+                currentItem.sellPriceFormula = value;
+                inLore = false;
             } else if (key.trim() === 'run-command-only') {
                 currentItem.runCommandOnly = value === 'true';
                 inLore = false;
@@ -351,6 +567,29 @@ function parseShopYaml(yamlContent) {
                 inLore = false;
             } else if (key.trim() === 'permission') {
                 currentItem.permission = value;
+                inLore = false;
+            } else if (key.trim() === 'min-player-level') {
+                currentItem.minPlayerLevel = parseInt(value) || 0;
+                inLore = false;
+            } else if (key.trim() === 'max-player-level') {
+                currentItem.maxPlayerLevel = parseInt(value) || 0;
+                inLore = false;
+            } else if (key.trim() === 'required-gamemode') {
+                currentItem.requiredGamemode = value.toUpperCase();
+                inLore = false;
+            } else if (key.trim() === 'allowed-worlds') {
+                currentItem.allowedWorlds = [];
+                inAllowedWorlds = true;
+                inDeniedWorlds = false;
+                inLore = false;
+                inCommands = false;
+                inLore = false;
+            } else if (key.trim() === 'denied-worlds') {
+                currentItem.deniedWorlds = [];
+                inAllowedWorlds = false;
+                inDeniedWorlds = true;
+                inLore = false;
+                inCommands = false;
                 inLore = false;
             } else if (key.trim() === 'sell-adds-to-stock') {
                 currentItem.sellAddsToStock = value === 'true';
@@ -390,19 +629,32 @@ function parseShopYaml(yamlContent) {
             } else if (key.trim() === 'head-owner') {
                 currentItem.headOwner = value;
                 inLore = false;
+            } else if (key.trim() === 'item-stack') {
+                currentItem.itemStack = value;
+                inLore = false;
             } else if (key.trim() === 'slot') {
                 currentItem.slot = parseInt(value);
                 inLore = false;
                 inCommands = false;
+                inAllowedWorlds = false;
+                inDeniedWorlds = false;
             } else if (key.trim() === 'commands') {
                 inCommands = true;
                 inLore = false;
+                inAllowedWorlds = false;
+                inDeniedWorlds = false;
             } else if (trimmed.startsWith('-') && inLore) {
                 const loreLine = trimmed.substring(1).trim().replace(/['"]/g, '');
                 currentItem.lore.push(loreLine);
             } else if (trimmed.startsWith('-') && inCommands) {
                 const cmd = trimmed.substring(1).trim().replace(/['"]/g, '');
                 currentItem.commands.push(cmd);
+            } else if (trimmed.startsWith('-') && inAllowedWorlds) {
+                const listVal = trimmed.substring(1).trim().replace(/['"]/g, '');
+                currentItem.allowedWorlds.push(listVal);
+            } else if (trimmed.startsWith('-') && inDeniedWorlds) {
+                const listVal = trimmed.substring(1).trim().replace(/['"]/g, '');
+                currentItem.deniedWorlds.push(listVal);
             } else if (indent >= 4 && !inLore && !inCommands && trimmed.includes(':')) {
                 // Could be enchantment or other nested property
                 if (line.includes(':')) {
@@ -415,7 +667,7 @@ function parseShopYaml(yamlContent) {
                             const cleanKey = subKey;
                             const upperKey = cleanKey.toUpperCase();
                             // Filter out keys that might have been incorrectly put here or are known fields
-                            if (!['SPAWNER-TYPE', 'SPAWNER-ITEM', 'POTION-TYPE', 'POTION-LEVEL', 'PRICE', 'SELL-PRICE', 'AMOUNT', 'LIMIT', 'GLOBAL-LIMIT', 'MATERIAL', 'NAME', 'LORE', 'SLOT', 'REQUIRE-NAME', 'REQUIRE-LORE', 'UNSTABLE-TNT', 'HIDE-ATTRIBUTES', 'HIDE-ADDITIONAL', 'COMMANDS', 'PERMISSION', 'SELL-ADDS-TO-STOCK', 'ALLOW-SELL-STOCK-OVERFLOW', 'HEAD-TEXTURE', 'HEAD-OWNER'].includes(upperKey)) {
+                            if (!['SPAWNER-TYPE', 'SPAWNER-ITEM', 'POTION-TYPE', 'POTION-LEVEL', 'PRICE', 'SELL-PRICE', 'BUY-PRICE-PER-ITEM', 'SELL-PRICE-PER-ITEM', 'PRICE-PER-ITEM', 'AMOUNT', 'LIMIT', 'GLOBAL-LIMIT', 'MATERIAL', 'NAME', 'LORE', 'SLOT', 'REQUIRE-NAME', 'REQUIRE-LORE', 'UNSTABLE-TNT', 'HIDE-ATTRIBUTES', 'HIDE-ADDITIONAL', 'COMMANDS', 'PERMISSION', 'SELL-ADDS-TO-STOCK', 'ALLOW-SELL-STOCK-OVERFLOW', 'HEAD-TEXTURE', 'HEAD-OWNER', 'ITEM-STACK', 'BUY-PRICE-FORMULA', 'SELL-PRICE-FORMULA'].includes(upperKey)) {
                                 currentItem.enchantments[cleanKey] = parseInt(subVal) || 1;
                             }
                         }
@@ -429,10 +681,18 @@ function parseShopYaml(yamlContent) {
         items.push(currentItem);
     }
     currentShopSettings.availableTimes = availableTimesList.join('\n');
+    if (currentCampaign && currentCampaign.key) {
+        currentShopSettings.campaigns.push(currentCampaign);
+    }
+    if (!Array.isArray(currentShopSettings.campaigns)) currentShopSettings.campaigns = [];
     currentShopSettings.stockResetRule = sanitizeStockResetRule(currentShopSettings.stockResetRule);
     items.forEach(item => {
         item.stockResetRule = sanitizeStockResetRule(item.stockResetRule);
     });
+    if (window.GeniusSchemas) {
+        currentShopSettings = window.GeniusSchemas.normalizeShopSettings(currentShopSettings);
+        items = items.map(item => window.GeniusSchemas.normalizeShopItem(item));
+    }
 
     initializeShopItemSlots();
 }
@@ -817,11 +1077,26 @@ function parseSellMenuYaml(yamlContent) {
 }
 
 function updateExport() {
+    if (window.GeniusSchemas) {
+        currentShopSettings = window.GeniusSchemas.normalizeShopSettings(currentShopSettings);
+        items = items.map(item => window.GeniusSchemas.normalizeShopItem(item));
+        const validation = window.GeniusSchemas.validateCurrentEditorState({ items, currentShopSettings });
+        window.__schemaErrors = validation.errors || [];
+        if (!validation.valid && window.__schemaErrors.length > 0) {
+            console.warn('[SCHEMA] Validation warnings:', window.__schemaErrors);
+        }
+    } else {
+        window.__schemaErrors = [];
+    }
+
     let yaml = `gui-name: '${currentShopSettings.guiName}'\n`;
     yaml += `rows: ${currentShopSettings.rows}\n`;
     const permission = currentShopSettings.permission;
     if (permission) {
         yaml += `permission: '${permission}'\n`;
+    }
+    if (currentShopSettings.campaign) {
+        yaml += `campaign: '${currentShopSettings.campaign}'\n`;
     }
     if (currentShopSettings.sellAddsToStock) {
         yaml += `sell-adds-to-stock: true\n`;
@@ -846,6 +1121,36 @@ function updateExport() {
         yaml += `    name: '${item.name}'\n`;
         if (item.price > 0) yaml += `    price: ${item.price}\n`;
         if (item.sellPrice > 0) yaml += `    sell-price: ${item.sellPrice}\n`;
+        if (item.buyPricePerItem === false) yaml += `    buy-price-per-item: false\n`;
+        if (item.sellPricePerItem === false) yaml += `    sell-price-per-item: false\n`;
+        if ((item.itemKey || '').trim()) yaml += `    item-key: '${String(item.itemKey).replace(/'/g, "''")}'\n`;
+        if ((item.variantKey || '').trim()) yaml += `    variant-key: '${String(item.variantKey).replace(/'/g, "''")}'\n`;
+        if (item.campaign) yaml += `    campaign: '${item.campaign}'\n`;
+        const campaignEnabled = !!item.campaignEnabled;
+        const campaignName = String(item.campaignName || '').trim();
+        const campaignStart = String(item.campaignStart || '').trim();
+        const campaignEnd = String(item.campaignEnd || '').trim();
+        const campaignTimezone = String(item.campaignTimezone || '').trim();
+        const campaignBuyMultiplier = parseFloat(item.campaignBuyMultiplier);
+        const campaignSellMultiplier = parseFloat(item.campaignSellMultiplier);
+        const safeCampaignBuyMultiplier = Number.isFinite(campaignBuyMultiplier) && campaignBuyMultiplier > 0 ? campaignBuyMultiplier : 1;
+        const safeCampaignSellMultiplier = Number.isFinite(campaignSellMultiplier) && campaignSellMultiplier > 0 ? campaignSellMultiplier : 1;
+        const hasCampaignConfig = campaignEnabled
+            || campaignName.length > 0
+            || campaignStart.length > 0
+            || campaignEnd.length > 0
+            || campaignTimezone.length > 0
+            || safeCampaignBuyMultiplier !== 1
+            || safeCampaignSellMultiplier !== 1;
+        if (hasCampaignConfig) {
+            yaml += `    campaign-enabled: ${campaignEnabled ? 'true' : 'false'}\n`;
+            if (campaignName) yaml += `    campaign-name: '${campaignName}'\n`;
+            if (campaignStart) yaml += `    campaign-start: '${campaignStart}'\n`;
+            if (campaignEnd) yaml += `    campaign-end: '${campaignEnd}'\n`;
+            if (campaignTimezone) yaml += `    campaign-timezone: '${campaignTimezone}'\n`;
+            yaml += `    campaign-buy-multiplier: ${safeCampaignBuyMultiplier}\n`;
+            yaml += `    campaign-sell-multiplier: ${safeCampaignSellMultiplier}\n`;
+        }
         yaml += `    amount: ${item.amount}\n`;
         
         if (item.lore && item.lore.length > 0) {
@@ -873,9 +1178,26 @@ function updateExport() {
         if (item.minPrice > 0) yaml += `    min-price: ${item.minPrice}\n`;
         if (item.maxPrice > 0) yaml += `    max-price: ${item.maxPrice}\n`;
         if (item.priceChange !== 0) yaml += `    price-change: ${item.priceChange}\n`;
+        if ((item.buyPriceFormula || '').trim()) yaml += `    buy-price-formula: '${String(item.buyPriceFormula).replace(/'/g, "''")}'\n`;
+        if ((item.sellPriceFormula || '').trim()) yaml += `    sell-price-formula: '${String(item.sellPriceFormula).replace(/'/g, "''")}'\n`;
         if (item.runCommandOnly === false) yaml += `    run-command-only: false\n`;
         if (item.runAs && item.runAs !== 'console') yaml += `    run-as: ${item.runAs}\n`;
         if (item.permission) yaml += `    permission: '${item.permission}'\n`;
+        if ((item.minPlayerLevel || 0) > 0) yaml += `    min-player-level: ${item.minPlayerLevel}\n`;
+        if ((item.maxPlayerLevel || 0) > 0) yaml += `    max-player-level: ${item.maxPlayerLevel}\n`;
+        if (item.requiredGamemode) yaml += `    required-gamemode: ${item.requiredGamemode}\n`;
+        if (item.allowedWorlds && item.allowedWorlds.length > 0) {
+            yaml += `    allowed-worlds:\n`;
+            item.allowedWorlds.forEach(world => {
+                yaml += `      - '${world}'\n`;
+            });
+        }
+        if (item.deniedWorlds && item.deniedWorlds.length > 0) {
+            yaml += `    denied-worlds:\n`;
+            item.deniedWorlds.forEach(world => {
+                yaml += `      - '${world}'\n`;
+            });
+        }
         if (item.sellAddsToStock !== null) yaml += `    sell-adds-to-stock: ${item.sellAddsToStock ? 'true' : 'false'}\n`;
         if (item.allowSellStockOverflow !== null) yaml += `    allow-sell-stock-overflow: ${item.allowSellStockOverflow ? 'true' : 'false'}\n`;
         if (item.showStock) yaml += `    show-stock: true\n`;
@@ -894,6 +1216,7 @@ function updateExport() {
         if (item.potionLevel !== undefined && item.potionLevel !== 0) yaml += `    potion-level: ${item.potionLevel}\n`;
         if (item.headTexture) yaml += `    head-texture: '${item.headTexture}'\n`;
         if (item.headOwner) yaml += `    head-owner: '${item.headOwner}'\n`;
+        if (item.itemStack) yaml += `    item-stack: '${String(item.itemStack).replace(/'/g, "''")}'\n`;
         yaml = appendStockResetYaml(yaml, 4, item.stockResetRule);
         if (item.slot !== undefined && item.slot !== null) yaml += `    slot: ${item.slot}\n`;
     });

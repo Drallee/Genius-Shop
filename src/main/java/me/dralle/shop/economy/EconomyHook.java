@@ -1,6 +1,7 @@
 package me.dralle.shop.economy;
 
 import me.dralle.shop.ShopPlugin;
+import net.milkbowl.vault.economy.EconomyResponse;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -52,13 +53,57 @@ public class EconomyHook {
     }
 
     public boolean withdraw(Player player, double amount) {
-        if (!isReady()) return false;
-        return economy.withdrawPlayer(player, amount).transactionSuccess();
+        return tryWithdraw(player, amount).success();
     }
 
     public void deposit(Player player, double amount) {
-        if (!isReady()) return;
-        economy.depositPlayer(player, amount);
+        tryDeposit(player, amount);
+    }
+
+    public record EconomyOperationResult(boolean success, String errorMessage) {}
+
+    public EconomyOperationResult tryWithdraw(Player player, double amount) {
+        if (!isReady()) return new EconomyOperationResult(false, "Economy provider is not ready.");
+        if (!Double.isFinite(amount) || amount <= 0D) {
+            return new EconomyOperationResult(false, "Invalid withdraw amount: " + amount);
+        }
+        try {
+            EconomyResponse response = economy.withdrawPlayer(player, amount);
+            if (response == null) {
+                return new EconomyOperationResult(false, "Economy response was null.");
+            }
+            if (!response.transactionSuccess()) {
+                String error = response.errorMessage != null && !response.errorMessage.isEmpty()
+                        ? response.errorMessage
+                        : "Unknown withdraw failure.";
+                return new EconomyOperationResult(false, error);
+            }
+            return new EconomyOperationResult(true, null);
+        } catch (Exception ex) {
+            return new EconomyOperationResult(false, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
+        }
+    }
+
+    public EconomyOperationResult tryDeposit(Player player, double amount) {
+        if (!isReady()) return new EconomyOperationResult(false, "Economy provider is not ready.");
+        if (!Double.isFinite(amount) || amount <= 0D) {
+            return new EconomyOperationResult(false, "Invalid deposit amount: " + amount);
+        }
+        try {
+            EconomyResponse response = economy.depositPlayer(player, amount);
+            if (response == null) {
+                return new EconomyOperationResult(false, "Economy response was null.");
+            }
+            if (!response.transactionSuccess()) {
+                String error = response.errorMessage != null && !response.errorMessage.isEmpty()
+                        ? response.errorMessage
+                        : "Unknown deposit failure.";
+                return new EconomyOperationResult(false, error);
+            }
+            return new EconomyOperationResult(true, null);
+        } catch (Exception ex) {
+            return new EconomyOperationResult(false, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
+        }
     }
 
     /**

@@ -2,8 +2,13 @@ package me.dralle.shop.gui;
 
 import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.economy.EconomyHook;
+import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
+import me.dralle.shop.util.CampaignUtil;
+import me.dralle.shop.util.ConsoleLog;
+import me.dralle.shop.util.ItemConditionUtil;
+import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
 import org.bukkit.Bukkit;
@@ -44,6 +49,7 @@ public class SellMenu implements Listener {
      * ============================================================ */
     public static void open(Player player, ShopItem item, String shopKey, int shopPage) {
         ShopPlugin plugin = ShopPlugin.getInstance();
+        ShopData shop = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
         if (item.getHeadTexture() != null && !item.getHeadTexture().isEmpty()) {
             player.setMetadata("sell.headTexture", new FixedMetadataValue(plugin, item.getHeadTexture()));
         } else {
@@ -61,7 +67,7 @@ public class SellMenu implements Listener {
             return;
         }
 
-        double currentSellPrice = calculateSellPrice(item);
+        double currentSellPrice = calculateSellPrice(shop, item);
 
         int owned = countPlayerItems(player, item.getMaterial(), item.getSpawnerType(), item.getSpawnerItem(), item.getPotionType(), item.getEnchantments(), item.getName(), item.getLore(), item.requiresName(), item.requiresLore());
         if (owned <= 0) {
@@ -77,6 +83,7 @@ public class SellMenu implements Listener {
                 item.getMaterial(),
                 currentSellPrice,
                 1,
+                item.getAmount(),
                 item.getSpawnerType(),
                 item.getSpawnerItem(),
                 item.getPotionType(),
@@ -87,6 +94,7 @@ public class SellMenu implements Listener {
                 item.shouldHideAdditional(),
                 item.requiresName(),
                 item.requiresLore(),
+                item.isSellPricePerItem(),
                 shopKey,
                 shopPage,
                 item.getUniqueKey(),
@@ -100,19 +108,54 @@ public class SellMenu implements Listener {
         );
     }
 
-    private static double calculateSellPrice(ShopItem item) {
-        if (!item.isDynamicPricing() || item.getSellPrice() == null) return item.getSellPrice() != null ? item.getSellPrice() : 0;
+    private static double calculateSellPrice(ShopData shop, ShopItem item) {
+        if (item.getSellPrice() == null) return 0;
+        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(ShopPlugin.getInstance(), item);
+        return CampaignUtil.applySellCampaign(shop, item, currentPrice);
+    }
 
-        int globalCount = ShopPlugin.getInstance().getDataManager().getGlobalCount(item.getUniqueKey());
-        // For selling, we also use the same globalCount.
-        // If globalCount is high (many bought), price is high.
-        // Selling should decrease globalCount.
-        double currentPrice = item.getSellPrice() + (globalCount * item.getPriceChange());
+    private static double calculateTransactionTotal(double unitPrice, int quantity, boolean pricePerItem, int priceUnitAmount) {
+        if (pricePerItem) {
+            return unitPrice * quantity;
+        }
+        int safeUnitAmount = Math.max(1, priceUnitAmount);
+        return unitPrice * (quantity / (double) safeUnitAmount);
+    }
 
-        // We might want to use a different min/max for selling, but for now we use the same or just clamp to positive.
-        if (currentPrice < 0.01) currentPrice = 0.01;
+    private static String applyStockPlaceholders(ShopPlugin plugin, Player player, String line, String itemKey, int limit, int globalLimit) {
+        String out = line == null ? "" : line;
+        if (itemKey != null && !itemKey.isEmpty()) {
+            if (globalLimit > 0) {
+                int currentGlobal = plugin.getDataManager().getGlobalCount(itemKey);
+                String globalFmt = plugin.getMenuManager().getGuiSettingsConfig()
+                        .getString("gui.item-lore.global-limit-value-format", "%current%/%limit%");
+                String globalValue = globalFmt
+                        .replace("%current%", String.valueOf(currentGlobal))
+                        .replace("%limit%", String.valueOf(globalLimit));
+                out = out.replace("%global-limit%", globalValue);
+            } else {
+                out = out.replace("%global-limit%", "");
+            }
 
-        return currentPrice;
+            if (limit > 0) {
+                int currentPlayer = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
+                String playerFmt = plugin.getMenuManager().getGuiSettingsConfig()
+                        .getString("gui.item-lore.player-limit-value-format", "%current%/%limit%");
+                String playerValue = playerFmt
+                        .replace("%current%", String.valueOf(currentPlayer))
+                        .replace("%limit%", String.valueOf(limit));
+                out = out.replace("%player-limit%", playerValue);
+                out = out.replace("%limit%", String.valueOf(limit));
+            } else {
+                out = out.replace("%player-limit%", "");
+                out = out.replace("%limit%", "");
+            }
+        } else {
+            out = out.replace("%global-limit%", "");
+            out = out.replace("%player-limit%", "");
+            out = out.replace("%limit%", "");
+        }
+        return out.replace("%stock-reset-timer%", "");
     }
 
     /* ============================================================
@@ -123,6 +166,7 @@ public class SellMenu implements Listener {
             Material material,
             Double sellPrice,
             int amount,
+            int priceUnitAmount,
             String spawnerType,
             String spawnerItem,
             String potionType,
@@ -133,6 +177,7 @@ public class SellMenu implements Listener {
             boolean hideAdditional,
             boolean requireName,
             boolean requireLore,
+            boolean sellPricePerItem,
             String shopKey,
             int shopPage,
             String itemKey,
@@ -160,7 +205,9 @@ public class SellMenu implements Listener {
         List<String> lore = new ArrayList<>();
         if (customLore != null) {
             for (String line : customLore) {
-                lore.addAll(ShopItemUtil.splitAndColor(line));
+                lore.addAll(ShopItemUtil.splitAndColor(
+                        applyStockPlaceholders(plugin, player, line, itemKey, limit, globalLimit)
+                ));
             }
             lore.add("");
         }
@@ -170,11 +217,14 @@ public class SellMenu implements Listener {
         String selectedAmountLine = selectedAmountTemplate.contains("%amount%")
                 ? selectedAmountTemplate.replace("%amount%", String.valueOf(amount))
                 : selectedAmountTemplate + amount;
-        lore.addAll(ShopItemUtil.splitAndColor(selectedAmountLine));
+        lore.addAll(ShopItemUtil.splitAndColor(
+                applyStockPlaceholders(plugin, player, selectedAmountLine, itemKey, limit, globalLimit)
+        ));
 
         String sellPriceTemplate = plugin.getMenuManager().getGuiSettingsConfig()
                 .getString("gui.sell.sell-price", "&eSell price: &7");
-        String sellPriceValue = plugin.formatCurrency(sellPrice);
+        double totalPrice = calculateTransactionTotal(sellPrice, amount, sellPricePerItem, priceUnitAmount);
+        String sellPriceValue = plugin.formatCurrency(totalPrice);
         String sellPriceLine = sellPriceTemplate;
         if (sellPriceLine.contains("%sell-price%")) {
             sellPriceLine = sellPriceLine.replace("%sell-price%", sellPriceValue);
@@ -185,14 +235,18 @@ public class SellMenu implements Listener {
         if (!sellPriceTemplate.contains("%sell-price%") && !sellPriceTemplate.contains("%price%")) {
             sellPriceLine = sellPriceTemplate + sellPriceValue;
         }
-        lore.addAll(ShopItemUtil.splitAndColor(sellPriceLine));
+        lore.addAll(ShopItemUtil.splitAndColor(
+                applyStockPlaceholders(plugin, player, sellPriceLine, itemKey, limit, globalLimit)
+        ));
 
         String youOwnTemplate = plugin.getMenuManager().getGuiSettingsConfig()
                 .getString("gui.sell.you-own", "&eYou own: &7");
         String youOwnLine = youOwnTemplate.contains("%owned%")
                 ? youOwnTemplate.replace("%owned%", String.valueOf(owned))
                 : youOwnTemplate + owned;
-        lore.addAll(ShopItemUtil.splitAndColor(youOwnLine));
+        lore.addAll(ShopItemUtil.splitAndColor(
+                applyStockPlaceholders(plugin, player, youOwnLine, itemKey, limit, globalLimit)
+        ));
 
         if (spawnerType != null && !spawnerType.isEmpty()) {
             String template = plugin.getMenuManager().getGuiSettingsConfig()
@@ -392,6 +446,7 @@ public class SellMenu implements Listener {
         player.setMetadata("sell.material", new FixedMetadataValue(plugin, material.name()));
         player.setMetadata("sell.price", new FixedMetadataValue(plugin, sellPrice));
         player.setMetadata("sell.amount", new FixedMetadataValue(plugin, amount));
+        player.setMetadata("sell.priceUnitAmount", new FixedMetadataValue(plugin, Math.max(1, priceUnitAmount)));
         player.setMetadata("sell.hide_attr", new FixedMetadataValue(plugin, hideAttributes));
         player.setMetadata("sell.hide_add", new FixedMetadataValue(plugin, hideAdditional));
 
@@ -427,6 +482,7 @@ public class SellMenu implements Listener {
 
         player.setMetadata("sell.requireName", new FixedMetadataValue(plugin, requireName));
         player.setMetadata("sell.requireLore", new FixedMetadataValue(plugin, requireLore));
+        player.setMetadata("sell.pricePerItem", new FixedMetadataValue(plugin, sellPricePerItem));
 
         // New fields
         if (itemKey != null) player.setMetadata("sell.itemKey", new FixedMetadataValue(plugin, itemKey));
@@ -466,6 +522,7 @@ public class SellMenu implements Listener {
         String materialName = getMeta(player, "sell.material", "DIRT");
         double sellPrice = getMetaDouble(player, "sell.price", 0.0);
         int amount = getMetaInt(player, "sell.amount", 1);
+        int priceUnitAmount = Math.max(1, getMetaInt(player, "sell.priceUnitAmount", 1));
         String spawnerType = getMeta(player, "sell.spawnerType", null);
         String spawnerItem = getMeta(player, "sell.spawnerItem", null);
         String potionType = getMeta(player, "sell.potionType", null);
@@ -478,6 +535,7 @@ public class SellMenu implements Listener {
         boolean hideAdd = getMetaBool(player, "sell.hide_add");
         boolean requireName = getMetaBool(player, "sell.requireName");
         boolean requireLore = getMetaBool(player, "sell.requireLore");
+        boolean sellPricePerItem = getMetaBool(player, "sell.pricePerItem");
 
         // New fields
         String itemKey = getMeta(player, "sell.itemKey", null);
@@ -557,7 +615,7 @@ public class SellMenu implements Listener {
                         String buttonName = guiCfg.getString("buttons.add." + key + ".name", "&aAdd " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             int newAmount = Math.min(amount + value, Math.min(owned, maxAmount));
-                            open(player, material, sellPrice, newAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
+                            open(player, material, sellPrice, newAmount, priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
                             return;
                         }
                     } catch (NumberFormatException ignored) {}
@@ -575,7 +633,7 @@ public class SellMenu implements Listener {
                         int value = Integer.parseInt(key);
                         String buttonName = guiCfg.getString("buttons.remove." + key + ".name", "&cRemove " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
-                            open(player, material, sellPrice, Math.max(1, amount - value), spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
+                            open(player, material, sellPrice, Math.max(1, amount - value), priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
                             return;
                         }
                     } catch (NumberFormatException ignored) {}
@@ -594,7 +652,7 @@ public class SellMenu implements Listener {
                         String buttonName = guiCfg.getString("buttons.set." + key + ".name", "&aSet to " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             int newAmount = Math.max(1, Math.min(value, Math.min(owned, maxAmount)));
-                            open(player, material, sellPrice, newAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
+                            open(player, material, sellPrice, newAmount, priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
                             return;
                         }
                     } catch (NumberFormatException ignored) {}
@@ -606,7 +664,7 @@ public class SellMenu implements Listener {
         if (clicked.getType() == confirmMat &&
                 name.equals(ShopItemUtil.color(confirmName))) {
 
-            sellItems(player, material, spawnerType, spawnerItem, potionType, enchantments, amount, sellPrice, customName, customLore, hideAttr, hideAdd, requireName, requireLore, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, shopKey, permission);
+            sellItems(player, material, spawnerType, spawnerItem, potionType, enchantments, owned, amount, sellPrice, priceUnitAmount, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, shopKey, permission);
             return;
         }
 
@@ -615,7 +673,7 @@ public class SellMenu implements Listener {
                 name.equals(ShopItemUtil.color(sellAllName))) {
 
             int sellAmount = Math.min(owned, maxAmount);
-            sellItems(player, material, spawnerType, spawnerItem, potionType, enchantments, sellAmount, sellPrice, customName, customLore, hideAttr, hideAdd, requireName, requireLore, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, shopKey, permission);
+            sellItems(player, material, spawnerType, spawnerItem, potionType, enchantments, owned, sellAmount, sellPrice, priceUnitAmount, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, shopKey, permission);
             return;
         }
 
@@ -657,11 +715,12 @@ public class SellMenu implements Listener {
      *  SELL LOGIC
      * ============================================================ */
     private void sellItems(Player player, Material material, String spawnerType, String spawnerItem, String potionType,
-                           Map<String, Integer> enchantments, int amount, double sellPrice, String customName,
+                           Map<String, Integer> enchantments, int ownedBefore, int amount, double sellPrice, int priceUnitAmount, String customName,
                            List<String> customLore, boolean hideAttr, boolean hideAdd, boolean requireName, boolean requireLore,
+                           boolean sellPricePerItem,
                            String itemKey, int limit, int globalLimit, boolean dynamicPricing, double minPrice, double maxPrice, double priceChange, String shopKey, String permission) {
 
-        int owned = countPlayerItems(player, material, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, requireName, requireLore);
+        int owned = Math.max(0, ownedBefore);
         ShopPlugin plugin = ShopPlugin.getInstance();
 
         // Safety permission check
@@ -687,13 +746,7 @@ public class SellMenu implements Listener {
                 }
                 // Item availability
                 if (itemKey != null) {
-                    ShopItem si = null;
-                    for (ShopItem item : shop.getItems()) {
-                        if (item.getUniqueKey().equals(itemKey)) {
-                            si = item;
-                            break;
-                        }
-                    }
+                    ShopItem si = shop.getItemByUniqueKey(itemKey);
                     if (si != null && !ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) {
                         player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
                                 .replace("%shop%", si.getName() != null ? ShopItemUtil.color(si.getName()) : si.getMaterial().name())
@@ -739,7 +792,20 @@ public class SellMenu implements Listener {
             return;
         }
 
+        TransactionSafetyGuard.GuardResult cooldownGuard = TransactionSafetyGuard.checkCooldown(plugin, player, TransactionSafetyGuard.ACTION_SELL);
+        if (!cooldownGuard.allowed()) {
+            player.sendMessage(cooldownGuard.message());
+            return;
+        }
+
         ShopItem matchedItem = findShopItem(shopKey, itemKey);
+        if (matchedItem != null) {
+            ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, matchedItem);
+            if (!condition.allowed()) {
+                player.sendMessage(condition.message());
+                return;
+            }
+        }
         ShopData shopData = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
         boolean sellAddsToStock = resolveSellAddsToStock(shopData, matchedItem);
         boolean allowSellStockOverflow = resolveAllowSellStockOverflow(shopData, matchedItem);
@@ -748,17 +814,69 @@ public class SellMenu implements Listener {
             int current = plugin.getDataManager().getGlobalCount(itemKey);
             int maxCanReplenish = Math.max(0, current);
             if (amount > maxCanReplenish) {
-                player.sendMessage(ShopItemUtil.color("&cCannot sell that many: stock is already full."));
+                player.sendMessage(plugin.getMessages().getMessage("sell-stock-full"));
                 return;
             }
         }
 
-        double total = sellPrice * amount;
+        double effectiveUnitPrice = sellPrice;
+        boolean effectiveDynamicPricing = dynamicPricing;
+        double effectiveMinPrice = minPrice;
+        double effectiveMaxPrice = maxPrice;
+        if (matchedItem != null && matchedItem.getSellPrice() != null) {
+            ShopData matchedShop = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
+            effectiveDynamicPricing = matchedItem.isDynamicPricing()
+                    || (matchedItem.getSellPriceFormula() != null && !matchedItem.getSellPriceFormula().trim().isEmpty());
+            effectiveMinPrice = matchedItem.getMinPrice();
+            effectiveMaxPrice = matchedItem.getMaxPrice();
+            double campaignMultiplier = CampaignUtil.getActiveSellMultiplier(matchedShop, matchedItem);
+            if (effectiveMinPrice > 0D) effectiveMinPrice *= campaignMultiplier;
+            if (effectiveMaxPrice > 0D) effectiveMaxPrice *= campaignMultiplier;
+            effectiveUnitPrice = calculateSellPrice(matchedShop, matchedItem);
+        }
+        double total = calculateTransactionTotal(effectiveUnitPrice, amount, sellPricePerItem, priceUnitAmount);
+        double baseUnitPrice = matchedItem != null && matchedItem.getSellPrice() != null
+                ? PriceFormulaUtil.resolveSellBasePrice(plugin, matchedItem)
+                : effectiveUnitPrice;
+
+        TransactionSafetyGuard.GuardResult transactionGuard = TransactionSafetyGuard.validateTransaction(
+                plugin,
+                player,
+                TransactionSafetyGuard.ACTION_SELL,
+                shopKey,
+                itemKey,
+                material,
+                amount,
+                effectiveUnitPrice,
+                baseUnitPrice,
+                total,
+                effectiveDynamicPricing,
+                effectiveMinPrice,
+                effectiveMaxPrice
+        );
+        if (!transactionGuard.allowed()) {
+            player.sendMessage(transactionGuard.message());
+            return;
+        }
 
         EconomyHook eco = plugin.getEconomy();
 
         if (eco.isReady()) {
-            eco.deposit(player, total);
+            EconomyHook.EconomyOperationResult depositResult = eco.tryDeposit(player, total);
+            if (!depositResult.success()) {
+                TransactionSafetyGuard.auditEconomyFailure(
+                        plugin,
+                        player,
+                        "deposit",
+                        shopKey,
+                        itemKey,
+                        material,
+                        total,
+                        depositResult.errorMessage()
+                );
+                player.sendMessage(plugin.getMessages().getMessage("economy-error-sell"));
+                return;
+            }
         }
 
         removeItems(player, material, spawnerType, spawnerItem, potionType, enchantments, amount, customName, customLore, requireName, requireLore);
@@ -767,11 +885,13 @@ public class SellMenu implements Listener {
         if (itemKey != null) {
             plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), itemKey, amount);
             boolean adjustForStock = globalLimit > 0 && sellAddsToStock;
-            boolean adjustForDynamicPricingOnly = dynamicPricing && globalLimit <= 0;
+            boolean adjustForDynamicPricingOnly = effectiveDynamicPricing && globalLimit <= 0;
             if (adjustForStock || adjustForDynamicPricingOnly) {
                 plugin.getDataManager().incrementGlobalCount(itemKey, -amount);
             }
         }
+        plugin.getGenericShopGui().requestRefresh();
+        TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_SELL, itemKey, effectiveUnitPrice);
 
         plugin.itemsSold++;
         plugin.debug("Sell successful: " + player.getName() + " sold " + amount + "x " + material + " for $" + total);
@@ -780,13 +900,11 @@ public class SellMenu implements Listener {
         if (itemKey != null && shopKey != null) {
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop != null) {
-                for (ShopItem si : shop.getItems()) {
-                    if (si.getUniqueKey().equals(itemKey)) {
-                        me.dralle.shop.api.events.ShopSellEvent sellEvent = 
+                ShopItem si = shop.getItemByUniqueKey(itemKey);
+                if (si != null) {
+                    me.dralle.shop.api.events.ShopSellEvent sellEvent =
                             new me.dralle.shop.api.events.ShopSellEvent(player, si, amount, total, shopKey);
-                        Bukkit.getPluginManager().callEvent(sellEvent);
-                        break;
-                    }
+                    Bukkit.getPluginManager().callEvent(sellEvent);
                 }
             }
         }
@@ -818,31 +936,24 @@ public class SellMenu implements Listener {
         double nextSellPrice = sellPrice;
         int shopPage = player.hasMetadata("sell.shopPage") ? player.getMetadata("sell.shopPage").getFirst().asInt() : 1;
 
-        if (dynamicPricing && itemKey != null && shopKey != null) {
+        if (itemKey != null && shopKey != null) {
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop != null) {
-                for (ShopItem si : shop.getItems()) {
-                    if (si.getUniqueKey().equals(itemKey)) {
-                        nextSellPrice = calculateSellPrice(si);
-                        break;
-                    }
+                ShopItem si = shop.getItemByUniqueKey(itemKey);
+                if (si != null) {
+                    nextSellPrice = calculateSellPrice(shop, si);
                 }
             }
         }
 
-        open(player, material, nextSellPrice, newAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
+        open(player, material, nextSellPrice, newAmount, priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
     }
 
     private ShopItem findShopItem(String shopKey, String itemKey) {
         if (shopKey == null || itemKey == null) return null;
         ShopData shop = plugin.getShopManager().getShop(shopKey);
         if (shop == null) return null;
-        for (ShopItem item : shop.getItems()) {
-            if (itemKey.equals(item.getUniqueKey())) {
-                return item;
-            }
-        }
-        return null;
+        return shop.getItemByUniqueKey(itemKey);
     }
 
     private boolean resolveSellAddsToStock(ShopData shop, ShopItem item) {

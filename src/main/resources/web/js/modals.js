@@ -217,7 +217,7 @@ function submitPromptModal() {
 }
 
 function openSaveConfirmationModal(mode = 'tab') {
-    activeSaveMode = mode;
+    setEditorState('activeSaveMode', mode);
     const modal = document.getElementById('save-confirmation-modal');
     const content = document.getElementById('save-confirmation-content');
     
@@ -250,6 +250,18 @@ function openSaveConfirmationModal(mode = 'tab') {
         }
         if (currentTab === 'sell') {
             return change.target === 'sell-menu-button' || change.target === 'sell-menu-settings';
+        }
+        if (currentTab === 'campaigns') {
+            return change.target === 'campaign-settings' ||
+                (change.target === 'shop-settings' && (
+                    !change.details ||
+                    change.details.shopFile === currentShopFile ||
+                    change.details.campaignHub === true
+                )) ||
+                (change.target === 'shop-item' && change.details && change.details.campaignHub === true);
+        }
+        if (currentTab === 'guisettings') {
+            return change.target === 'gui-settings' || change.target === 'config-settings';
         }
         return false;
     };
@@ -401,12 +413,74 @@ function closeSaveConfirmationModal() {
     }
 }
 
+function getModalFieldValues(fields) {
+    const values = {};
+    if (!fields || !Array.isArray(fields)) return values;
+    fields.forEach(field => {
+        const element = document.getElementById(field.id);
+        if (!element) return;
+        values[field.id] = field.type === 'checkbox' ? element.checked : element.value;
+    });
+    return values;
+}
+
+function refreshModalSidePreview() {
+    if (!currentModalData || !currentModalData.preview || !currentModalData.fields) return;
+    const preview = currentModalData.preview;
+    if (typeof preview.render !== 'function') return;
+
+    const contentEl = document.getElementById('modal-side-preview-content');
+    if (!contentEl) return;
+
+    const values = getModalFieldValues(currentModalData.fields);
+    const html = preview.render(values);
+    contentEl.innerHTML = html || '<div class="modal-preview-empty">No preview available</div>';
+}
+
+function isModalPreviewCollapsed() {
+    try {
+        return localStorage.getItem('shop.modalPreviewCollapsed') === 'true';
+    } catch (e) {
+        return false;
+    }
+}
+
+function setModalPreviewCollapsed(collapsed) {
+    try {
+        localStorage.setItem('shop.modalPreviewCollapsed', collapsed ? 'true' : 'false');
+    } catch (e) {
+        // ignore storage failures
+    }
+}
+
+function applyModalPreviewCollapsedState(collapsed) {
+    const previewEl = document.getElementById('modal-side-preview');
+    const floatingToggleBtn = document.getElementById('modal-preview-toggle-floating');
+    const layoutEl = document.querySelector('#modal-content .modal-editor-layout');
+    if (previewEl) {
+        previewEl.classList.toggle('collapsed', !!collapsed);
+    }
+    if (layoutEl) {
+        layoutEl.classList.toggle('preview-collapsed', !!collapsed);
+    }
+    if (floatingToggleBtn) {
+        floatingToggleBtn.textContent = collapsed ? 'Show Preview' : 'Hide Preview';
+    }
+}
+
+function toggleModalSidePreview() {
+    const collapsed = !isModalPreviewCollapsed();
+    setModalPreviewCollapsed(collapsed);
+    applyModalPreviewCollapsedState(collapsed);
+}
+
 function openEditModal(data) {
     currentModalData = data;
     const modal = document.getElementById('edit-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalContent = document.getElementById('modal-content');
     const deleteBtn = document.getElementById('modal-delete-btn');
+    const footer = modal.querySelector('.modal-footer');
 
     if (data.titleHtml) {
         modalTitle.innerHTML = data.titleHtml;
@@ -447,6 +521,8 @@ function openEditModal(data) {
                         });
                     }
                     fHtml += `</select>`;
+                } else if (field.type === 'file') {
+                    fHtml += `<input type="file" id="${field.id}" name="${field.id}" class="input-base" ${field.accept ? `accept="${escapeHtml(field.accept)}"` : ''}>`;
                 } else if (field.type === 'textarea') {
                     fHtml += `<textarea id="${field.id}" name="${field.id}" class="textarea-base" placeholder="${escapeHtml(field.placeholder || '')}">${escapeHtml(field.value || '')}</textarea>`;
                 } else if (field.type === 'number') {
@@ -488,30 +564,74 @@ function openEditModal(data) {
         }
 
         if (checkboxes.length > 0) {
-            html += '<div class="checkbox-grid">';
+            const grouped = {};
             checkboxes.forEach(cb => {
-                html += renderField(cb);
+                const key = cb.checkboxGroup || 'Options';
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(cb);
+            });
+
+            html += '<div class="checkbox-grid">';
+            Object.entries(grouped).forEach(([groupName, groupFields]) => {
+                html += `<div class="checkbox-group-card"><div class="checkbox-group-title">${escapeHtml(groupName)}</div>`;
+                groupFields.forEach(cb => {
+                    html += renderField(cb);
+                });
+                html += '</div>';
             });
             html += '</div>';
         }
 
-        modalContent.innerHTML = html;
+        if (data.preview && data.preview.enabled) {
+            const previewTitle = escapeHtml(data.preview.title || 'Preview');
+            modalContent.innerHTML = `
+                <div class="modal-editor-layout">
+                    <div class="modal-editor-form">
+                        <div class="modal-form-top-actions">
+                            <button type="button" class="btn-base btn-secondary modal-preview-toggle" id="modal-preview-toggle-floating" onclick="toggleModalSidePreview()">Hide Preview</button>
+                        </div>
+                        ${html}
+                    </div>
+                    <aside class="modal-side-preview" id="modal-side-preview">
+                        <div class="modal-side-preview-title-row">
+                            <div class="modal-side-preview-title">${previewTitle}</div>
+                        </div>
+                        <div id="modal-side-preview-content"></div>
+                    </aside>
+                </div>
+            `;
+        } else {
+            modalContent.innerHTML = html;
+        }
 
         // Attach event listeners
         data.fields.forEach(field => {
             const el = document.getElementById(field.id);
             if (el) {
                 if (field.onchange) {
-                    el.addEventListener('change', (e) => field.onchange(e));
+                    el.addEventListener('change', (e) => {
+                        field.onchange(e);
+                        refreshModalSidePreview();
+                    });
                 }
                 if (field.oninput) {
-                    el.addEventListener('input', (e) => field.oninput(e));
+                    el.addEventListener('input', (e) => {
+                        field.oninput(e);
+                        refreshModalSidePreview();
+                    });
+                }
+                el.addEventListener('change', refreshModalSidePreview);
+                if (field.type !== 'checkbox') {
+                    el.addEventListener('input', refreshModalSidePreview);
                 }
             }
             if (field.onRemove) {
                 const removeBtn = document.getElementById(`remove-${field.id}`);
                 if (removeBtn) {
-                    removeBtn.addEventListener('click', (e) => field.onRemove(e));
+                    removeBtn.addEventListener('click', (e) => {
+                        field.onRemove(e);
+                        refreshModalSidePreview();
+                    });
                 }
             }
         });
@@ -526,6 +646,29 @@ function openEditModal(data) {
         deleteBtn.style.display = 'none';
     }
 
+    // Extra modal actions (e.g. clone item)
+    const existingExtra = footer ? footer.querySelector('.modal-extra-actions') : null;
+    if (existingExtra) existingExtra.remove();
+    if (footer && Array.isArray(data.extraActions) && data.extraActions.length > 0) {
+        const extraWrap = document.createElement('div');
+        extraWrap.className = 'modal-extra-actions flex gap-12';
+        extraWrap.style.marginRight = 'auto';
+
+        data.extraActions.forEach((action, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = action.id || `modal-extra-action-${idx}`;
+            btn.className = `btn-base ${action.className || 'btn-secondary'}`;
+            btn.textContent = action.label || 'Action';
+            btn.addEventListener('click', () => {
+                if (typeof action.onClick === 'function') action.onClick();
+            });
+            extraWrap.appendChild(btn);
+        });
+
+        footer.insertBefore(extraWrap, footer.firstChild);
+    }
+
     // Prevent background scrolling
     document.body.style.overflow = 'hidden';
 
@@ -534,6 +677,9 @@ function openEditModal(data) {
     // Add bounce-in animation to modal content (only if animations enabled)
     const modalBox = modal.querySelector('.modal-box');
     const animationsDisabled = document.body.classList.contains('no-animations');
+    if (modalBox) {
+        modalBox.classList.toggle('modal-box-with-preview', !!(data.preview && data.preview.enabled));
+    }
 
     if (modalBox && !animationsDisabled) {
         modalBox.style.animation = 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
@@ -542,12 +688,17 @@ function openEditModal(data) {
     }
 
     initCustomSelects();
+    applyModalPreviewCollapsedState(isModalPreviewCollapsed());
+    refreshModalSidePreview();
 }
 
 function closeEditModal() {
     const modal = document.getElementById('edit-modal');
     const modalBox = modal.querySelector('.modal-box');
     const animationsDisabled = document.body.classList.contains('no-animations');
+    if (modalBox) {
+        modalBox.classList.remove('modal-box-with-preview');
+    }
 
     // Add fade-out animation (only if animations enabled)
     if (modalBox && !animationsDisabled) {
@@ -716,6 +867,1097 @@ function handleShopItemMaterialChange(value) {
 
     const unstableGroup = document.getElementById('group-modal-unstableTnt');
     if (unstableGroup) unstableGroup.style.display = material.includes('TNT') ? 'block' : 'none';
+
+    refreshModalSidePreview();
+}
+
+function formatModalPreviewPrice(value) {
+    const num = Number(value) || 0;
+    if (typeof formatDisplayPrice === 'function') {
+        return formatDisplayPrice(num);
+    }
+    if (Number.isInteger(num)) return String(num);
+    return num.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+}
+
+function getModalPreviewItemIcon(itemData) {
+    if (typeof getShopItemIconUrl === 'function') {
+        return getShopItemIconUrl(itemData);
+    }
+    const material = itemData && itemData.material ? itemData.material : 'STONE';
+    return `${TEXTURE_API}${String(material).toLowerCase()}.png`;
+}
+
+function buildShopItemPreviewHtml(baseItem, formData) {
+    const materialInput = document.getElementById('modal-material');
+    const material = ((materialInput && materialInput.value) || baseItem.material || 'STONE').toUpperCase();
+    const isSpawnerMaterial = material === 'SPAWNER' || material === 'TRIAL_SPAWNER';
+    const isPotionMaterial = material.includes('POTION') || material === 'TIPPED_ARROW';
+    const isHeadMaterial = material === 'PLAYER_HEAD';
+    const amount = Math.max(1, parseInt(formData['modal-amount'], 10) || 1);
+    const buyPrice = parseFloat(formData['modal-price']) || 0;
+    const sellPrice = parseFloat(formData['modal-sellPrice']) || 0;
+    const buyPerItem = (formData['modal-buyPricePerItem'] || 'per-item') === 'per-item';
+    const sellPerItem = (formData['modal-sellPricePerItem'] || 'per-item') === 'per-item';
+    const campaignEnabled = !!formData['modal-campaignEnabled'];
+    const campaignName = (formData['modal-campaignName'] || '').trim();
+    const campaignStart = (formData['modal-campaignStart'] || '').trim();
+    const campaignEnd = (formData['modal-campaignEnd'] || '').trim();
+    const campaignTimezone = (formData['modal-campaignTimezone'] || '').trim();
+    const campaignBuyMultiplierRaw = parseFloat(formData['modal-campaignBuyMultiplier']);
+    const campaignSellMultiplierRaw = parseFloat(formData['modal-campaignSellMultiplier']);
+    const campaignBuyMultiplier = Number.isFinite(campaignBuyMultiplierRaw) && campaignBuyMultiplierRaw > 0 ? campaignBuyMultiplierRaw : 1;
+    const campaignSellMultiplier = Number.isFinite(campaignSellMultiplierRaw) && campaignSellMultiplierRaw > 0 ? campaignSellMultiplierRaw : 1;
+    const name = formData['modal-name'] || baseItem.name || '&eItem';
+
+    const baseBuyTotal = buyPerItem ? (buyPrice * amount) : buyPrice;
+    const baseSellTotal = sellPerItem ? (sellPrice * amount) : sellPrice;
+    const buyTotal = campaignEnabled ? (baseBuyTotal * campaignBuyMultiplier) : baseBuyTotal;
+    const sellTotal = campaignEnabled ? (baseSellTotal * campaignSellMultiplier) : baseSellTotal;
+    const enableEnchantments = !!formData['modal-enableEnchantments'];
+    const enchantmentLines = enableEnchantments && formData['modal-enchantments']
+        ? String(formData['modal-enchantments']).split('\n').map(l => l.trim()).filter(Boolean)
+        : [];
+    const enableCommands = !!formData['modal-enableCommands'];
+    const commandLines = enableCommands && formData['modal-commands']
+        ? String(formData['modal-commands']).split('\n').map(l => l.trim()).filter(Boolean)
+        : [];
+    const runAs = (formData['modal-runAs'] || 'console').toLowerCase() === 'player' ? 'player' : 'console';
+    const runCommandOnly = !!formData['modal-runCommandOnly'];
+    const playerLimit = !!formData['modal-enableLimits'] ? (parseInt(formData['modal-limit'], 10) || 0) : 0;
+    const globalLimit = !!formData['modal-enableLimits'] ? (parseInt(formData['modal-globalLimit'], 10) || 0) : 0;
+    const dynamicPricing = !!formData['modal-dynamicPricing'];
+    const minPrice = parseFloat(formData['modal-minPrice']) || 0;
+    const maxPrice = parseFloat(formData['modal-maxPrice']) || 0;
+    const priceChange = parseFloat(formData['modal-priceChange']) || 0;
+    const permission = (formData['modal-permission'] || '').trim();
+    const hideAttributes = !!formData['modal-hideAttributes'];
+    const hideAdditional = !!formData['modal-hideAdditional'];
+    const requireName = !!formData['modal-requireName'];
+    const requireLore = !!formData['modal-requireLore'];
+    const unstableTnt = !!formData['modal-unstableTnt'];
+    const showStock = !!formData['modal-showStock'];
+    const showStockResetTimer = !!formData['modal-showStockResetTimer'];
+    const sellAddsToStock = !!formData['modal-sellAddsToStock'];
+    const allowSellOverflow = !!formData['modal-allowSellStockOverflow'];
+    const stockResetEnabled = !!formData['modal-stockResetEnabled'];
+    const stockResetType = stockResetEnabled ? (formData['modal-stockResetType'] || 'daily') : null;
+    const spawnerMode = formData['modal-spawnerMode'] || '';
+    const spawnerType = (formData['modal-spawnerType'] || '').trim();
+    const spawnerItem = (formData['modal-spawnerItem'] || '').trim();
+    const potionType = (formData['modal-potionType'] || '').trim();
+    const potionLevel = parseInt(formData['modal-potionLevel'], 10) || 0;
+    const headTexture = (formData['modal-headTexture'] || '').trim();
+    const headOwner = (formData['modal-headOwner'] || '').trim();
+
+    const lore = [];
+    if (guiSettings?.itemLore?.showBuyPrice && buyPrice > 0) {
+        lore.push((guiSettings.itemLore.buyPriceLine || '&6Buy Price: &a%price%').replace('%price%', `$${formatModalPreviewPrice(buyTotal)}`));
+    }
+    if (guiSettings?.itemLore?.showSellPrice && sellPrice > 0) {
+        lore.push((guiSettings.itemLore.sellPriceLine || '&cSell Price: &a%sell-price%').replace('%sell-price%', `$${formatModalPreviewPrice(sellTotal)}`));
+    }
+
+    const enableLore = !!formData['modal-enableLore'];
+    if (enableLore && formData['modal-lore']) {
+        formData['modal-lore'].split('\n').forEach(line => lore.push(line));
+    }
+
+    const loreHtml = lore.length
+        ? lore.map(line => `<div class="modal-preview-lore-line">${typeof parseMinecraftColors === 'function' ? parseMinecraftColors(line) : escapeHtml(line)}</div>`).join('')
+        : '<div class="modal-preview-empty">No lore lines</div>';
+
+    const chips = [];
+    if (enchantmentLines.length > 0) chips.push(`<span class="modal-preview-chip">Enchants: ${enchantmentLines.length}</span>`);
+    if (commandLines.length > 0) chips.push(`<span class="modal-preview-chip">Commands: ${commandLines.length}</span>`);
+    if (commandLines.length > 0) chips.push(`<span class="modal-preview-chip">Run as: ${escapeHtml(runAs)}</span>`);
+    if (commandLines.length > 0 && runCommandOnly) chips.push('<span class="modal-preview-chip">Run command only</span>');
+    if (playerLimit > 0) chips.push(`<span class="modal-preview-chip">Player limit: ${playerLimit}</span>`);
+    if (globalLimit > 0) chips.push(`<span class="modal-preview-chip">Global limit: ${globalLimit}</span>`);
+    if (dynamicPricing) chips.push('<span class="modal-preview-chip">Dynamic pricing</span>');
+    if (hideAttributes) chips.push('<span class="modal-preview-chip">Hide attributes</span>');
+    if (hideAdditional) chips.push('<span class="modal-preview-chip">Hide additional</span>');
+    if (requireName) chips.push('<span class="modal-preview-chip">Require name</span>');
+    if (requireLore) chips.push('<span class="modal-preview-chip">Require lore</span>');
+    if (unstableTnt) chips.push('<span class="modal-preview-chip">Unstable TNT</span>');
+    if (sellAddsToStock) chips.push('<span class="modal-preview-chip">Sell adds stock</span>');
+    if (allowSellOverflow) chips.push('<span class="modal-preview-chip">Allow sell overflow</span>');
+    if (showStock) chips.push('<span class="modal-preview-chip">Show stock line</span>');
+    if (showStockResetTimer) chips.push('<span class="modal-preview-chip">Show reset timer</span>');
+    if (stockResetEnabled) chips.push(`<span class="modal-preview-chip">Reset: ${escapeHtml(stockResetType || 'daily')}</span>`);
+    if (permission) chips.push('<span class="modal-preview-chip">Permission required</span>');
+    if (campaignEnabled) chips.push('<span class="modal-preview-chip">Campaign enabled</span>');
+
+    const details = [];
+    if (dynamicPricing) {
+        details.push(`Dynamic: min ${formatModalPreviewPrice(minPrice)}, max ${formatModalPreviewPrice(maxPrice)}, change ${formatModalPreviewPrice(priceChange)}`);
+    }
+    if (campaignEnabled) {
+        const campaignLabel = campaignName || 'Unnamed campaign';
+        details.push(`Campaign: ${escapeHtml(campaignLabel)}`);
+        if (campaignStart || campaignEnd) {
+            details.push(`Window: ${escapeHtml(campaignStart || '...')} -> ${escapeHtml(campaignEnd || '...')}`);
+        }
+        if (campaignTimezone) details.push(`Timezone: ${escapeHtml(campaignTimezone)}`);
+        details.push(`Multipliers: buy x${formatModalPreviewPrice(campaignBuyMultiplier)}, sell x${formatModalPreviewPrice(campaignSellMultiplier)}`);
+    }
+    if (isSpawnerMaterial && spawnerMode === 'ENTITY' && spawnerType) details.push(`Spawner entity: ${escapeHtml(spawnerType)}`);
+    if (isSpawnerMaterial && spawnerMode === 'ITEM' && spawnerItem) details.push(`Spawner item: ${escapeHtml(spawnerItem)}`);
+    if (isPotionMaterial && potionType) details.push(`Potion: ${escapeHtml(potionType)} ${potionLevel > 0 ? `(${potionLevel})` : ''}`);
+    if (isHeadMaterial && headOwner) details.push(`Head owner: ${escapeHtml(headOwner)}`);
+    if (isHeadMaterial && headTexture) details.push('Head texture set');
+    if (permission) details.push(`Permission: ${escapeHtml(permission)}`);
+
+    const enchListHtml = enchantmentLines.length > 0
+        ? `<div class="modal-preview-subsection"><div class="modal-preview-subtitle">Enchantments</div><div class="modal-preview-code">${escapeHtml(enchantmentLines.slice(0, 8).join('\n'))}${enchantmentLines.length > 8 ? '\n...' : ''}</div></div>`
+        : '';
+    const cmdListHtml = commandLines.length > 0
+        ? `<div class="modal-preview-subsection"><div class="modal-preview-subtitle">Commands</div><div class="modal-preview-code">${escapeHtml(commandLines.slice(0, 6).join('\n'))}${commandLines.length > 6 ? '\n...' : ''}</div></div>`
+        : '';
+    const detailHtml = details.length > 0
+        ? `<div class="modal-preview-subsection"><div class="modal-preview-subtitle">Details</div><div class="modal-preview-detail-list">${details.map(d => `<div class="modal-preview-detail-line">${d}</div>`).join('')}</div></div>`
+        : '';
+
+    return `
+        <div class="modal-preview-item">
+            <div class="modal-preview-top">
+                <div class="modal-preview-icon">
+                    <img src="${getModalPreviewItemIcon({ ...baseItem, material })}" onerror="this.src='${TEXTURE_API}stone.png'">
+                </div>
+                <div class="modal-preview-meta">
+                    <div class="modal-preview-name">${typeof parseMinecraftColors === 'function' ? parseMinecraftColors(name) : escapeHtml(name)}</div>
+                    <div class="modal-preview-sub">${escapeHtml(material)} • x${amount}</div>
+                </div>
+            </div>
+            <div class="modal-preview-price-row">
+                ${buyPrice > 0 ? `<span class="modal-preview-pill buy">Buy: $${formatModalPreviewPrice(buyTotal)}</span>` : ''}
+                ${sellPrice > 0 ? `<span class="modal-preview-pill sell">Sell: $${formatModalPreviewPrice(sellTotal)}</span>` : ''}
+            </div>
+            ${chips.length > 0 ? `<div class="modal-preview-chip-row">${chips.join('')}</div>` : ''}
+            ${detailHtml}
+            ${enchListHtml}
+            ${cmdListHtml}
+            <div class="modal-preview-lore">${loreHtml}</div>
+        </div>
+    `;
+}
+
+function findNextFreeShopSlot(itemList) {
+    const used = new Set((itemList || []).map(it => parseInt(it.slot, 10)).filter(Number.isInteger));
+    let slot = 0;
+    while (used.has(slot)) slot++;
+    return slot;
+}
+
+function parseCloneTargetsInput(inputRaw, availableTargets) {
+    const raw = (inputRaw || '').trim();
+    if (!raw) return [];
+    if (raw.toLowerCase() === 'all') {
+        return [...availableTargets];
+    }
+    const set = new Set();
+    raw.split(/[\n,]+/).forEach(token => {
+        const v = token.trim();
+        if (v) set.add(v);
+    });
+    return [...set];
+}
+
+function closeShopTargetPicker() {
+    const existing = document.getElementById('shop-target-picker-overlay');
+    if (existing) existing.remove();
+}
+
+function openShopTargetPicker(options) {
+    const cfg = options || {};
+    const targets = Array.isArray(cfg.targets) ? cfg.targets : [];
+    const multi = !!cfg.multi;
+    const title = cfg.title || (multi ? 'Select Target Shops' : 'Select Target Shop');
+    const confirmLabel = cfg.confirmLabel || (multi ? 'Clone to Selected' : 'Clone');
+    const onConfirm = typeof cfg.onConfirm === 'function' ? cfg.onConfirm : () => {};
+    const initialSelection = Array.isArray(cfg.initialSelection) ? cfg.initialSelection : [];
+
+    closeShopTargetPicker();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'shop-target-picker-overlay';
+    overlay.className = 'shop-target-picker-overlay';
+    overlay.innerHTML = `
+        <div class="shop-target-picker-panel">
+            <div class="shop-target-picker-header">
+                <h3 class="shop-target-picker-title">${escapeHtml(title)}</h3>
+                <button type="button" class="shop-target-picker-close" id="shop-target-picker-close-btn">&times;</button>
+            </div>
+            <div class="shop-target-picker-search-wrap">
+                <input type="text" id="shop-target-picker-search" class="input-base" placeholder="Search shops...">
+            </div>
+            <div id="shop-target-picker-list" class="shop-target-picker-list"></div>
+            <div class="shop-target-picker-actions">
+                <button type="button" class="btn-base btn-secondary" id="shop-target-picker-cancel">Cancel</button>
+                <button type="button" class="btn-base btn-success" id="shop-target-picker-confirm">${escapeHtml(confirmLabel)}</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const searchEl = document.getElementById('shop-target-picker-search');
+    const listEl = document.getElementById('shop-target-picker-list');
+    const confirmBtn = document.getElementById('shop-target-picker-confirm');
+    const cancelBtn = document.getElementById('shop-target-picker-cancel');
+    const closeBtn = document.getElementById('shop-target-picker-close-btn');
+
+    const selected = new Set(initialSelection.filter(v => targets.includes(v)));
+    if (!multi && selected.size > 1) {
+        const first = selected.values().next().value;
+        selected.clear();
+        if (first) selected.add(first);
+    }
+
+    const renderList = () => {
+        if (!listEl) return;
+        const query = String(searchEl?.value || '').trim().toLowerCase();
+        const visible = targets.filter(t => t.toLowerCase().includes(query));
+
+        if (visible.length === 0) {
+            listEl.innerHTML = '<div class="shop-target-picker-empty">No shops found</div>';
+            return;
+        }
+
+        listEl.innerHTML = '';
+        visible.forEach(shop => {
+            const row = document.createElement('div');
+            row.className = 'shop-target-picker-row';
+            row.dataset.shop = shop;
+            row.tabIndex = 0;
+            row.setAttribute('role', 'button');
+
+            if (multi) {
+                const checked = selected.has(shop) ? 'checked' : '';
+                row.innerHTML = `
+                    <div class="shop-target-picker-row-label">
+                        <input type="checkbox" ${checked} tabindex="-1" disabled>
+                        <span>${escapeHtml(shop)}</span>
+                    </div>
+                `;
+                row.addEventListener('click', () => {
+                    if (selected.has(shop)) selected.delete(shop);
+                    else selected.add(shop);
+                    renderList();
+                });
+            } else {
+                if (selected.has(shop)) row.classList.add('selected');
+                row.innerHTML = `<span>${escapeHtml(shop)}</span>${selected.has(shop) ? '<span class="shop-target-picker-check">&#10003;</span>' : ''}`;
+                row.addEventListener('click', () => {
+                    selected.clear();
+                    selected.add(shop);
+                    renderList();
+                });
+            }
+            row.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    row.click();
+                }
+            });
+            listEl.appendChild(row);
+        });
+    };
+
+    const submit = () => {
+        const values = [...selected];
+        if (values.length === 0) {
+            showAlert('Select at least one target shop.', 'warning');
+            return;
+        }
+        closeShopTargetPicker();
+        onConfirm(values);
+    };
+
+    searchEl?.addEventListener('input', renderList);
+    confirmBtn?.addEventListener('click', submit);
+    cancelBtn?.addEventListener('click', closeShopTargetPicker);
+    closeBtn?.addEventListener('click', closeShopTargetPicker);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeShopTargetPicker();
+    });
+
+    const onKeyDown = (e) => {
+        if (!document.getElementById('shop-target-picker-overlay')) {
+            document.removeEventListener('keydown', onKeyDown);
+            return;
+        }
+        if (e.key === 'Escape') closeShopTargetPicker();
+        if (e.key === 'Enter') submit();
+    };
+    document.addEventListener('keydown', onKeyDown);
+
+    renderList();
+    setTimeout(() => searchEl?.focus(), 0);
+}
+
+function cloneShopItemToTargets(item, targets) {
+    const originalShopFile = currentShopFile;
+    const originalItems = JSON.parse(JSON.stringify(items || []));
+    const originalSettings = JSON.parse(JSON.stringify(currentShopSettings || {}));
+    const originalItemIdCounter = itemIdCounter;
+    const exportOutput = document.getElementById('export-output');
+    const originalExport = exportOutput ? exportOutput.textContent : '';
+    const successTargets = [];
+    const failedTargets = [];
+
+    try {
+        targets.forEach(targetFile => {
+            if (!allShops[targetFile]) {
+                failedTargets.push(`${targetFile} (not found)`);
+                return;
+            }
+            if (targetFile === originalShopFile) {
+                failedTargets.push(`${targetFile} (same shop)`);
+                return;
+            }
+
+            parseShopYaml(allShops[targetFile]);
+
+            const cloned = JSON.parse(JSON.stringify(item));
+            cloned.id = itemIdCounter++;
+            cloned.slot = findNextFreeShopSlot(items);
+            items.push(cloned);
+
+            const newYaml = getCurrentShopYamlContent();
+            allShops[targetFile] = newYaml;
+
+            addActivityEntry('created', 'shop-item', null, JSON.parse(JSON.stringify(cloned)), {
+                shopFile: targetFile,
+                sourceShopFile: originalShopFile,
+                cloned: true,
+                bulkClone: targets.length > 1
+            });
+            successTargets.push(targetFile);
+        });
+    } catch (error) {
+        console.error('Failed to clone item:', error);
+        showAlert(`Failed to clone item: ${error.message || error}`, 'error');
+    } finally {
+        currentShopFile = originalShopFile;
+        items = originalItems;
+        currentShopSettings = originalSettings;
+        if (exportOutput) exportOutput.textContent = originalExport;
+        itemIdCounter = Math.max(itemIdCounter, originalItemIdCounter);
+        renderItems();
+        updateAll();
+    }
+
+    return { successTargets, failedTargets };
+}
+
+function cloneShopItemToAnotherShop(item) {
+    const shopFiles = Object.keys(allShops || {});
+    const targetOptions = shopFiles.filter(f => f !== currentShopFile);
+    if (targetOptions.length === 0) {
+        showAlert('No other shop file is available to clone into.', 'warning');
+        return;
+    }
+
+    openShopTargetPicker({
+        targets: targetOptions,
+        multi: false,
+        title: 'Clone Item to Shop',
+        confirmLabel: 'Clone',
+        onConfirm: (selectedTargets) => {
+            const targetFile = selectedTargets[0];
+            const result = cloneShopItemToTargets(item, [targetFile]);
+            if (result.successTargets.length > 0) {
+                showToast(`Item cloned to ${result.successTargets[0]}`, 'success');
+            } else if (result.failedTargets.length > 0) {
+                showAlert(`Clone failed: ${result.failedTargets.join(', ')}`, 'error');
+            }
+        }
+    });
+}
+
+function cloneShopItemToMultipleShops(item) {
+    const shopFiles = Object.keys(allShops || {});
+    const targetOptions = shopFiles.filter(f => f !== currentShopFile);
+    if (targetOptions.length === 0) {
+        showAlert('No other shop file is available to clone into.', 'warning');
+        return;
+    }
+
+    openShopTargetPicker({
+        targets: targetOptions,
+        multi: true,
+        title: 'Clone Item to Multiple Shops',
+        confirmLabel: 'Clone to Selected',
+        initialSelection: targetOptions.slice(0, Math.min(2, targetOptions.length)),
+        onConfirm: (selectedTargets) => {
+            const result = cloneShopItemToTargets(item, selectedTargets);
+            if (result.successTargets.length > 0) {
+                showToast(`Cloned item to ${result.successTargets.length} shop(s)`, 'success');
+            }
+            if (result.failedTargets.length > 0) {
+                showAlert(`Some targets were skipped:\n${result.failedTargets.join('\n')}`, 'warning');
+            }
+        }
+    });
+}
+
+function parseCsvLine(line) {
+    const out = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+            continue;
+        }
+        if (ch === ',' && !inQuotes) {
+            out.push(current.trim());
+            current = '';
+            continue;
+        }
+        current += ch;
+    }
+    out.push(current.trim());
+    return out;
+}
+
+function parseBooleanLike(value, def = false) {
+    if (value === undefined || value === null || value === '') return def;
+    const s = String(value).trim().toLowerCase();
+    return s === 'true' || s === '1' || s === 'yes' || s === 'y';
+}
+
+function parseNumberLike(value, def = 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : def;
+}
+
+function readTextFromFileInput(inputId) {
+    return new Promise((resolve, reject) => {
+        const input = document.getElementById(inputId);
+        const file = input && input.files && input.files[0] ? input.files[0] : null;
+        if (!file) {
+            reject(new Error('No file selected.'));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve({
+            name: file.name || '',
+            text: String(reader.result || '')
+        });
+        reader.onerror = () => reject(new Error('Failed to read file.'));
+        reader.readAsText(file);
+    });
+}
+
+function detectImportFormat(fileName, text, fallback = 'yaml') {
+    const name = String(fileName || '').toLowerCase();
+    if (name.endsWith('.json')) return 'json';
+    if (name.endsWith('.yml') || name.endsWith('.yaml')) return 'yaml';
+
+    const body = String(text || '').trim();
+    if (!body) return fallback;
+    if (body.startsWith('{') || body.startsWith('[')) return 'json';
+    return 'yaml';
+}
+
+function ensureImportedItemDefaults(raw) {
+    const item = raw || {};
+    const amount = Math.max(1, parseInt(item.amount, 10) || 1);
+    const loreRaw = item.lore;
+    const commandsRaw = item.commands;
+    const lore = Array.isArray(loreRaw)
+        ? loreRaw
+        : (typeof loreRaw === 'string' && loreRaw.trim() ? loreRaw.split('|').map(s => s.trim()) : []);
+    const commands = Array.isArray(commandsRaw)
+        ? commandsRaw
+        : (typeof commandsRaw === 'string' && commandsRaw.trim() ? commandsRaw.split('|').map(s => s.trim()) : []);
+
+    const normalized = {
+        id: null,
+        material: String(item.material || 'STONE').toUpperCase(),
+        name: String(item.name || '&eImported Item'),
+        itemKey: String(item.itemKey || ''),
+        variantKey: String(item.variantKey || ''),
+        headTexture: item.headTexture || '',
+        headOwner: item.headOwner || '',
+        itemStack: item.itemStack || item.item_stack || '',
+        price: parseNumberLike(item.price, 0),
+        sellPrice: parseNumberLike(item.sellPrice, 0),
+        buyPricePerItem: item.buyPricePerItem !== false,
+        sellPricePerItem: item.sellPricePerItem !== false,
+        campaignEnabled: !!item.campaignEnabled,
+        campaign: String(item.campaign || ''),
+        campaignName: String(item.campaignName || ''),
+        campaignStart: String(item.campaignStart || ''),
+        campaignEnd: String(item.campaignEnd || ''),
+        campaignTimezone: String(item.campaignTimezone || ''),
+        campaignBuyMultiplier: parseNumberLike(item.campaignBuyMultiplier, 1) || 1,
+        campaignSellMultiplier: parseNumberLike(item.campaignSellMultiplier, 1) || 1,
+        amount: amount,
+        lore: lore,
+        enchantments: (item.enchantments && typeof item.enchantments === 'object') ? item.enchantments : {},
+        hideAttributes: !!item.hideAttributes,
+        hideAdditional: !!item.hideAdditional,
+        requireName: !!item.requireName,
+        requireLore: !!item.requireLore,
+        unstableTnt: !!item.unstableTnt,
+        spawnerType: item.spawnerType || null,
+        spawnerItem: item.spawnerItem || null,
+        potionType: item.potionType || null,
+        potionLevel: parseInt(item.potionLevel, 10) || 0,
+        commands: commands,
+        runAs: (String(item.runAs || 'console').toLowerCase() === 'player') ? 'player' : 'console',
+        limit: parseInt(item.limit, 10) || 0,
+        globalLimit: parseInt(item.globalLimit, 10) || 0,
+        dynamicPricing: !!item.dynamicPricing,
+        minPrice: parseNumberLike(item.minPrice, 0),
+        maxPrice: parseNumberLike(item.maxPrice, 0),
+        priceChange: parseNumberLike(item.priceChange, 0),
+        stockResetRule: sanitizeStockResetRule(item.stockResetRule || {}),
+        showStock: !!item.showStock,
+        showStockResetTimer: !!item.showStockResetTimer,
+        runCommandOnly: item.runCommandOnly !== false,
+        permission: item.permission || '',
+        sellAddsToStock: (item.sellAddsToStock === null || item.sellAddsToStock === undefined) ? null : !!item.sellAddsToStock,
+        allowSellStockOverflow: (item.allowSellStockOverflow === null || item.allowSellStockOverflow === undefined) ? null : !!item.allowSellStockOverflow,
+        slot: Number.isInteger(parseInt(item.slot, 10)) ? parseInt(item.slot, 10) : null
+    };
+
+    return normalized;
+}
+
+function parseImportJsonItems(payload) {
+    const parsed = JSON.parse(payload);
+    const list = Array.isArray(parsed)
+        ? parsed
+        : (Array.isArray(parsed.items) ? parsed.items : (parsed.item ? [parsed.item] : []));
+    return list.map(ensureImportedItemDefaults);
+}
+
+function parseImportYamlItems(payload) {
+    const backupItems = JSON.parse(JSON.stringify(items || []));
+    const backupSettings = JSON.parse(JSON.stringify(currentShopSettings || {}));
+    const backupCounter = itemIdCounter;
+    let parsedItems = [];
+
+    try {
+        parseShopYaml(payload);
+        parsedItems = JSON.parse(JSON.stringify(items || []));
+    } finally {
+        items = backupItems;
+        Object.assign(currentShopSettings, backupSettings);
+        itemIdCounter = backupCounter;
+    }
+
+    return parsedItems.map(ensureImportedItemDefaults);
+}
+
+function applyImportedItems(importedItems, keepProvidedSlot) {
+    if (!Array.isArray(importedItems) || importedItems.length === 0) return 0;
+
+    const existingSlots = new Set(items.map(it => parseInt(it.slot, 10)).filter(Number.isInteger));
+    let added = 0;
+
+    importedItems.forEach(imported => {
+        const newItem = JSON.parse(JSON.stringify(imported));
+        newItem.id = itemIdCounter++;
+        if (keepProvidedSlot && Number.isInteger(newItem.slot) && !existingSlots.has(newItem.slot)) {
+            // keep slot
+        } else {
+            newItem.slot = findNextFreeShopSlot(items);
+        }
+        existingSlots.add(newItem.slot);
+        items.push(newItem);
+        added++;
+
+        addActivityEntry('created', 'shop-item', null, JSON.parse(JSON.stringify(newItem)), {
+            shopFile: currentShopFile,
+            imported: true
+        });
+    });
+
+    return added;
+}
+
+function openImportItemsModal() {
+    openEditModal({
+        title: 'Import Items (JSON / YAML)',
+        fields: [
+            {
+                id: 'modal-import-format',
+                label: 'Format',
+                type: 'select',
+                value: 'yaml',
+                options: [
+                    { value: 'json', label: 'JSON' },
+                    { value: 'yaml', label: 'YAML' }
+                ]
+            },
+            {
+                id: 'modal-import-keep-slot',
+                label: 'Keep provided slot if free',
+                type: 'checkbox',
+                value: false
+            },
+            {
+                id: 'modal-import-file',
+                label: 'Import File',
+                type: 'file',
+                accept: '.json,.yml,.yaml',
+                hint: 'Upload a JSON item list or a YAML shop file (items section will be imported). Format is auto-detected from file.'
+            }
+        ],
+        onSave: async (data) => {
+            const selectedFormat = (data['modal-import-format'] || 'yaml').toLowerCase();
+            const keepSlot = !!data['modal-import-keep-slot'];
+
+            try {
+                const fileData = await readTextFromFileInput('modal-import-file');
+                const payload = fileData.text || '';
+                if (!payload.trim()) {
+                    showAlert('Import file is empty.', 'warning');
+                    return;
+                }
+                const format = detectImportFormat(fileData.name, payload, selectedFormat);
+                const imported = format === 'yaml'
+                    ? parseImportYamlItems(payload)
+                    : parseImportJsonItems(payload);
+                const count = applyImportedItems(imported, keepSlot);
+                if (count <= 0) {
+                    showAlert('No items were imported.', 'warning');
+                    return;
+                }
+                renderItems();
+                updateAll();
+                showToast(`Imported ${count} item(s)`, 'success');
+            } catch (error) {
+                console.error('Import failed:', error);
+                showAlert(`Import failed: ${error.message || error}`, 'error');
+            }
+        }
+    });
+}
+
+function buildMenuExportPayload(menuType) {
+    const now = new Date().toISOString();
+    if (menuType === 'mainmenu') {
+        return {
+            exportedAt: now,
+            type: 'mainmenu',
+            mainMenuSettings: JSON.parse(JSON.stringify(mainMenuSettings || {})),
+            loadedGuiShops: JSON.parse(JSON.stringify(loadedGuiShops || []))
+        };
+    }
+    if (menuType === 'purchase' || menuType === 'sell') {
+        return {
+            exportedAt: now,
+            type: menuType,
+            settings: JSON.parse(JSON.stringify((transactionSettings && transactionSettings[menuType]) || {}))
+        };
+    }
+    throw new Error(`Unsupported menu type: ${menuType}`);
+}
+
+function yamlQuote(value) {
+    return `'${String(value ?? '').replace(/'/g, "''")}'`;
+}
+
+function buildMainMenuYamlExport() {
+    let yaml = `title: ${yamlQuote(mainMenuSettings.title || '&8Shop Menu')}\n`;
+    yaml += `rows: ${parseInt(mainMenuSettings.rows, 10) || 3}\n`;
+    yaml += `items:\n`;
+
+    (loadedGuiShops || []).forEach(shop => {
+        const key = (shop.key || `shop_${shop.slot ?? 0}`).toString();
+        yaml += `  ${key}:\n`;
+        yaml += `    slot: ${parseInt(shop.slot, 10) || 0}\n`;
+        yaml += `    material: ${(shop.material || 'CHEST').toString()}\n`;
+        yaml += `    name: ${yamlQuote(shop.name || '&eShop')}\n`;
+        yaml += `    action: ${(shop.action || 'shop-key').toString()}\n`;
+
+        if (shop.shopKey) yaml += `    shop-key: ${yamlQuote(shop.shopKey)}\n`;
+        if (shop.permission) yaml += `    permission: ${yamlQuote(shop.permission)}\n`;
+        if (shop.hideAttributes) yaml += `    hide-attributes: true\n`;
+        if (shop.hideAdditional) yaml += `    hide-additional: true\n`;
+        if (shop.closeAfterAction) yaml += `    close-after-action: true\n`;
+        if (shop.runAs && shop.runAs !== 'player') yaml += `    run-as: ${shop.runAs}\n`;
+
+        if (Array.isArray(shop.lore) && shop.lore.length > 0) {
+            yaml += `    lore:\n`;
+            shop.lore.forEach(line => {
+                yaml += `      - ${yamlQuote(line)}\n`;
+            });
+        }
+        if (Array.isArray(shop.commands) && shop.commands.length > 0) {
+            yaml += `    commands:\n`;
+            shop.commands.forEach(cmd => {
+                yaml += `      - ${yamlQuote(cmd)}\n`;
+            });
+        }
+    });
+
+    return yaml;
+}
+
+function buildTransactionMenuYamlExport(type) {
+    const settings = transactionSettings && transactionSettings[type] ? transactionSettings[type] : {};
+    let yaml = `title-prefix: ${yamlQuote(settings.titlePrefix || (type === 'purchase' ? '&8Buying ' : '&8Selling '))}\n`;
+    yaml += `display-material: ${(settings.displayMaterial || 'BOOK').toString()}\n`;
+    yaml += `display-slot: ${parseInt(settings.displaySlot, 10) || 22}\n`;
+    yaml += `max-amount: ${parseInt(settings.maxAmount, 10) || 2304}\n`;
+
+    yaml += `lore:\n`;
+    yaml += `  amount: ${yamlQuote((settings.lore && settings.lore.amount) || '&eAmount: &7')}\n`;
+    yaml += `  total: ${yamlQuote((settings.lore && settings.lore.total) || '&eTotal: &7')}\n`;
+    if (type === 'purchase') {
+        yaml += `  spawner: ${yamlQuote((settings.lore && settings.lore.spawner) || '&7Spawner: &e')}\n`;
+    }
+
+    yaml += `buttons:\n`;
+    const mainButtons = settings.buttons || {};
+    Object.entries(mainButtons).forEach(([key, btn]) => {
+        const button = btn || {};
+        yaml += `  ${key}:\n`;
+        yaml += `    material: ${(button.material || 'STONE').toString()}\n`;
+        yaml += `    name: ${yamlQuote(button.name || '&fButton')}\n`;
+        yaml += `    slot: ${parseInt(button.slot, 10) || 0}\n`;
+    });
+
+    ['add', 'remove', 'set'].forEach(group => {
+        const groupData = settings[group] || {};
+        yaml += `  ${group}:\n`;
+        yaml += `    material: ${(groupData.material || 'STONE').toString()}\n`;
+        const buttons = groupData.buttons || {};
+        Object.entries(buttons).forEach(([amount, btn]) => {
+            const b = btn || {};
+            yaml += `    '${amount}':\n`;
+            yaml += `      name: ${yamlQuote(b.name || '&fButton')}\n`;
+            yaml += `      slot: ${parseInt(b.slot, 10) || 0}\n`;
+        });
+    });
+
+    return yaml;
+}
+
+function applyImportedMenuPayload(menuType, parsed) {
+    if (menuType === 'mainmenu') {
+        const importedSettings = parsed.mainMenuSettings || parsed.settings || parsed.mainmenuSettings;
+        const importedShops = parsed.loadedGuiShops || parsed.shops || parsed.buttons;
+        if (!importedSettings || !Array.isArray(importedShops)) {
+            throw new Error('Invalid main menu payload. Required: mainMenuSettings + loadedGuiShops');
+        }
+        const beforeSettings = JSON.parse(JSON.stringify(mainMenuSettings || {}));
+        const beforeShops = JSON.parse(JSON.stringify(loadedGuiShops || []));
+
+        mainMenuSettings = JSON.parse(JSON.stringify(importedSettings));
+        loadedGuiShops = JSON.parse(JSON.stringify(importedShops));
+
+        addActivityEntry('updated', 'main-menu-settings', beforeSettings, JSON.parse(JSON.stringify(mainMenuSettings)), { imported: true });
+        addActivityEntry('updated', 'main-menu-button', beforeShops, JSON.parse(JSON.stringify(loadedGuiShops)), { imported: true, bulk: true });
+
+        renderMainMenuShops();
+        if (currentTab === 'mainmenu') updateGuiPreview();
+        scheduleAutoSave();
+        return;
+    }
+
+    if (menuType === 'purchase' || menuType === 'sell') {
+        const importedSettings = parsed.settings || parsed[menuType] || (parsed.transactionSettings && parsed.transactionSettings[menuType]);
+        if (!importedSettings || typeof importedSettings !== 'object') {
+            throw new Error(`Invalid ${menuType} payload. Required: settings object`);
+        }
+        const before = JSON.parse(JSON.stringify(transactionSettings[menuType] || {}));
+        transactionSettings[menuType] = JSON.parse(JSON.stringify(importedSettings));
+
+        addActivityEntry('updated', `${menuType}-menu-settings`, before, JSON.parse(JSON.stringify(transactionSettings[menuType])), { imported: true, bulk: true });
+
+        if (menuType === 'purchase') {
+            renderPurchaseButtons();
+            if (currentTab === 'purchase') updatePurchasePreview();
+        } else {
+            renderSellButtons();
+            if (currentTab === 'sell') updateSellPreview();
+        }
+        scheduleAutoSave();
+        return;
+    }
+
+    throw new Error(`Unsupported menu type: ${menuType}`);
+}
+
+function openImportMenuModal(menuType) {
+    const normalized = String(menuType || '').toLowerCase();
+    const titleMap = {
+        mainmenu: 'Import Main Menu',
+        purchase: 'Import Purchase Menu',
+        sell: 'Import Sell Menu'
+    };
+    if (!titleMap[normalized]) {
+        showAlert('Unsupported menu import target.', 'error');
+        return;
+    }
+
+    openEditModal({
+        title: `${titleMap[normalized]} Import`,
+        fields: [
+            {
+                id: 'modal-menu-import-format',
+                label: 'Format',
+                type: 'select',
+                value: 'yaml',
+                options: [
+                    { value: 'json', label: 'JSON' },
+                    { value: 'yaml', label: 'YAML' }
+                ]
+            },
+            {
+                id: 'modal-menu-import-file',
+                label: 'Import File',
+                type: 'file',
+                accept: '.json,.yml,.yaml',
+                hint: 'Upload a menu config file in JSON or YAML. Format is auto-detected from file.'
+            }
+        ],
+        onSave: async (data) => {
+            const selectedFormat = (data['modal-menu-import-format'] || 'yaml').toLowerCase();
+            try {
+                const fileData = await readTextFromFileInput('modal-menu-import-file');
+                const payload = String(fileData.text || '').trim();
+                if (!payload) {
+                    showAlert('Import file is empty.', 'warning');
+                    return;
+                }
+                const format = detectImportFormat(fileData.name, payload, selectedFormat);
+
+                if (format === 'yaml') {
+                    if (normalized === 'mainmenu') {
+                        const beforeSettings = JSON.parse(JSON.stringify(mainMenuSettings || {}));
+                        const beforeShops = JSON.parse(JSON.stringify(loadedGuiShops || []));
+                        parseMainMenuYaml(payload);
+                        addActivityEntry('updated', 'main-menu-settings', beforeSettings, JSON.parse(JSON.stringify(mainMenuSettings || {})), { imported: true });
+                        addActivityEntry('updated', 'main-menu-button', beforeShops, JSON.parse(JSON.stringify(loadedGuiShops || [])), { imported: true, bulk: true });
+                        renderMainMenuShops();
+                        if (currentTab === 'mainmenu') updateGuiPreview();
+                    } else if (normalized === 'purchase') {
+                        const before = JSON.parse(JSON.stringify(transactionSettings.purchase || {}));
+                        parsePurchaseMenuYaml(payload);
+                        addActivityEntry('updated', 'purchase-menu-settings', before, JSON.parse(JSON.stringify(transactionSettings.purchase || {})), { imported: true, bulk: true });
+                        renderPurchaseButtons();
+                        if (currentTab === 'purchase') updatePurchasePreview();
+                    } else if (normalized === 'sell') {
+                        const before = JSON.parse(JSON.stringify(transactionSettings.sell || {}));
+                        parseSellMenuYaml(payload);
+                        addActivityEntry('updated', 'sell-menu-settings', before, JSON.parse(JSON.stringify(transactionSettings.sell || {})), { imported: true, bulk: true });
+                        renderSellButtons();
+                        if (currentTab === 'sell') updateSellPreview();
+                    } else {
+                        throw new Error('Unsupported menu import target.');
+                    }
+                } else {
+                    const parsed = JSON.parse(payload);
+                    applyImportedMenuPayload(normalized, parsed);
+                }
+
+                scheduleAutoSave();
+                showToast(`${titleMap[normalized]} imported`, 'success');
+            } catch (error) {
+                console.error('Menu import failed:', error);
+                showAlert(`Import failed: ${error.message || error}`, 'error');
+            }
+        }
+    });
+}
+
+function openExportMenuModal(menuType) {
+    const normalized = String(menuType || '').toLowerCase();
+    const titleMap = {
+        mainmenu: 'Main Menu',
+        purchase: 'Purchase Menu',
+        sell: 'Sell Menu'
+    };
+    if (!titleMap[normalized]) {
+        showAlert('Unsupported menu export target.', 'error');
+        return;
+    }
+
+    openEditModal({
+        title: `${titleMap[normalized]} Export`,
+        fields: [
+            {
+                id: 'modal-menu-export-format',
+                label: 'Format',
+                type: 'select',
+                value: 'yaml',
+                options: [
+                    { value: 'yaml', label: 'YAML' },
+                    { value: 'json', label: 'JSON' }
+                ]
+            }
+        ],
+        onSave: (data) => {
+            const format = (data['modal-menu-export-format'] || 'yaml').toLowerCase();
+            const date = new Date().toISOString().slice(0, 10);
+            try {
+                if (format === 'json') {
+                    const payload = buildMenuExportPayload(normalized);
+                    triggerDownload(`geniusshop-${normalized}-${date}.json`, JSON.stringify(payload, null, 2), 'application/json');
+                } else {
+                    const yamlContent = normalized === 'mainmenu'
+                        ? buildMainMenuYamlExport()
+                        : buildTransactionMenuYamlExport(normalized);
+                    triggerDownload(`geniusshop-${normalized}-${date}.yml`, yamlContent, 'text/yaml');
+                }
+                showToast(`${titleMap[normalized]} exported`, 'success');
+            } catch (error) {
+                console.error('Menu export failed:', error);
+                showAlert(`Export failed: ${error.message || error}`, 'error');
+            }
+        }
+    });
+}
+
+function sanitizeFilename(value, fallback = 'export') {
+    const raw = String(value || '').trim();
+    const clean = raw.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').replace(/\s+/g, '_');
+    return clean || fallback;
+}
+
+function triggerDownload(filename, content, mimeType = 'application/octet-stream') {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function getCurrentShopYamlContent() {
+    if (typeof updateExport === 'function') {
+        updateExport();
+    } else if (typeof generateShopYaml === 'function') {
+        generateShopYaml();
+    }
+    const exportOutput = document.getElementById('export-output');
+    return exportOutput ? exportOutput.textContent : '';
+}
+
+function buildCurrentShopExportJson() {
+    return {
+        file: currentShopFile,
+        settings: JSON.parse(JSON.stringify(currentShopSettings || {})),
+        items: JSON.parse(JSON.stringify(items || []))
+    };
+}
+
+function buildProjectExportJson() {
+    const shops = JSON.parse(JSON.stringify(allShops || {}));
+    // Ensure current in-memory shop edits are reflected in export payload.
+    if (currentShopFile) {
+        shops[currentShopFile] = getCurrentShopYamlContent();
+    }
+    return {
+        exportedAt: new Date().toISOString(),
+        project: 'GeniusShop Web Editor',
+        shops: shops,
+        state: {
+            currentShopFile,
+            currentShopSettings: JSON.parse(JSON.stringify(currentShopSettings || {})),
+            items: JSON.parse(JSON.stringify(items || [])),
+            mainMenuSettings: JSON.parse(JSON.stringify(mainMenuSettings || {})),
+            loadedGuiShops: JSON.parse(JSON.stringify(loadedGuiShops || [])),
+            transactionSettings: JSON.parse(JSON.stringify(transactionSettings || {})),
+            guiSettings: JSON.parse(JSON.stringify(guiSettings || {})),
+            priceFormatSettings: JSON.parse(JSON.stringify(priceFormatSettings || {}))
+        }
+    };
+}
+
+function exportShopItemData(item) {
+    const payload = {
+        exportedAt: new Date().toISOString(),
+        sourceShop: currentShopFile,
+        item: JSON.parse(JSON.stringify(item || {}))
+    };
+    const itemName = sanitizeFilename((item && item.material) ? item.material : 'item', 'item');
+    triggerDownload(`geniusshop-item-${itemName}.json`, JSON.stringify(payload, null, 2), 'application/json');
+    showToast('Item exported', 'success');
+}
+
+function openExportModal() {
+    openEditModal({
+        title: 'Export Data',
+        fields: [
+            {
+                id: 'modal-export-target',
+                label: 'Export Scope',
+                type: 'select',
+                value: 'shop',
+                options: [
+                    { value: 'shop', label: 'Current Shop' },
+                    { value: 'project', label: 'Current Project' }
+                ],
+                onchange: (e) => {
+                    const formatGroup = document.getElementById('group-modal-export-format');
+                    const formatEl = document.getElementById('modal-export-format');
+                    if (!formatGroup || !formatEl) return;
+                    if (e.target.value === 'project') {
+                        formatGroup.style.display = 'none';
+                        formatEl.value = 'json';
+                    } else {
+                        formatGroup.style.display = 'block';
+                    }
+                }
+            },
+            {
+                id: 'modal-export-format',
+                label: 'Format',
+                type: 'select',
+                value: 'yaml',
+                options: [
+                    { value: 'yaml', label: 'YAML' },
+                    { value: 'json', label: 'JSON' }
+                ]
+            }
+        ],
+        onSave: (data) => {
+            const target = (data['modal-export-target'] || 'shop').toLowerCase();
+            const format = (data['modal-export-format'] || 'yaml').toLowerCase();
+
+            try {
+                if (target === 'project') {
+                    const payload = buildProjectExportJson();
+                    const filename = `geniusshop-project-${new Date().toISOString().slice(0, 10)}.json`;
+                    triggerDownload(filename, JSON.stringify(payload, null, 2), 'application/json');
+                    showToast('Project exported', 'success');
+                    return;
+                }
+
+                const shopBase = sanitizeFilename(currentShopFile ? currentShopFile.replace(/\.yml$/i, '') : 'shop', 'shop');
+                if (format === 'json') {
+                    const payload = buildCurrentShopExportJson();
+                    triggerDownload(`geniusshop-shop-${shopBase}.json`, JSON.stringify(payload, null, 2), 'application/json');
+                    showToast('Shop exported (JSON)', 'success');
+                } else {
+                    const yamlContent = getCurrentShopYamlContent();
+                    triggerDownload(`geniusshop-shop-${shopBase}.yml`, yamlContent, 'text/yaml');
+                    showToast('Shop exported (YAML)', 'success');
+                }
+            } catch (error) {
+                console.error('Export failed:', error);
+                showAlert(`Export failed: ${error.message || error}`, 'error');
+            }
+        }
+    });
 }
 
 function openShopItemModal(itemId) {
@@ -726,18 +1968,85 @@ function openShopItemModal(itemId) {
     const hasEnchantments = !!(item.enchantments && Object.keys(item.enchantments).length > 0);
     const hasCommands = !!(item.commands && item.commands.length > 0);
     const hasLimits = (item.limit || 0) > 0 || (item.globalLimit || 0) > 0;
+    const campaignOptions = [{ value: '', label: 'None' }]
+        .concat((globalCampaigns || [])
+            .filter(c => c && c.key)
+            .map(c => ({ value: c.key, label: c.name ? `${c.key} - ${c.name}` : c.key })));
+    const hasAdvancedConditions = (item.minPlayerLevel || 0) > 0
+        || (item.maxPlayerLevel || 0) > 0
+        || !!String(item.requiredGamemode || '').trim()
+        || (Array.isArray(item.allowedWorlds) && item.allowedWorlds.length > 0)
+        || (Array.isArray(item.deniedWorlds) && item.deniedWorlds.length > 0);
+    const hasCampaign = !!item.campaignEnabled
+        || !!String(item.campaignName || '').trim()
+        || !!String(item.campaignStart || '').trim()
+        || !!String(item.campaignEnd || '').trim()
+        || !!String(item.campaignTimezone || '').trim()
+        || (parseFloat(item.campaignBuyMultiplier) || 1) !== 1
+        || (parseFloat(item.campaignSellMultiplier) || 1) !== 1;
 
     const fields = [
         { id: 'modal-name', label: t('web-editor.modals.fields.display-name'), value: item.name, hint: t('web-editor.modals.fields.display-name-hint') },
         { id: 'modal-slot', label: t('web-editor.modals.fields.slot'), type: 'number', value: item.slot, min: 0, hint: t('web-editor.modals.fields.slot-hint'), row: true },
         { id: 'modal-amount', label: t('web-editor.modals.fields.amount'), type: 'number', value: item.amount, min: 1, max: 64, row: true },
         { id: 'modal-price', label: t('web-editor.modals.fields.buy-price'), type: 'number', value: item.price, hint: t('web-editor.modals.fields.buy-price-hint'), row: true },
+        {
+            id: 'modal-buyPricePerItem',
+            label: t('web-editor.modals.fields.buy-price-mode', 'Buy Price Mode'),
+            type: 'select',
+            value: item.buyPricePerItem === false ? 'per-bundle' : 'per-item',
+            options: [
+                { value: 'per-item', label: t('web-editor.modals.fields.price-mode-per-item', 'Per item') },
+                { value: 'per-bundle', label: t('web-editor.modals.fields.price-mode-per-bundle', 'Per configured amount') }
+            ],
+            row: true
+        },
         { id: 'modal-sellPrice', label: t('web-editor.modals.fields.sell-price'), type: 'number', value: item.sellPrice || 0, hint: t('web-editor.modals.fields.sell-price-hint'), row: true },
+        {
+            id: 'modal-sellPricePerItem',
+            label: t('web-editor.modals.fields.sell-price-mode', 'Sell Price Mode'),
+            type: 'select',
+            value: item.sellPricePerItem === false ? 'per-bundle' : 'per-item',
+            options: [
+                { value: 'per-item', label: t('web-editor.modals.fields.price-mode-per-item', 'Per item') },
+                { value: 'per-bundle', label: t('web-editor.modals.fields.price-mode-per-bundle', 'Per configured amount') }
+            ],
+            row: true
+        },
+        {
+            id: 'modal-campaignEnabled',
+            label: t('web-editor.modals.fields.campaign-enabled', 'Enable Campaign'),
+            type: 'checkbox',
+            value: hasCampaign,
+            checkboxGroup: 'Trading Rules',
+            onchange: (e) => {
+                const enabled = e.target.checked;
+                ['campaignName', 'campaignStart', 'campaignEnd', 'campaignTimezone', 'campaignBuyMultiplier', 'campaignSellMultiplier'].forEach(key => {
+                    const group = document.getElementById(`group-modal-${key}`);
+                    if (group) group.style.display = enabled ? 'block' : 'none';
+                });
+            }
+        },
+        {
+            id: 'modal-campaignKey',
+            label: t('web-editor.modals.fields.campaign-key', 'Assigned Campaign'),
+            type: 'select',
+            value: item.campaign || '',
+            options: campaignOptions,
+            hint: t('web-editor.modals.fields.campaign-key-hint', 'Use a campaign from the Campaigns tab. Item inline campaign settings override this.')
+        },
+        { id: 'modal-campaignName', label: t('web-editor.modals.fields.campaign-name', 'Campaign Name'), value: item.campaignName || '', hidden: !hasCampaign },
+        { id: 'modal-campaignStart', label: t('web-editor.modals.fields.campaign-start', 'Campaign Start'), value: item.campaignStart || '', hint: t('web-editor.modals.fields.campaign-start-hint', 'Use YYYY-MM-DD HH:mm (or ISO).'), hidden: !hasCampaign },
+        { id: 'modal-campaignEnd', label: t('web-editor.modals.fields.campaign-end', 'Campaign End'), value: item.campaignEnd || '', hint: t('web-editor.modals.fields.campaign-end-hint', 'Use YYYY-MM-DD HH:mm (or ISO).'), hidden: !hasCampaign },
+        { id: 'modal-campaignTimezone', label: t('web-editor.modals.fields.campaign-timezone', 'Campaign Timezone'), value: item.campaignTimezone || '', hint: t('web-editor.modals.fields.campaign-timezone-hint', 'Optional: e.g. UTC or Europe/Copenhagen'), hidden: !hasCampaign },
+        { id: 'modal-campaignBuyMultiplier', label: t('web-editor.modals.fields.campaign-buy-multiplier', 'Campaign Buy Multiplier'), type: 'number', step: '0.01', min: 0.01, value: (parseFloat(item.campaignBuyMultiplier) || 1), hidden: !hasCampaign, row: true },
+        { id: 'modal-campaignSellMultiplier', label: t('web-editor.modals.fields.campaign-sell-multiplier', 'Campaign Sell Multiplier'), type: 'number', step: '0.01', min: 0.01, value: (parseFloat(item.campaignSellMultiplier) || 1), hidden: !hasCampaign, row: true },
         {
             id: 'modal-enableLore',
             label: 'Enable Lore',
             type: 'checkbox',
             value: hasLore,
+            checkboxGroup: 'Content',
             onchange: (e) => {
                 const group = document.getElementById('group-modal-lore');
                 if (group) group.style.display = e.target.checked ? 'block' : 'none';
@@ -749,6 +2058,7 @@ function openShopItemModal(itemId) {
             label: 'Enable Enchantments',
             type: 'checkbox',
             value: hasEnchantments,
+            checkboxGroup: 'Content',
             onchange: (e) => {
                 const group = document.getElementById('group-modal-enchantments');
                 if (group) group.style.display = e.target.checked ? 'block' : 'none';
@@ -870,17 +2180,18 @@ function openShopItemModal(itemId) {
         hint: 'Optional fallback owner name for player heads.'
     });
 
-    fields.push({ id: 'modal-hideAttributes', label: t('web-editor.modals.fields.hide-attributes'), type: 'checkbox', value: item.hideAttributes });
-    fields.push({ id: 'modal-hideAdditional', label: t('web-editor.modals.fields.hide-additional'), type: 'checkbox', value: item.hideAdditional });
-    fields.push({ id: 'modal-requireName', label: t('web-editor.modals.fields.require-name'), type: 'checkbox', value: item.requireName, hint: t('web-editor.modals.fields.require-name-hint') });
-    fields.push({ id: 'modal-requireLore', label: t('web-editor.modals.fields.require-lore'), type: 'checkbox', value: item.requireLore, hint: t('web-editor.modals.fields.require-lore-hint') });
-    fields.push({ id: 'modal-unstableTnt', label: t('web-editor.modals.fields.unstable-tnt'), type: 'checkbox', value: item.unstableTnt, hidden: !item.material.toUpperCase().includes('TNT') });
+    fields.push({ id: 'modal-hideAttributes', label: t('web-editor.modals.fields.hide-attributes'), type: 'checkbox', value: item.hideAttributes, checkboxGroup: 'Display Flags' });
+    fields.push({ id: 'modal-hideAdditional', label: t('web-editor.modals.fields.hide-additional'), type: 'checkbox', value: item.hideAdditional, checkboxGroup: 'Display Flags' });
+    fields.push({ id: 'modal-requireName', label: t('web-editor.modals.fields.require-name'), type: 'checkbox', value: item.requireName, hint: t('web-editor.modals.fields.require-name-hint'), checkboxGroup: 'Requirements' });
+    fields.push({ id: 'modal-requireLore', label: t('web-editor.modals.fields.require-lore'), type: 'checkbox', value: item.requireLore, hint: t('web-editor.modals.fields.require-lore-hint'), checkboxGroup: 'Requirements' });
+    fields.push({ id: 'modal-unstableTnt', label: t('web-editor.modals.fields.unstable-tnt'), type: 'checkbox', value: item.unstableTnt, hidden: !item.material.toUpperCase().includes('TNT'), checkboxGroup: 'Display Flags' });
 
     fields.push({
         id: 'modal-enableLimits',
         label: 'Enable Limits',
         type: 'checkbox',
         value: hasLimits,
+        checkboxGroup: 'Trading Rules',
         onchange: (e) => {
             const enabled = e.target.checked;
             const addGroup = document.getElementById('group-modal-add-limit');
@@ -980,6 +2291,7 @@ function openShopItemModal(itemId) {
         label: t('web-editor.modals.fields.dynamic-pricing'), 
         type: 'checkbox', 
         value: item.dynamicPricing,
+        checkboxGroup: 'Trading Rules',
         onchange: (e) => {
             const isDynamic = e.target.checked;
             ['group-modal-minPrice', 'group-modal-maxPrice', 'group-modal-priceChange'].forEach(id => {
@@ -992,10 +2304,23 @@ function openShopItemModal(itemId) {
     fields.push({ id: 'modal-maxPrice', label: t('web-editor.modals.fields.max-price'), type: 'number', value: item.maxPrice || 0, hint: t('web-editor.modals.fields.max-price-hint'), hidden: !item.dynamicPricing });
     fields.push({ id: 'modal-priceChange', label: t('web-editor.modals.fields.price-change'), type: 'number', value: item.priceChange || 0, step: '0.01', hint: t('web-editor.modals.fields.price-change-hint'), hidden: !item.dynamicPricing });
     fields.push({
+        id: 'modal-buyPriceFormula',
+        label: t('web-editor.modals.fields.buy-price-formula', 'Buy Price Formula'),
+        value: item.buyPriceFormula || '',
+        hint: t('web-editor.modals.fields.price-formula-hint', 'Variables: base, dynamic, global_count, amount, price_change, min_price, max_price. Functions: min,max,abs,round,floor,ceil,pow')
+    });
+    fields.push({
+        id: 'modal-sellPriceFormula',
+        label: t('web-editor.modals.fields.sell-price-formula', 'Sell Price Formula'),
+        value: item.sellPriceFormula || '',
+        hint: t('web-editor.modals.fields.price-formula-hint', 'Variables: base, dynamic, global_count, amount, price_change, min_price, max_price. Functions: min,max,abs,round,floor,ceil,pow')
+    });
+    fields.push({
         id: 'modal-enableCommands',
         label: 'Enable Commands',
         type: 'checkbox',
         value: hasCommands,
+        checkboxGroup: 'Automation',
         onchange: (e) => {
             const enabled = e.target.checked;
             const commandsGroup = document.getElementById('group-modal-commands');
@@ -1019,16 +2344,52 @@ function openShopItemModal(itemId) {
         hint: 'Executor for item commands',
         hidden: !hasCommands
     });
-    fields.push({ id: 'modal-runCommandOnly', label: t('web-editor.modals.fields.run-command-only', 'Run Command Only'), type: 'checkbox', value: item.runCommandOnly !== false, hint: t('web-editor.modals.fields.run-command-only-hint', 'If enabled, the item will not be given to the player if commands are present.'), hidden: !hasCommands });
+    fields.push({ id: 'modal-runCommandOnly', label: t('web-editor.modals.fields.run-command-only', 'Run Command Only'), type: 'checkbox', value: item.runCommandOnly !== false, hint: t('web-editor.modals.fields.run-command-only-hint', 'If enabled, the item will not be given to the player if commands are present.'), hidden: !hasCommands, checkboxGroup: 'Automation' });
     fields.push({ id: 'modal-permission', label: t('web-editor.modals.fields.permission', 'Permission'), value: item.permission || '', hint: t('web-editor.modals.fields.permission-hint', 'Optional permission required to buy/sell this item.') });
-    fields.push({ id: 'modal-sellAddsToStock', label: 'Sell adds back to stock', type: 'checkbox', value: item.sellAddsToStock === true, hint: 'Override shop setting for this item' });
-    fields.push({ id: 'modal-allowSellStockOverflow', label: 'Allow sell stock overflow', type: 'checkbox', value: item.allowSellStockOverflow === true, hint: 'If disabled, selling is blocked when stock is already full' });
+    fields.push({ id: 'modal-itemKey', label: 'Item Key', value: item.itemKey || '', hint: 'Optional stable key written as item-key in YAML.' });
+    fields.push({ id: 'modal-variantKey', label: 'Variant Key', value: item.variantKey || '', hint: 'Optional variant identifier written as variant-key in YAML.' });
+    fields.push({
+        id: 'modal-enableConditions',
+        label: 'Enable Advanced Conditions',
+        type: 'checkbox',
+        value: hasAdvancedConditions,
+        checkboxGroup: 'Requirements',
+        onchange: (e) => {
+            const enabled = e.target.checked;
+            ['minPlayerLevel', 'maxPlayerLevel', 'requiredGamemode', 'allowedWorlds', 'deniedWorlds'].forEach(key => {
+                const group = document.getElementById(`group-modal-${key}`);
+                if (group) group.style.display = enabled ? 'block' : 'none';
+            });
+        }
+    });
+    fields.push({ id: 'modal-minPlayerLevel', label: 'Min Player Level', type: 'number', value: item.minPlayerLevel || 0, min: 0, hint: '0 disables this condition.', hidden: !hasAdvancedConditions });
+    fields.push({ id: 'modal-maxPlayerLevel', label: 'Max Player Level', type: 'number', value: item.maxPlayerLevel || 0, min: 0, hint: '0 disables this condition.', hidden: !hasAdvancedConditions });
+    fields.push({
+        id: 'modal-requiredGamemode',
+        label: 'Required Gamemode',
+        type: 'select',
+        value: (item.requiredGamemode || '').toUpperCase(),
+        options: [
+            { value: '', label: 'Any' },
+            { value: 'SURVIVAL', label: 'SURVIVAL' },
+            { value: 'CREATIVE', label: 'CREATIVE' },
+            { value: 'ADVENTURE', label: 'ADVENTURE' },
+            { value: 'SPECTATOR', label: 'SPECTATOR' }
+        ],
+        hint: 'Optional gamemode restriction.',
+        hidden: !hasAdvancedConditions
+    });
+    fields.push({ id: 'modal-allowedWorlds', label: 'Allowed Worlds', type: 'textarea', value: (item.allowedWorlds || []).join('\n'), hint: 'One world per line. Leave empty to allow all worlds.', hidden: !hasAdvancedConditions });
+    fields.push({ id: 'modal-deniedWorlds', label: 'Denied Worlds', type: 'textarea', value: (item.deniedWorlds || []).join('\n'), hint: 'One world per line. Deny list takes priority over allowed list.', hidden: !hasAdvancedConditions });
+    fields.push({ id: 'modal-sellAddsToStock', label: 'Sell adds back to stock', type: 'checkbox', value: item.sellAddsToStock === true, hint: 'Override shop setting for this item', checkboxGroup: 'Trading Rules' });
+    fields.push({ id: 'modal-allowSellStockOverflow', label: 'Allow sell stock overflow', type: 'checkbox', value: item.allowSellStockOverflow === true, hint: 'If disabled, selling is blocked when stock is already full', checkboxGroup: 'Trading Rules' });
     const itemStockReset = sanitizeStockResetRule(item.stockResetRule);
     fields.push({
         id: 'modal-stockResetEnabled',
         label: 'Enable stock reset for this item',
         type: 'checkbox',
         value: itemStockReset.enabled,
+        checkboxGroup: 'Stock & Reset',
         onchange: () => updateStockResetInputUi()
     });
     fields.push({
@@ -1066,6 +2427,7 @@ function openShopItemModal(itemId) {
         label: 'Show stock line',
         type: 'checkbox',
         value: !!item.showStock,
+        checkboxGroup: 'Stock & Reset',
         hint: 'Used when Shop Item Lore Format contains %global-limit%'
     });
     fields.push({
@@ -1073,6 +2435,7 @@ function openShopItemModal(itemId) {
         label: 'Enable stock reset timer token',
         type: 'checkbox',
         value: !!item.showStockResetTimer,
+        checkboxGroup: 'Stock & Reset',
         hint: 'Used when Shop Item Lore Format contains %stock-reset-timer%'
     });
 
@@ -1089,6 +2452,31 @@ function openShopItemModal(itemId) {
             </div>
         `,
         fields: fields,
+        extraActions: [
+            {
+                id: 'modal-export-item-btn',
+                label: 'Export Item',
+                className: 'btn-secondary',
+                onClick: () => exportShopItemData(item)
+            },
+            {
+                id: 'modal-clone-item-btn',
+                label: 'Clone to Shop',
+                className: 'btn-warning',
+                onClick: () => cloneShopItemToAnotherShop(item)
+            },
+            {
+                id: 'modal-bulk-clone-item-btn',
+                label: 'Clone to Multiple',
+                className: 'btn-warning',
+                onClick: () => cloneShopItemToMultipleShops(item)
+            }
+        ],
+        preview: {
+            enabled: true,
+            title: 'Item Preview',
+            render: (formData) => buildShopItemPreviewHtml(item, formData)
+        },
         onSave: (data) => {
             const beforeData = JSON.parse(JSON.stringify(item));
 
@@ -1097,6 +2485,16 @@ function openShopItemModal(itemId) {
             item.name = data['modal-name'];
             item.price = parseFloat(data['modal-price']) || 0;
             item.sellPrice = parseFloat(data['modal-sellPrice']) || 0;
+            item.buyPricePerItem = (data['modal-buyPricePerItem'] || 'per-item') === 'per-item';
+            item.sellPricePerItem = (data['modal-sellPricePerItem'] || 'per-item') === 'per-item';
+            item.campaign = (data['modal-campaignKey'] || '').trim();
+            item.campaignEnabled = !!data['modal-campaignEnabled'];
+            item.campaignName = item.campaignEnabled ? (data['modal-campaignName'] || '').trim() : '';
+            item.campaignStart = item.campaignEnabled ? (data['modal-campaignStart'] || '').trim() : '';
+            item.campaignEnd = item.campaignEnabled ? (data['modal-campaignEnd'] || '').trim() : '';
+            item.campaignTimezone = item.campaignEnabled ? (data['modal-campaignTimezone'] || '').trim() : '';
+            item.campaignBuyMultiplier = item.campaignEnabled ? Math.max(0.01, parseFloat(data['modal-campaignBuyMultiplier']) || 1) : 1;
+            item.campaignSellMultiplier = item.campaignEnabled ? Math.max(0.01, parseFloat(data['modal-campaignSellMultiplier']) || 1) : 1;
             item.amount = parseInt(data['modal-amount']) || 1;
             item.lore = data['modal-enableLore'] ? data['modal-lore'].split('\n') : [];
             item.slot = parseInt(data['modal-slot']) || 0;
@@ -1164,6 +2562,8 @@ function openShopItemModal(itemId) {
             item.minPrice = parseFloat(data['modal-minPrice']) || 0;
             item.maxPrice = parseFloat(data['modal-maxPrice']) || 0;
             item.priceChange = parseFloat(data['modal-priceChange']) || 0;
+            item.buyPriceFormula = (data['modal-buyPriceFormula'] || '').trim();
+            item.sellPriceFormula = (data['modal-sellPriceFormula'] || '').trim();
             item.commands = data['modal-enableCommands']
                 ? data['modal-commands'].split('\n').filter(line => line.trim() !== '')
                 : [];
@@ -1172,6 +2572,21 @@ function openShopItemModal(itemId) {
                 : 'console';
             item.runCommandOnly = data['modal-enableCommands'] ? data['modal-runCommandOnly'] : true;
             item.permission = data['modal-permission'] || '';
+            item.itemKey = (data['modal-itemKey'] || '').trim();
+            item.variantKey = (data['modal-variantKey'] || '').trim();
+            if (data['modal-enableConditions']) {
+                item.minPlayerLevel = parseInt(data['modal-minPlayerLevel']) || 0;
+                item.maxPlayerLevel = parseInt(data['modal-maxPlayerLevel']) || 0;
+                item.requiredGamemode = (data['modal-requiredGamemode'] || '').toUpperCase();
+                item.allowedWorlds = (data['modal-allowedWorlds'] || '').split('\n').map(v => v.trim()).filter(v => v.length > 0);
+                item.deniedWorlds = (data['modal-deniedWorlds'] || '').split('\n').map(v => v.trim()).filter(v => v.length > 0);
+            } else {
+                item.minPlayerLevel = 0;
+                item.maxPlayerLevel = 0;
+                item.requiredGamemode = '';
+                item.allowedWorlds = [];
+                item.deniedWorlds = [];
+            }
             item.sellAddsToStock = !!data['modal-sellAddsToStock'];
             item.allowSellStockOverflow = !!data['modal-allowSellStockOverflow'];
             item.stockResetRule = readStockResetFromModal(data);
@@ -1593,7 +3008,7 @@ function closeActivityLogModal() {
 }
 
 function openActivityDetailModal(entryId) {
-    const entry = activityLog.find(e => e.id === entryId);
+    const entry = activityLog.find(e => String(e.id) === String(entryId));
     if (!entry) return;
 
     currentViewedEntry = entry;
@@ -1785,152 +3200,31 @@ function closeActivityDetailModal() {
 async function rollbackChange() {
     if (!currentViewedEntry) return;
     const entry = currentViewedEntry;
-    
-    // Check if context matches for shop-specific changes
-    if ((entry.target === 'shop-item' || entry.target === 'shop-settings') && 
-        entry.details && entry.details.shopFile && entry.details.shopFile !== currentShopFile) {
-        showAlert(`You must switch to shop "${entry.details.shopFile}" before rolling back this change.`, 'warning');
-        return;
-    }
 
     const confirmed = await showConfirm(`Are you sure you want to rollback this ${entry.action} ${entry.target}? This will overwrite current state.`);
     if (!confirmed) return;
 
     try {
-        switch (entry.target) {
-            case 'shop-item':
-                if (entry.action === 'updated') {
-                    const rollbackItem = (before, after) => {
-                        const item = items.find(i => i.id === after.id);
-                        if (item) {
-                            Object.assign(item, JSON.parse(JSON.stringify(before)));
-                        } else {
-                            // Item might have been deleted, add it back
-                            items.push(JSON.parse(JSON.stringify(before)));
-                        }
-                    };
-                    if (Array.isArray(entry.afterData)) {
-                        entry.afterData.forEach((after, idx) => rollbackItem(entry.beforeData[idx], after));
-                    } else {
-                        rollbackItem(entry.beforeData, entry.afterData);
-                    }
-                } else if (entry.action === 'created') {
-                    // Remove created item
-                    items = items.filter(i => i.id !== entry.afterData.id);
-                } else if (entry.action === 'deleted') {
-                    // Add deleted item back
-                    items.push(JSON.parse(JSON.stringify(entry.beforeData)));
-                }
-                renderItems();
-                updateAll();
-                break;
-
-            case 'main-menu-button':
-                if (entry.action === 'updated') {
-                    const rollbackShop = (before, after) => {
-                        const shop = loadedGuiShops.find(s => s.key === after.key);
-                        if (shop) {
-                            Object.assign(shop, JSON.parse(JSON.stringify(before)));
-                        }
-                    };
-                    if (Array.isArray(entry.afterData)) {
-                        entry.afterData.forEach((after, idx) => rollbackShop(entry.beforeData[idx], after));
-                    } else {
-                        rollbackShop(entry.beforeData, entry.afterData);
-                    }
-                } else if (entry.action === 'created') {
-                    loadedGuiShops = loadedGuiShops.filter(s => s.key !== entry.afterData.key);
-                } else if (entry.action === 'deleted') {
-                    loadedGuiShops.push(JSON.parse(JSON.stringify(entry.beforeData)));
-                }
-                renderMainMenuShops();
-                updateGuiPreview();
-                scheduleAutoSave();
-                break;
-
-            case 'purchase-menu-button':
-            case 'sell-menu-button':
-                {
-                    const type = entry.details.type; // 'purchase' or 'sell'
-                    
-                    const rollbackBtn = (before, details) => {
-                        const group = details.group; // 'main', 'add', 'remove', 'set'
-                        const key = details.key;
-                        if (group === 'display') {
-                            transactionSettings[type].displaySlot = before.slot;
-                        } else if (group === 'main') {
-                            transactionSettings[type].buttons[key] = JSON.parse(JSON.stringify(before));
-                        } else {
-                            transactionSettings[type][group].buttons[key] = JSON.parse(JSON.stringify(before));
-                        }
-                    };
-
-                    if (entry.action === 'updated') {
-                        if (Array.isArray(entry.afterData)) {
-                            entry.afterData.forEach((after, idx) => rollbackBtn(entry.beforeData[idx], entry.details.batch[idx]));
-                        } else {
-                            rollbackBtn(entry.beforeData, entry.details);
-                        }
-                    } else if (entry.action === 'created') {
-                        if (entry.details.group !== 'main') {
-                            delete transactionSettings[type][entry.details.group].buttons[entry.details.key];
-                        }
-                    } else if (entry.action === 'deleted') {
-                        if (entry.details.group !== 'main') {
-                            transactionSettings[type][entry.details.group].buttons[entry.details.key] = JSON.parse(JSON.stringify(entry.beforeData));
-                        }
-                    }
-                    
-                    if (type === 'purchase') {
-                        updatePurchasePreview();
-                        renderPurchaseButtons();
-                    } else {
-                        updateSellPreview();
-                        renderSellButtons();
-                    }
-                    scheduleAutoSave();
-                }
-                break;
-
-            case 'shop-settings':
-                Object.assign(currentShopSettings, JSON.parse(JSON.stringify(entry.beforeData)));
-                updateAll();
-                break;
-
-            case 'main-menu-settings':
-                Object.assign(mainMenuSettings, JSON.parse(JSON.stringify(entry.beforeData)));
-                updateGuiPreview();
-                renderMainMenuShops();
-                scheduleAutoSave();
-                break;
-
-            case 'purchase-menu-settings':
-            case 'sell-menu-settings':
-                {
-                    const settingsType = entry.target.split('-')[0]; // 'purchase' or 'sell'
-                    Object.assign(transactionSettings[settingsType], JSON.parse(JSON.stringify(entry.beforeData)));
-                    if (settingsType === 'purchase') {
-                        updatePurchasePreview();
-                        renderPurchaseButtons();
-                    } else {
-                        updateSellPreview();
-                        renderSellButtons();
-                    }
-                    scheduleAutoSave();
-                }
-                break;
+        const response = await fetch(`api/activity-log/rollback`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Token': sessionToken
+            },
+            body: JSON.stringify({
+                id: Number(entry.id)
+            })
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
         }
 
-        const rollbackAction = entry.action === 'created' ? 'deleted' : (entry.action === 'deleted' ? 'created' : 'updated');
-
-        // Add rollback to history
-        addActivityEntry(rollbackAction, entry.target, entry.afterData, entry.beforeData, {
-            ...entry.details,
-            isRollback: true
-        });
-
+        await loadAllFiles();
+        await loadActivityLog();
         closeActivityDetailModal();
         closeActivityLogModal();
+        refreshActivityLog();
         showToast(t('web-editor.modals.rollback-success', 'Action rolled back successfully'), 'success');
     } catch (error) {
         console.error('Rollback failed:', error);
@@ -1938,7 +3232,9 @@ async function rollbackChange() {
     }
 }
 
-function refreshActivityLog() {
+async function refreshActivityLog() {
+    await loadActivityLog();
+
     const container = document.getElementById('activity-log-container');
     const emptyState = document.getElementById('activity-log-empty');
     if (!container) return;
@@ -1951,20 +3247,21 @@ function refreshActivityLog() {
 
     if (emptyState) emptyState.style.display = 'none';
 
+    const sortedActivity = [...activityLog].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
     let html = '';
-    activityLog.forEach(entry => {
+    sortedActivity.forEach(entry => {
         const timeAgo = getTimeAgo(entry.timestamp);
         const icon = entry.action === 'created' ? '➕' : entry.action === 'updated' ? '✏️' : '🗑️';
-        const color = entry.action === 'created' ? 'rgba(0, 230, 118, 0.15)' : entry.action === 'updated' ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 107, 107, 0.15)';
-        const borderColor = entry.action === 'created' ? 'rgba(0, 230, 118, 0.25)' : entry.action === 'updated' ? 'rgba(255, 215, 0, 0.25)' : 'rgba(255, 107, 107, 0.25)';
+        const color = entry.action === 'created' ? 'var(--activity-created-bg)' : entry.action === 'updated' ? 'var(--activity-updated-bg)' : 'var(--activity-deleted-bg)';
+        const borderColor = entry.action === 'created' ? 'var(--activity-created-border)' : entry.action === 'updated' ? 'var(--activity-updated-border)' : 'var(--activity-deleted-border)';
 
         html += `
-            <div class="shop-item" style="margin-bottom: 10px; background: ${color}; border-color: ${borderColor}; cursor: pointer;" onclick="openActivityDetailModal(${entry.id})">
+            <div class="shop-item" style="margin-bottom: 10px; background: ${color}; border-color: ${borderColor}; cursor: pointer;" onclick="openActivityDetailModal(${JSON.stringify(entry.id)})">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                     <div style="font-size: 1.2em; flex-shrink: 0;">${icon}</div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(getActivitySummary(entry))}</div>
-                        <div style="font-size: 0.8em; color: rgba(255,255,255,0.6);">${entry.username} • ${timeAgo}</div>
+                        <div style="font-size: 0.8em; color: rgba(255,255,255,0.6);">${entry.username || 'Unknown'} • ${timeAgo} • ${escapeHtml(entry.target || 'unknown')}</div>
                     </div>
                     <div style="font-size: 1.2em; opacity: 0.5;">🔍</div>
                 </div>

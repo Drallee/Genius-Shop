@@ -96,8 +96,7 @@ public class MenuManager {
             }
 
         } catch (IOException e) {
-            me.dralle.shop.util.ConsoleLog.error(plugin, "Failed to migrate gui.yml: " + e.getMessage());
-            e.printStackTrace();
+            me.dralle.shop.util.ConsoleLog.error(plugin, "Failed to migrate gui.yml: " + e.getMessage(), e);
         }
     }
 

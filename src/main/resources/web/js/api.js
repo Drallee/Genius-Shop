@@ -1,8 +1,123 @@
 ﻿// ===== API INTERACTION =====
 
+function normalizeEconomySafetySettings(input) {
+    const src = input || {};
+    return {
+        enabled: src.enabled !== false,
+        maxTransactionValue: Number(src.maxTransactionValue ?? 50000000) || 0,
+        maxUnitPrice: Number(src.maxUnitPrice ?? 10000000) || 0,
+        antiSpikeEnabled: src.antiSpikeEnabled !== false,
+        antiSpikeMaxBaseMultiplier: Number(src.antiSpikeMaxBaseMultiplier ?? 10) || 0,
+        antiSpikeMinBaseMultiplier: Number(src.antiSpikeMinBaseMultiplier ?? 0) || 0,
+        antiSpikeMaxStepChangeRatio: Number(src.antiSpikeMaxStepChangeRatio ?? 5) || 0,
+        cooldownsEnabled: src.cooldownsEnabled !== false,
+        buyCooldownMs: Math.max(0, parseInt(src.buyCooldownMs ?? 250, 10) || 0),
+        sellCooldownMs: Math.max(0, parseInt(src.sellCooldownMs ?? 250, 10) || 0),
+        bulkSellCooldownMs: Math.max(0, parseInt(src.bulkSellCooldownMs ?? 500, 10) || 0),
+        largePurchaseConfirmEnabled: src.largePurchaseConfirmEnabled !== false,
+        largePurchaseConfirmThreshold: Number(src.largePurchaseConfirmThreshold ?? 1000000) || 0,
+        largePurchaseConfirmTimeoutSeconds: Math.max(1, parseInt(src.largePurchaseConfirmTimeoutSeconds ?? 10, 10) || 10),
+        adminAlertsEnabled: !!src.adminAlertsEnabled,
+        adminNotifyPermission: (src.adminNotifyPermission || 'geniusshop.admin').toString(),
+        adminAlertRateLimitMs: Math.max(0, parseInt(src.adminAlertRateLimitMs ?? 3000, 10) || 0)
+    };
+}
+
+async function loadStockAnalyticsData(isSilent = true) {
+    try {
+        const response = await fetch(`api/stock-analytics?t=${Date.now()}`, {
+            headers: {
+                'X-Session-Token': sessionToken
+            }
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        stockAnalyticsData = await response.json();
+        if (currentTab === 'stockanalytics') {
+            renderStockAnalyticsDashboard();
+        }
+    } catch (error) {
+        console.error('Failed to load stock analytics:', error);
+        if (!isSilent) {
+            showToast('Failed to load stock analytics', 'error');
+        }
+    }
+}
+
+async function loadDatabaseEditorData(isSilent = true) {
+    try {
+        const response = await fetch(`api/database?t=${Date.now()}`, {
+            headers: {
+                'X-Session-Token': sessionToken
+            }
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        databaseEditorData = await response.json();
+        if (currentTab === 'dataeditor' && typeof renderDatabaseEditor === 'function') {
+            renderDatabaseEditor();
+        }
+    } catch (error) {
+        console.error('Failed to load database editor data:', error);
+        if (!isSilent) {
+            showToast('Failed to load data.db content', 'error');
+        }
+    }
+}
+
+async function saveDatabaseEntry(table, payload) {
+    const response = await fetch(`api/database`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Token': sessionToken
+        },
+        body: JSON.stringify({ table, ...payload })
+    });
+
+    if (response.status === 401) {
+        showAlert(t('web-editor.modals.session-expired', 'Session expired. Please login again.'), 'warning');
+        logout();
+        return null;
+    }
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data && data.database) {
+        databaseEditorData = data.database;
+    }
+    return data;
+}
+
+async function deleteDatabaseEntry(table, payload) {
+    const response = await fetch(`api/database`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Token': sessionToken
+        },
+        body: JSON.stringify({ table, ...payload })
+    });
+
+    if (response.status === 401) {
+        showAlert(t('web-editor.modals.session-expired', 'Session expired. Please login again.'), 'warning');
+        logout();
+        return null;
+    }
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data && data.database) {
+        databaseEditorData = data.database;
+    }
+    return data;
+}
+
 async function loadAllFiles() {
     try {
-        isLoadingFiles = true;
+        setEditorState('isLoadingFiles', true);
         console.log('[LOAD] Starting to load files');
         showToast(t('web-editor.shop.loading'), 'info');
         if (typeof renderSkeletons === 'function') {
@@ -26,10 +141,17 @@ async function loadAllFiles() {
             logout();
             return;
         }
+        if (response.status === 403) {
+            const data = await response.json().catch(() => ({}));
+            const reason = data.message || data.error || 'Access denied';
+            showAlert(reason, 'warning');
+            return;
+        }
 
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json().catch(() => ({}));
+            const reason = data.message || data.error || `HTTP error! status: ${response.status}`;
+            throw new Error(reason);
         }
 
         const data = await response.json();
@@ -87,18 +209,35 @@ async function loadAllFiles() {
         if (data.guiSettings) {
             parseGuiSettingsYaml(data.guiSettings);
         }
+        if (data.campaignsFile) {
+            parseCampaignsFileYaml(data.campaignsFile);
+        } else {
+            globalCampaigns = [];
+        }
         if (data.priceFormat) {
             parsePriceFormatPayload(data.priceFormat);
+        }
+        if (data.economySafety) {
+            economySafetySettings = normalizeEconomySafetySettings(data.economySafety);
         }
 
         // Update preview based on current active tab
         const previewSection = document.querySelector('.minecraft-preview-section');
         if (previewSection) {
-            previewSection.style.display = (currentTab === 'guisettings') ? 'none' : 'block';
+            previewSection.style.display = (currentTab === 'guisettings' || currentTab === 'campaigns' || currentTab === 'stockanalytics' || currentTab === 'dataeditor') ? 'none' : 'block';
         }
 
         if (currentTab === 'mainmenu') {
             updateGuiPreview();
+        } else if (currentTab === 'shop') {
+            updatePreview();
+        } else if (currentTab === 'campaigns') {
+            renderCampaignsTab();
+        } else if (currentTab === 'stockanalytics') {
+            await loadStockAnalyticsData(true);
+        } else if (currentTab === 'dataeditor') {
+            await loadDatabaseEditorData(true);
+            renderDatabaseEditor();
         } else if (currentTab === 'purchase') {
             updatePurchasePreview();
         } else if (currentTab === 'sell') {
@@ -106,15 +245,18 @@ async function loadAllFiles() {
         } else if (currentTab === 'guisettings') {
             renderGuiSettings();
         }
+        renderCampaignsTab();
 
         showToast(t('web-editor.modals.loaded'), 'success');
-        isLoadingFiles = false;
-        unsavedChanges = [];
+        if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files' }, true);
+        setEditorState('isLoadingFiles', false);
+        setUnsavedChanges([]);
     } catch (error) {
         console.error('Failed to load files:', error);
+        if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files', reason: error.message }, false);
         showToast(t('web-editor.modals.load-failed'), 'error');
         showAlert(t('web-editor.modals.connect-error', 'Failed to connect to server') + ': ' + error.message + '\n\n' + t('web-editor.modals.api-hint', 'Make sure the API is enabled in config.yml and the port is open.'));
-        isLoadingFiles = false;
+        setEditorState('isLoadingFiles', false);
     }
 }
 
@@ -129,6 +271,28 @@ function loadShopFromData(filename) {
 
 async function saveCurrentShop(isSilent = false) {
     if (isSaving) return;
+
+    if (window.GeniusSchemas) {
+        const normalizedSettings = window.GeniusSchemas.normalizeShopSettings(currentShopSettings);
+        const normalizedItems = Array.isArray(items) ? items.map(item => window.GeniusSchemas.normalizeShopItem(item)) : [];
+        const validation = window.GeniusSchemas.validateCurrentEditorState({
+            items: normalizedItems,
+            currentShopSettings: normalizedSettings
+        });
+
+        if (!validation.valid) {
+            const maxShown = 5;
+            const visibleErrors = validation.errors.slice(0, maxShown);
+            const remaining = validation.errors.length - visibleErrors.length;
+            const details = visibleErrors.map(msg => `- ${msg}`).join('\n');
+            const suffix = remaining > 0 ? `\n...and ${remaining} more` : '';
+            showAlert(`Cannot save shop: invalid data.\n\n${details}${suffix}`);
+            return;
+        }
+
+        currentShopSettings = normalizedSettings;
+        items = normalizedItems;
+    }
 
     const yamlContent = document.getElementById('export-output').textContent;
 
@@ -163,18 +327,20 @@ async function saveCurrentShop(isSilent = false) {
         const data = await response.json();
         if (data.success) {
             allShops[currentShopFile] = yamlContent;
+            unsavedChanges = unsavedChanges.filter(c => {
+                if (c.target === 'shop-item' || c.target === 'shop-settings') {
+                    return c.details && c.details.shopFile !== currentShopFile;
+                }
+                return true;
+            });
             if (!isSilent) {
-                unsavedChanges = unsavedChanges.filter(c => {
-                    if (c.target === 'shop-item' || c.target === 'shop-settings') {
-                        return c.details && c.details.shopFile !== currentShopFile;
-                    }
-                    return true;
-                });
                 showToast(t('web-editor.modals.file-saved'), 'success');
             }
+            if (window.EditorTelemetry) window.EditorTelemetry.track('shop_save', { silent: !!isSilent, shopFile: currentShopFile }, true);
         }
     } catch (error) {
         console.error('Failed to save shop:', error);
+        if (window.EditorTelemetry) window.EditorTelemetry.track('shop_save', { silent: !!isSilent, shopFile: currentShopFile, reason: error.message }, false);
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -432,6 +598,129 @@ async function saveGuiSettingsYaml(isSilent = false) {
     }
 }
 
+async function saveShopFileDirect(shopFile, yamlContent, isSilent = true) {
+    const response = await fetch(`api/file/shops/${shopFile}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Token': sessionToken
+        },
+        body: JSON.stringify({ content: yamlContent })
+    });
+
+    if (response.status === 401) {
+        showAlert(t('web-editor.modals.session-expired', 'Session expired. Please login again.'), 'warning');
+        logout();
+        return false;
+    }
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    }
+
+    allShops[shopFile] = yamlContent;
+    unsavedChanges = unsavedChanges.filter(c => {
+        if (c.target !== 'shop-settings' && c.target !== 'shop-item') return true;
+        return !c.details || c.details.shopFile !== shopFile;
+    });
+    if (!isSilent) {
+        showToast(t('web-editor.modals.file-saved'), 'success');
+    }
+    return true;
+}
+
+async function saveCampaignHubDirtyShops(isSilent = true) {
+    if (!campaignHubDirtyShopFiles || campaignHubDirtyShopFiles.size === 0) return;
+    const files = Array.from(campaignHubDirtyShopFiles);
+    for (const shopFile of files) {
+        const content = allShops[shopFile];
+        if (typeof content !== 'string') {
+            campaignHubDirtyShopFiles.delete(shopFile);
+            continue;
+        }
+        await saveShopFileDirect(shopFile, content, true);
+        campaignHubDirtyShopFiles.delete(shopFile);
+    }
+    if (!isSilent && files.length > 0) {
+        showToast(`Saved ${files.length} shop file(s)`, 'success');
+    }
+}
+
+async function saveCampaignsYaml(isSilent = false) {
+    if (isLoadingFiles) return;
+    if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
+
+    try {
+        const yamlContent = generateCampaignsFileYaml();
+        const response = await fetch(`api/file/campaigns.yml`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Token': sessionToken
+            },
+            body: JSON.stringify({ content: yamlContent })
+        });
+
+        if (response.status === 401) {
+            showAlert(t('web-editor.modals.session-expired', 'Session expired. Please login again.'), 'warning');
+            logout();
+            return;
+        }
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        }
+
+        unsavedChanges = unsavedChanges.filter(c => c.target !== 'campaign-settings');
+        if (!isSilent) {
+            showToast(t('web-editor.modals.file-saved'), 'success');
+        }
+    } catch (error) {
+        console.error('Failed to save campaigns:', error);
+        if (!isSilent) {
+            showToast(t('web-editor.modals.save-failed'), 'error');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
+        }
+        throw error;
+    }
+}
+
+async function saveEconomySafetySettings(isSilent = false) {
+    if (isLoadingFiles) return;
+
+    try {
+        const payload = { settings: normalizeEconomySafetySettings(economySafetySettings) };
+        const response = await fetch(`api/economy-safety`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Token': sessionToken
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        if (data && data.economySafety) {
+            economySafetySettings = normalizeEconomySafetySettings(data.economySafety);
+        }
+
+        if (!isSilent) {
+            unsavedChanges = unsavedChanges.filter(c => c.target !== 'config-settings');
+            showToast('Config saved successfully', 'success');
+        }
+        return true;
+    } catch (error) {
+        console.error('Failed to save economy-safety settings:', error);
+        if (!isSilent) {
+            showToast(t('web-editor.modals.save-failed'), 'error');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
+        }
+        throw error;
+    }
+}
+
 async function reloadCurrentConfig() {
     const confirmed = await showConfirm(t('web-editor.modals.reload-confirm', 'Are you sure you want to reload all configurations from the server? Any unsaved changes will be lost.'));
     if (confirmed) {
@@ -451,17 +740,9 @@ async function logout() {
 async function confirmSave() {
     closeSaveConfirmationModal();
     
-    if (activeSaveMode === 'publish') {
-        showToast(t('web-editor.modals.publishing', 'Publishing...'), 'info');
+    if (getEditorState('activeSaveMode') === 'publish') {
         try {
-            // Save all first
-            await saveCurrentShop(true);
-            await saveMainMenuYaml(true);
-            await savePurchaseMenuYaml(true);
-            await saveSellMenuYaml(true);
-            await saveGuiSettingsYaml(true);
-            
-            unsavedChanges = [];
+            await publishAllChanges();
             showToast(t('web-editor.modals.publish-success'), 'success', t('web-editor.modals.published', 'Published'));
         } catch (error) {
             console.error('Publish failed:', error);
@@ -471,17 +752,7 @@ async function confirmSave() {
         return;
     }
 
-    if (currentTab === 'shop') {
-        await saveCurrentShop();
-    } else if (currentTab === 'mainmenu') {
-        await saveMainMenuYaml();
-    } else if (currentTab === 'purchase') {
-        await savePurchaseMenuYaml();
-    } else if (currentTab === 'sell') {
-        await saveSellMenuYaml();
-    } else if (currentTab === 'guisettings') {
-        await saveGuiSettingsYaml();
-    }
+    await saveCurrentTabChanges(false);
 }
 
 async function publishChanges() {
@@ -563,8 +834,10 @@ async function handleAutoLogin(token) {
             
             window.history.replaceState({}, document.title, window.location.pathname);
             window.location.reload();
+        } else if (response.status === 403 && data && data.status === 'pending_confirmation') {
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #facc15;">Confirmation Required</div><div style="font-size: 14px; color: #d4d4d8; max-width: 720px; text-align: center;">${data.message || 'Please confirm this login in-game using /shop confirmlogin <token>, then retry /shop editor.'}</div><button onclick="window.location.reload()" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer; margin-top: 10px;">Retry</button><button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #222; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer;">Go to Login Page</button></div>`;
         } else {
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Login Failed</div><div style="font-size: 14px; color: #888;">${data.message || 'Invalid or expired token'}</div><button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer; margin-top: 10px;">Go to Login Page</button></div>`;
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Login Failed</div><div style="font-size: 14px; color: #888;">${data.message || data.error || 'Invalid or expired token'}</div><button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer; margin-top: 10px;">Go to Login Page</button></div>`;
         }
     } catch (error) {
         console.error('Auto-login error:', error);

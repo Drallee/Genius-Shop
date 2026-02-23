@@ -13,6 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utility class for sending Discord webhooks for shop transactions.
@@ -21,9 +24,27 @@ import java.util.concurrent.CompletableFuture;
 public class DiscordWebhook {
 
     private final ShopPlugin plugin;
+    private final ThreadPoolExecutor webhookExecutor;
 
     public DiscordWebhook(ShopPlugin plugin) {
         this.plugin = plugin;
+        this.webhookExecutor = new ThreadPoolExecutor(
+                1,
+                1,
+                30L,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(512),
+                r -> {
+                    Thread t = new Thread(r, "GeniusShop-DiscordWebhook");
+                    t.setDaemon(true);
+                    return t;
+                },
+                new ThreadPoolExecutor.DiscardOldestPolicy()
+        );
+    }
+
+    public void shutdown() {
+        webhookExecutor.shutdownNow();
     }
 
     /**
@@ -54,10 +75,10 @@ public class DiscordWebhook {
             } catch (Exception e) {
                 me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to send purchase webhook to Discord: " + e.getMessage());
                 if (plugin.getConfig().getBoolean("debug", false)) {
-                    e.printStackTrace();
+                    me.dralle.shop.util.ConsoleLog.error(plugin, "Purchase webhook exception", e);
                 }
             }
-        });
+        }, webhookExecutor);
     }
 
     /**
@@ -77,10 +98,10 @@ public class DiscordWebhook {
             } catch (Exception e) {
                 me.dralle.shop.util.ConsoleLog.warn(plugin, "Failed to send sell webhook to Discord: " + e.getMessage());
                 if (plugin.getConfig().getBoolean("debug", false)) {
-                    e.printStackTrace();
+                    me.dralle.shop.util.ConsoleLog.error(plugin, "Sell webhook exception", e);
                 }
             }
-        });
+        }, webhookExecutor);
     }
 
     /**
@@ -234,6 +255,8 @@ public class DiscordWebhook {
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("User-Agent", "Genius-Shop/1.0");
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(5000);
         connection.setDoOutput(true);
 
         try (OutputStream os = connection.getOutputStream()) {

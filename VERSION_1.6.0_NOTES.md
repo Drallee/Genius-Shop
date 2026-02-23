@@ -1,0 +1,211 @@
+# Version 1.6.0 Notes
+
+Working notes for features, fixes, and changes added during development of `1.6.0`.
+
+## Added
+- Per-item price mode toggles:
+  - `buy-price-per-item` (`true` by default)
+  - `sell-price-per-item` (`true` by default)
+- Debug error file logging for support diagnostics:
+  - Added error/exception-only file logger integrated with debug mode.
+  - Added config section:
+    - `debug-error-log.enabled`
+    - `debug-error-log.file`
+  - Default log output path: `plugins/Genius-Shop/debug/error.log` (inside plugin data folder).
+  - Logger now captures:
+    - `ConsoleLog.error(...)` and `ConsoleLog.apiError(...)`
+    - Plugin `SEVERE` logger events (including thrown exceptions)
+    - Previously raw stack traces in key exception paths (migration/webhook/YAML load/reload/shutdown save)
+  - Intended support flow: share `debug/error.log` with support for deeper analysis.
+- Support for pricing per configured item amount:
+  - Buy/sell totals can now be either `price * quantity` or `price * (selectedAmount / configuredAmount)`.
+- Web editor support:
+  - New item fields for Buy Price Mode and Sell Price Mode.
+  - YAML parse/export support for the new pricing mode fields.
+  - Added `Clone to Shop` action in item modal (copies item to another shop file with auto slot assignment).
+  - Updated clone target selection UX:
+    - `Clone to Shop` now uses a floating single-select picker above the item modal (searchable, scrollable list).
+    - `Clone to Multiple` now uses a floating multi-select picker above the item modal (searchable, scrollable list).
+  - Added `Clone to Multiple` action in item modal (bulk clone to comma-separated shops or `all`).
+  - Added `Import Items` action for current shop:
+    - Supports JSON and YAML file uploads.
+    - Appends imported items with auto ID assignment.
+    - Optional keep-provided-slot behavior when target slot is free.
+  - Added export tools:
+    - `Export Item` action in item modal (JSON).
+    - `Export` action in Shop tab for current shop (YAML/JSON) and current project (JSON).
+  - Added menu import/export tools (JSON):
+    - Main Menu
+    - Purchase Menu
+    - Sell Menu
+  - Added YAML support for menu import/export (Main Menu, Purchase, Sell).
+  - Menu import now supports file upload (JSON/YAML) instead of paste-only input.
+  - File import format is now auto-detected (JSON vs YAML) from file name/content, with manual selection as fallback.
+  - Added Shop preview parity mode toggle (`PARITY: ON/OFF`) to switch between:
+    - Simplified tooltip preview.
+    - Lore-format parity preview that expands GUI lore tokens (`%price-line%`, `%custom-lore%`, `%global-limit%`, `%player-limit%`, `%stock-reset-timer%`, hints, and spawner/potion lines).
+  - Added parity toggle buttons to Main Menu, Purchase, and Sell tabs.
+- Web editor item modal live preview:
+  - Added a side preview box next to the item edit modal.
+  - Preview updates live as fields are edited (material, name, amount, prices, lore).
+  - Preview now includes advanced item data:
+    - Enchantments
+    - Commands + `run-as` + `run-command-only`
+    - Limits (player/global)
+    - Dynamic pricing summary
+    - Permission/flags/stock reset indicators
+  - Added preview visibility toggle (show/hide) in the modal.
+  - Added a persistent preview toggle button in the modal form area, so preview can always be shown again after hiding.
+  - Grouped modal checkboxes into titled sections for clearer organization.
+- Economy safety guards (server-side):
+  - Max transaction value guard (`economy-safety.max-transaction-value`).
+  - Anti-spike pricing rules (`economy-safety.anti-spike.*`) for base-multiplier and step-change protection.
+  - Per-action cooldowns (`economy-safety.cooldowns.*`) for buy/sell/bulk-sell.
+  - Optional large-purchase double-confirm flow (`economy-safety.large-purchase-confirmation.*`).
+  - Safer economy operations with explicit Vault response/error handling and refund attempt on post-withdraw purchase failures.
+  - Added strict invalid-value checks before transactions (NaN, Infinity, negative, hard-cap overflow-ish values).
+  - Added server-side unit floor/ceiling enforcement against configured min/max bounds for final resolved prices.
+  - Added explicit fail-safe handling for withdraw/deposit failures with player-facing error messaging and guarded flow ordering.
+  - Added audit logging for guarded/economy failures including reason, shop key, item key/material, player, and total.
+  - Added optional in-game admin alerting for guard/economy failures with configurable permission and rate-limiting:
+    - `economy-safety.admin-alerts.enabled`
+    - `economy-safety.admin-alerts.notify-permission`
+    - `economy-safety.admin-alerts.rate-limit-ms`
+- New dry-run validation command:
+  - `/shop validate-prices`
+  - Scans all loaded shop items and reports risky/invalid price configurations without changing data.
+- Web editor economy safety controls:
+  - Added GUI Settings panel for `economy-safety.*` status and values.
+  - Added presets: `STRICT`, `BALANCED`, `OFF`.
+  - Added save integration via dedicated API endpoint (`/api/economy-safety`).
+- Added regression tests for transaction safety guard behavior:
+  - Invalid money value rejection
+  - Server-side min/max floor-ceiling enforcement
+  - Anti-spike step-change blocking
+  - Large purchase two-step confirmation flow
+- Advanced item conditions (mid-size feature):
+  - Added server-side condition checks for:
+    - `min-player-level`
+    - `max-player-level`
+    - `required-gamemode`
+    - `allowed-worlds`
+    - `denied-worlds`
+  - Conditions are enforced in:
+    - Shop item visibility/opening
+    - Buy flow
+    - Sell flow
+    - Bulk sell matching
+  - Added web editor fields + YAML parse/export support for these condition keys.
+- Scheduled campaigns (mid-size feature):
+  - Added item-level campaign window keys:
+    - `campaign-enabled`
+    - `campaign-name`
+    - `campaign-start`
+    - `campaign-end`
+    - `campaign-timezone`
+    - `campaign-buy-multiplier`
+    - `campaign-sell-multiplier`
+  - Campaign multipliers are applied to live buy/sell prices in:
+    - Shop GUI display pricing
+    - Purchase flow
+    - Sell flow
+    - Bulk sell flow
+    - Best-sell item matching
+  - Web editor now supports campaign fields in item modal and YAML parse/export.
+- Stock analytics (mid-size feature, basic dashboard first):
+  - Added new web editor `STOCK` tab dashboard.
+  - Added backend API endpoint: `GET /api/stock-analytics`.
+  - Dashboard includes:
+    - Global summary cards (tracked items, out-of-stock, low-stock, fill percentage).
+    - Shop filter dropdown.
+    - Item stock table for stock-limited items (`global-limit > 0`) with current/limit/remaining/status.
+  - Data is aggregated from live shop items + SQLite global stock counts (`global_counts` in `data.db`).
+- data.db web editor (mid-size feature):
+  - Added new web editor `DATA` tab for direct SQLite data management.
+  - Added backend API endpoints:
+    - `GET /api/database` (read grouped DB rows)
+    - `POST /api/database` (upsert DB row)
+    - `DELETE /api/database` (delete DB row)
+  - UI includes easy-to-understand grouped sections:
+    - `Player Counts` (`player_counts`) for per-player limits
+    - `Global Counts` (`global_counts`) for shared stock counters
+    - `Stock Resets` (`stock_resets`) for last-run reset tracking
+  - Added row-level actions in the web UI:
+    - `ADD ROW`
+    - `SAVE`
+    - `DELETE`
+    - `REFRESH`
+  - Added readable timestamp display for stock reset `last_run` values and decoded reset id display.
+- Price formula rules (larger system, first phase):
+  - Added per-item formula keys:
+    - `buy-price-formula`
+    - `sell-price-formula`
+  - Added safe server-side formula evaluator (`+`, `-`, `*`, `/`, parentheses, unary `+/-`, functions `min`, `max`, `abs`, `round`, `floor`, `ceil`, `pow`).
+  - Formula variables:
+    - `base`, `price`, `dynamic`, `dynamic_price`
+    - `global_count`, `count`
+    - `amount`, `price_change`
+    - `min_price`, `max_price`
+    - `limit`, `global_limit`
+  - Integrated formula-based pricing into:
+    - Shop GUI display prices
+    - Purchase flow
+    - Sell flow
+    - Bulk sell flow
+    - Best-sell matching
+    - Public API price lookups
+  - Web editor support added:
+    - Item modal fields for Buy Price Formula / Sell Price Formula
+    - YAML parse/export support for formula keys
+- Item variants (larger system, phase 1):
+  - Added stable variant identity support in shop item loading:
+    - `variant-key`
+    - `item-key`
+  - Added `variants` expansion in shop loading:
+    - Variant entries inherit base item settings.
+    - Variant values override inherited values.
+    - Variants are materialized as separate runtime `ShopItem` entries.
+  - Runtime unique keys now include `variant-key` to avoid stock/limit/dynamic-pricing key collisions.
+  - Added optional grouped variant selector menu:
+    - Set `variant-menu: true` on a base item with `variants` to show one main-slot entry.
+    - Clicking the entry opens a variant selection inventory for buy/sell.
+  - Web editor support added:
+    - Item modal fields for `item-key` and `variant-key`.
+    - YAML parse/export support for `item-key` and `variant-key`.
+    - Shop item list badges for item/variant keys.
+- Server-side audit + rollback:
+  - Web editor file actions are now audited server-side in `activity-log.json`.
+  - Audit entries are automatically written for:
+    - File create/update saves
+    - File deletions
+    - Rollback operations
+  - Added API rollback endpoint:
+    - `POST /api/activity-log/rollback` with activity entry id
+  - Added API clear endpoint:
+    - `POST /api/activity-log/clear`
+  - Web editor history modal now reads from server audit data and performs server-side rollback.
+
+## Changed
+- Buy and sell total calculations now respect each item's selected pricing mode.
+- Bulk sell total calculation now respects the sell pricing mode.
+- Shop item lore price lines now show totals for the configured item amount (for both per-item and per-configured-amount modes).
+- Buy/Sell menu lore now resolves stock placeholders in item/custom lore paths:
+  - `%global-limit%`
+  - `%player-limit%`
+  - `%limit%`
+  - `%stock-reset-timer%`
+- Transaction guard pricing checks now treat formula-driven item pricing as dynamic guard input where applicable.
+
+## Fixed
+- N/A
+
+## TODO / Pending
+
+### Quick Wins (Fast Value)
+- None pending
+
+### Mid-size Features
+- None pending
+
+### Larger Systems
+- None pending

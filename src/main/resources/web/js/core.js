@@ -22,6 +22,12 @@ let currentUsername = username; // For activity log
 let currentShopFile = 'blocks.yml'; // Current shop being edited
 let currentTab = 'mainmenu'; // Track current active tab
 let allShops = {}; // Store all loaded shops
+let globalCampaigns = []; // Global campaigns loaded from campaigns.yml
+let stockAnalyticsData = { totals: {}, entries: [], generatedAt: '' };
+let databaseEditorData = { totals: {}, playerCounts: [], globalCounts: [], stockResets: [], generatedAt: '' };
+let campaignHubSelectedKey = '';
+let campaignHubItemShopFile = '';
+let campaignHubDirtyShopFiles = new Set();
 let serverInfo = {
     version: 'unknown',
     smartSpawnerEnabled: false,
@@ -35,17 +41,74 @@ let priceFormatSettings = {
         maxDecimals: 2
     }
 };
+let economySafetySettings = {
+    enabled: true,
+    maxTransactionValue: 50000000,
+    maxUnitPrice: 10000000,
+    antiSpikeEnabled: true,
+    antiSpikeMaxBaseMultiplier: 10,
+    antiSpikeMinBaseMultiplier: 0,
+    antiSpikeMaxStepChangeRatio: 5,
+    cooldownsEnabled: true,
+    buyCooldownMs: 250,
+    sellCooldownMs: 250,
+    bulkSellCooldownMs: 500,
+    largePurchaseConfirmEnabled: true,
+    largePurchaseConfirmThreshold: 1000000,
+    largePurchaseConfirmTimeoutSeconds: 10,
+    adminAlertsEnabled: false,
+    adminNotifyPermission: 'geniusshop.admin',
+    adminAlertRateLimitMs: 3000
+};
 let autoSaveTimeout = null;
 let isSaving = false;
 let currentPreviewPage = 0; // Current page being previewed
 let itemSearchQuery = ''; // Filter for items list
 let currentSort = 'slot'; // Default sort by slot
+let previewParityMode = localStorage.getItem('previewParityMode') === 'true';
+const autoSaveMode = localStorage.getItem('autoSaveMode') || 'draft';
 
 // Drag and drop state
 let draggedSlotIndex = null;
 let draggedItemSource = null; // 'shop' or 'mainmenu'
 let draggedFromPage = null;
 let pageFlipTimeout = null;
+
+const editorState = window.EditorStateStore.createStore({
+    currentTab,
+    activeSaveMode,
+    unsavedChanges,
+    isLoadingFiles,
+    autoSaveTimeout,
+    autoSaveMode
+});
+
+function getEditorState(key) {
+    return editorState.get(key);
+}
+
+function setEditorState(key, value) {
+    editorState.set(key, value);
+    if (key === 'currentTab') currentTab = value;
+    else if (key === 'activeSaveMode') activeSaveMode = value;
+    else if (key === 'unsavedChanges') unsavedChanges = value;
+    else if (key === 'isLoadingFiles') isLoadingFiles = value;
+    else if (key === 'autoSaveTimeout') autoSaveTimeout = value;
+}
+
+function setUnsavedChanges(changes) {
+    setEditorState('unsavedChanges', Array.isArray(changes) ? changes : []);
+}
+
+function setAutoSaveMode(mode) {
+    const normalized = (mode || '').toString().toLowerCase() === 'publish' ? 'publish' : 'draft';
+    localStorage.setItem('autoSaveMode', normalized);
+    setEditorState('autoSaveMode', normalized);
+}
+
+function setTelemetryEnabled(enabled) {
+    localStorage.setItem('telemetryEnabled', enabled ? 'true' : 'false');
+}
 
 // Current Shop Metadata State
 function createDefaultStockResetRule() {
@@ -67,6 +130,8 @@ let currentShopSettings = {
     guiName: '&8Shop',
     rows: 3,
     permission: '',
+    campaign: '',
+    campaigns: [],
     availableTimes: '',
     sellAddsToStock: false,
     allowSellStockOverflow: false,
@@ -162,6 +227,7 @@ const DEFAULT_TRANSLATIONS = {
         "tabs": {
             "main-menu": "MAIN MENU",
             "shop": "SHOP",
+            "stock-analytics": "STOCK",
             "purchase": "PURCHASE",
             "sell": "SELL",
             "gui-settings": "GUI SETTINGS"
@@ -284,8 +350,24 @@ const DEFAULT_TRANSLATIONS = {
                 "slot-hint": "Position in the GUI (absolute index)",
                 "buy-price": "Buy Price",
                 "buy-price-hint": "0 = cannot buy",
+                "buy-price-mode": "Buy Price Mode",
                 "sell-price": "Sell Price",
                 "sell-price-hint": "0 = cannot sell",
+                "sell-price-mode": "Sell Price Mode",
+                "campaign-enabled": "Enable Campaign",
+                "campaign-name": "Campaign Name",
+                "campaign-start": "Campaign Start",
+                "campaign-start-hint": "Use YYYY-MM-DD HH:mm (or ISO).",
+                "campaign-end": "Campaign End",
+                "campaign-end-hint": "Use YYYY-MM-DD HH:mm (or ISO).",
+                "campaign-timezone": "Campaign Timezone",
+                "campaign-timezone-hint": "Optional: e.g. UTC or Europe/Copenhagen",
+                "campaign-buy-multiplier": "Campaign Buy Multiplier",
+                "campaign-sell-multiplier": "Campaign Sell Multiplier",
+                "campaign-key": "Assigned Campaign",
+                "campaign-key-hint": "Use a campaign from the Campaigns tab. Item inline campaign settings override this.",
+                "price-mode-per-item": "Per item",
+                "price-mode-per-bundle": "Per configured amount",
                 "amount": "Amount",
                 "lore": "Lore (one per line)",
                 "enchantments": "Enchantments",
@@ -676,7 +758,22 @@ applyTranslations();
 // Start loading translations immediately
 loadTranslations();
 
-function loadActivityLog() {
+async function loadActivityLog() {
+    try {
+        const response = await fetch(`api/activity-log?t=${Date.now()}`, {
+            headers: {
+                'X-Session-Token': sessionToken
+            }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            activityLog = Array.isArray(data) ? data : [];
+            return;
+        }
+    } catch (e) {
+        console.error('Failed to load activity log from API:', e);
+    }
+
     try {
         const saved = localStorage.getItem(ACTIVITY_LOG_KEY);
         if (saved) {
@@ -689,18 +786,29 @@ function loadActivityLog() {
 }
 
 function saveActivityLog() {
-    try {
-        localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
-    } catch (e) {
-        console.error('Failed to save activity log:', e);
-    }
+    // Kept for backward compatibility; server-side audit log is authoritative now.
 }
 
-function clearActivityLog() {
-    activityLog = [];
-    saveActivityLog();
-    refreshActivityLog();
-    showToast('Activity log cleared', 'success');
+async function clearActivityLog() {
+    try {
+        const response = await fetch(`api/activity-log/clear`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Token': sessionToken
+            },
+            body: '{}'
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        activityLog = [];
+        refreshActivityLog();
+        showToast('Activity log cleared', 'success');
+    } catch (e) {
+        console.error('Failed to clear activity log:', e);
+        showAlert('Failed to clear activity log: ' + e.message, 'error');
+    }
 }
 
 function normalizeActivityData(value) {
@@ -731,32 +839,31 @@ function addActivityEntry(action, target, beforeData, afterData, details = {}) {
         return;
     }
 
-    const entry = {
-        id: Date.now() + Math.random(),
-        timestamp: new Date().toISOString(),
-        username: currentUsername || 'Unknown',
-        action: action, // 'created', 'updated', 'deleted'
-        target: target, // 'shop-item', 'main-menu-button', 'purchase-menu', 'sell-menu', 'shop-file'
-        beforeData: beforeData,
-        afterData: afterData,
-        details: details
+    const localEntry = {
+        id: `${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+        action,
+        target,
+        beforeData: beforeData === undefined ? null : beforeData,
+        afterData: afterData === undefined ? null : afterData,
+        details: details || {},
+        username: currentUsername || username || 'Unknown',
+        timestamp: Date.now()
     };
-    activityLog.unshift(entry); // Add to beginning
 
-    // Keep only last 100 entries
-    if (activityLog.length > 100) {
-        activityLog = activityLog.slice(0, 100);
+    activityLog = [localEntry, ...activityLog].slice(0, 250);
+    const activityModal = document.getElementById('activity-log-modal');
+    if (activityModal && activityModal.style.display === 'flex' && typeof refreshActivityLog === 'function') {
+        refreshActivityLog();
     }
 
-    saveActivityLog();
-
     // Track as unsaved change
-    unsavedChanges.push({
+    const nextChanges = [...unsavedChanges, {
         action: action,
         target: target,
-        description: getActivitySummary(entry),
+        description: getActivitySummary(localEntry),
         details: details
-    });
+    }];
+    setUnsavedChanges(nextChanges);
 }
 
 function getActivitySummary(entry) {
@@ -771,7 +878,8 @@ function getActivitySummary(entry) {
         'sell-menu-settings': 'Sell Menu Settings',
         'main-menu-settings': 'Main Menu Settings',
         'shop-settings': 'Shop Settings',
-        'gui-settings': 'GUI Settings'
+        'gui-settings': 'GUI Settings',
+        'file': 'File'
     };
 
     const stripColors = (text) => {

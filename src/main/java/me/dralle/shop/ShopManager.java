@@ -1,10 +1,17 @@
 package me.dralle.shop;
 
+import me.dralle.shop.config.CompiledShopCatalog;
+import me.dralle.shop.config.ValidationMessage;
 import me.dralle.shop.model.ShopData;
+import me.dralle.shop.model.ShopCampaign;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.stock.StockResetRule;
+import me.dralle.shop.util.CampaignUtil;
+import me.dralle.shop.util.ItemConditionUtil;
+import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
+import me.dralle.shop.util.YamlUtil;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -17,15 +24,22 @@ import java.time.Month;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.io.File;
+import java.time.Instant;
 
 public class ShopManager {
 
     private final ShopPlugin plugin;
     private final Map<String, ShopData> shops = new LinkedHashMap<>();
+    private final Map<String, ShopCampaign> globalCampaigns = new LinkedHashMap<>();
+    private final List<ValidationMessage> validationMessages = new ArrayList<>();
+    private CompiledShopCatalog compiledCatalog;
 
     public ShopManager(ShopPlugin plugin) {
         this.plugin = plugin;
+        this.validationMessages.clear();
         ShopFileManager fileManager = plugin.getShopFileManager();
+        loadGlobalCampaigns();
 
         if (fileManager.getShopKeys().isEmpty()) {
             me.dralle.shop.util.ConsoleLog.warn(plugin, "No shops found in shops/ folder!");
@@ -48,6 +62,11 @@ public class ShopManager {
             List<String> availableTimes = shopConfig.getStringList("available-times");
             List<String> invalidTimes = ShopTimeUtil.validateRestrictions(availableTimes);
             for (String invalid : invalidTimes) {
+                validationMessages.add(new ValidationMessage(
+                        ValidationMessage.Severity.WARNING,
+                        "shop:" + shopKey + ".available-times",
+                        "Invalid time restriction: " + invalid
+                ));
                 me.dralle.shop.util.ConsoleLog.warn(plugin, "Invalid 'available-times' in shop '" + shopKey + "': " + invalid);
             }
 
@@ -59,6 +78,10 @@ public class ShopManager {
             StockResetRule shopResetRule = parseShopResetRule(shopKey, shopConfig);
             boolean shopSellAddsToStock = shopConfig.getBoolean("sell-adds-to-stock", false);
             boolean shopAllowSellStockOverflow = shopConfig.getBoolean("allow-sell-stock-overflow", false);
+            Map<String, ShopCampaign> campaigns = parseShopCampaigns(shopConfig);
+            String campaignKey = shopConfig.getString("campaign", "");
+            if (campaignKey == null) campaignKey = "";
+            campaignKey = campaignKey.trim();
 
             shops.put(shopKey, new ShopData(
                     shopKey,
@@ -69,8 +92,17 @@ public class ShopManager {
                     availableTimes,
                     shopResetRule,
                     shopSellAddsToStock,
-                    shopAllowSellStockOverflow
+                    shopAllowSellStockOverflow,
+                    campaigns,
+                    campaignKey
             ));
+        }
+        runPostCompileValidation();
+        this.compiledCatalog = new CompiledShopCatalog(shops, validationMessages, Instant.now());
+        if (!validationMessages.isEmpty()) {
+            long errors = validationMessages.stream().filter(m -> m.severity() == ValidationMessage.Severity.ERROR).count();
+            long warns = validationMessages.stream().filter(m -> m.severity() == ValidationMessage.Severity.WARNING).count();
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "Shop compile completed with " + warns + " warning(s) and " + errors + " error(s).");
         }
     }
 
@@ -83,245 +115,290 @@ public class ShopManager {
         List<?> raw = config.getList("items");
         if (raw == null) return items;
 
+        int baseItemIndex = 0;
         for (Object obj : raw) {
             if (!(obj instanceof Map)) continue;
 
             @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) obj;
+            Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) obj);
 
-            // Material
-            String matName = (String) map.get("material");
-            if (matName == null) continue;
-
-            Material mat = Material.matchMaterial(matName);
-            if (mat == null) continue;
-
-            // Buy price
-            double buyPrice = 0;
-            Object priceObj = map.get("price");
-            if (priceObj instanceof Number)
-                buyPrice = ((Number) priceObj).doubleValue();
-
-            // Sell price
-            Double sellPrice = null;
-            Object sellObj = map.get("sell-price");
-            if (sellObj instanceof Number)
-                sellPrice = ((Number) sellObj).doubleValue();
-
-            // Amount
-            int amount = 1;
-            Object amountObj = map.get("amount");
-            if (amountObj instanceof Number)
-                amount = ((Number) amountObj).intValue();
-
-            // Name
-            String name = (String) map.get("name");
-
-            // Spawner type
-            String spawnerType = (String) map.get("spawner-type");
-
-            // Spawner item (for SmartSpawner item spawners)
-            String spawnerItem = (String) map.get("spawner-item");
-
-            // Potion type
-            String potionType = (String) map.get("potion-type");
-
-            // Potion level (0 = use base type, 1-255 = custom amplifier)
-            int potionLevel = 0;
-            Object potionLevelObj = map.get("potion-level");
-            if (potionLevelObj instanceof Number) {
-                potionLevel = Math.min(Math.max(((Number) potionLevelObj).intValue(), 0), 255);
+            List<Map<String, Object>> variants = parseVariantMaps(map.get("variants"));
+            if (variants.isEmpty()) {
+                ShopItem item = createShopItem(map, "", false, null);
+                if (item != null) items.add(item);
+                baseItemIndex++;
+                continue;
             }
 
-            // Player head data (optional)
-            String headTexture = map.get("head-texture") != null ? String.valueOf(map.get("head-texture")) : null;
-            String headOwner = map.get("head-owner") != null ? String.valueOf(map.get("head-owner")) : null;
-
-            // Lore
-            List<String> lore = new ArrayList<>();
-            Object loreObj = map.get("lore");
-            if (loreObj instanceof List) {
-                for (Object l : (List<?>) loreObj)
-                    lore.add(l == null ? "" : l.toString());
+            Integer baseSlot = intVal(map.get("slot"), null);
+            boolean variantMenu = boolVal(map.get("variant-menu"), false);
+            String variantGroupKey = stringVal(map.get("variant-group"), "").trim();
+            if (variantGroupKey.isEmpty()) {
+                variantGroupKey = stringVal(map.get("item-key"), "").trim();
             }
+            if (variantGroupKey.isEmpty()) {
+                variantGroupKey = "variant_group_" + baseItemIndex;
+            }
+            for (int i = 0; i < variants.size(); i++) {
+                Map<String, Object> variant = variants.get(i);
+                if (variant == null || variant.isEmpty()) continue;
 
-            // Enchantments
-            Map<String, Integer> enchantments = new HashMap<>();
-            Object enchObj = map.get("enchantments");
-            if (enchObj instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> enchMap = (Map<String, Object>) enchObj;
-                for (Map.Entry<String, Object> entry : enchMap.entrySet()) {
-                    try {
-                        enchantments.put(entry.getKey(), Integer.parseInt(String.valueOf(entry.getValue())));
-                    } catch (NumberFormatException ignored) {}
+                Map<String, Object> merged = new LinkedHashMap<>(map);
+                merged.remove("variants");
+                merged.putAll(variant);
+
+                if (!merged.containsKey("slot") && baseSlot != null) {
+                    merged.put("slot", baseSlot + i);
                 }
-            }
 
-            // -----------------------------------------------------
-            // Tooltip flags
-            // -----------------------------------------------------
-            boolean hideAttributes = false;
-            if (map.containsKey("hide-attributes"))
-                hideAttributes = Boolean.parseBoolean(String.valueOf(map.get("hide-attributes")));
-
-            boolean hideAdditional = false;
-            if (map.containsKey("hide-additional"))
-                hideAdditional = Boolean.parseBoolean(String.valueOf(map.get("hide-additional")));
-
-            // -----------------------------------------------------
-            // Require flags (for both buying and selling)
-            // -----------------------------------------------------
-            boolean requireName = false;
-            if (map.containsKey("require-name"))
-                requireName = Boolean.parseBoolean(String.valueOf(map.get("require-name")));
-
-            boolean requireLore = false;
-            if (map.containsKey("require-lore"))
-                requireLore = Boolean.parseBoolean(String.valueOf(map.get("require-lore")));
-
-            // -----------------------------------------------------
-            // Unstable TNT flag
-            // -----------------------------------------------------
-            boolean unstableTnt = false;
-            if (map.containsKey("unstable-tnt"))
-                unstableTnt = Boolean.parseBoolean(String.valueOf(map.get("unstable-tnt")));
-
-            // -----------------------------------------------------
-            // Player limit
-            // -----------------------------------------------------
-            int limit = 0;
-            Object limitObj = map.get("limit");
-            if (limitObj instanceof Number)
-                limit = ((Number) limitObj).intValue();
-
-            // -----------------------------------------------------
-            // Global limit
-            // -----------------------------------------------------
-            int globalLimit = 0;
-            Object globalLimitObj = map.get("global-limit");
-            if (globalLimitObj instanceof Number)
-                globalLimit = ((Number) globalLimitObj).intValue();
-
-            // -----------------------------------------------------
-            // Dynamic Pricing
-            // -----------------------------------------------------
-            boolean dynamicPricing = false;
-            if (map.containsKey("dynamic-pricing"))
-                dynamicPricing = Boolean.parseBoolean(String.valueOf(map.get("dynamic-pricing")));
-
-            double minPrice = 0;
-            Object minPriceObj = map.get("min-price");
-            if (minPriceObj instanceof Number)
-                minPrice = ((Number) minPriceObj).doubleValue();
-
-            double maxPrice = 0;
-            Object maxPriceObj = map.get("max-price");
-            if (maxPriceObj instanceof Number)
-                maxPrice = ((Number) maxPriceObj).doubleValue();
-
-            double priceChange = 0;
-            Object priceChangeObj = map.get("price-change");
-            if (priceChangeObj instanceof Number)
-                priceChange = ((Number) priceChangeObj).doubleValue();
-
-            // Commands (optional)
-            List<String> commands = new ArrayList<>();
-            Object commandsObj = map.get("commands");
-            if (commandsObj instanceof List) {
-                for (Object cmd : (List<?>) commandsObj) {
-                    if (cmd instanceof String) {
-                        commands.add((String) cmd);
-                    }
+                if (!merged.containsKey("variant-key") && !merged.containsKey("item-key")) {
+                    String explicitVariantKey = stringVal(variant.get("key"), "").trim();
+                    merged.put("variant-key", !explicitVariantKey.isEmpty() ? explicitVariantKey : "v" + (i + 1));
                 }
+
+                Integer groupSlot = baseSlot != null ? baseSlot : intVal(variants.get(0).get("slot"), null);
+                ShopItem item = createShopItem(merged, variantGroupKey, variantMenu, groupSlot);
+                if (item != null) items.add(item);
             }
-
-            boolean runCommandOnly = true;
-            if (map.containsKey("run-command-only"))
-                runCommandOnly = Boolean.parseBoolean(String.valueOf(map.get("run-command-only")));
-            String runAs = stringVal(map.get("run-as"), "console").trim().toLowerCase(Locale.ROOT);
-            if (!runAs.equals("player") && !runAs.equals("console")) {
-                runAs = "console";
-            }
-
-            // Permission (optional)
-            String itemPermission = (String) map.get("permission");
-            if (itemPermission == null) itemPermission = "";
-
-            // Available times (optional)
-            List<String> itemAvailableTimes = new ArrayList<>();
-            Object itemAvailableTimesObj = map.get("available-times");
-            if (itemAvailableTimesObj instanceof List) {
-                for (Object time : (List<?>) itemAvailableTimesObj) {
-                    if (time != null) itemAvailableTimes.add(time.toString());
-                }
-            }
-
-            // Stock reset (optional)
-            StockResetRule itemResetRule = parseItemResetRule(map, matName);
-
-            // Optional sell stock behavior override (falls back to shop-level when null)
-            Boolean sellAddsToStock = map.containsKey("sell-adds-to-stock")
-                    ? boolVal(map.get("sell-adds-to-stock"), false)
-                    : null;
-            Boolean allowSellStockOverflow = map.containsKey("allow-sell-stock-overflow")
-                    ? boolVal(map.get("allow-sell-stock-overflow"), false)
-                    : null;
-            boolean showStock = map.containsKey("show-stock")
-                    && boolVal(map.get("show-stock"), false);
-            boolean showStockResetTimer = map.containsKey("show-stock-reset-timer")
-                    && boolVal(map.get("show-stock-reset-timer"), false);
-
-            // Slot (optional)
-            Integer slot = null;
-            Object slotObj = map.get("slot");
-            if (slotObj instanceof Number)
-                slot = ((Number) slotObj).intValue();
-
-            // Create shop item
-            items.add(new ShopItem(
-                    mat,
-                    buyPrice,
-                    amount,
-                    spawnerType,
-                    spawnerItem,
-                    potionType,
-                    potionLevel,
-                    headTexture,
-                    headOwner,
-                    name,
-                    lore,
-                    sellPrice,
-                    enchantments,
-                    hideAttributes,
-                    hideAdditional,
-                    requireName,
-                    requireLore,
-                    unstableTnt,
-                    limit,
-                    globalLimit,
-                    dynamicPricing,
-                    minPrice,
-                    maxPrice,
-                    priceChange,
-                    commands,
-                    runAs,
-                    runCommandOnly,
-                    itemPermission,
-                    itemAvailableTimes,
-                    itemResetRule,
-                    sellAddsToStock,
-                    allowSellStockOverflow,
-                    showStock,
-                    showStockResetTimer,
-                    slot
-            ));
+            baseItemIndex++;
         }
 
         // Assign slots to items that don't have them
         assignMissingSlots(items);
 
         return items;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> parseVariantMaps(Object rawVariants) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (!(rawVariants instanceof List<?> list)) return out;
+
+        for (Object variantObj : list) {
+            if (!(variantObj instanceof Map<?, ?>)) continue;
+            out.add(new LinkedHashMap<>((Map<String, Object>) variantObj));
+        }
+        return out;
+    }
+
+    private ShopItem createShopItem(Map<String, Object> map, String variantGroupKey, boolean variantMenuEnabled, Integer variantGroupSlot) {
+        String matName = stringVal(map.get("material"), "").trim();
+        if (matName.isEmpty()) return null;
+
+        Material mat = Material.matchMaterial(matName);
+        if (mat == null) return null;
+
+        double buyPrice = doubleVal(map.get("price"), 0D);
+        Double sellPrice = map.containsKey("sell-price")
+                ? doubleVal(map.get("sell-price"), 0D)
+                : null;
+
+        boolean buyPricePerItem = true;
+        if (map.containsKey("buy-price-per-item")) {
+            buyPricePerItem = boolVal(map.get("buy-price-per-item"), true);
+        } else if (map.containsKey("price-per-item")) {
+            buyPricePerItem = boolVal(map.get("price-per-item"), true);
+        }
+        boolean sellPricePerItem = map.containsKey("sell-price-per-item")
+                ? boolVal(map.get("sell-price-per-item"), true)
+                : true;
+
+        int amount = intVal(map.get("amount"), 1);
+        String name = stringVal(map.get("name"), null);
+        String spawnerType = stringVal(map.get("spawner-type"), null);
+        String spawnerItem = stringVal(map.get("spawner-item"), null);
+        String potionType = stringVal(map.get("potion-type"), null);
+        int potionLevel = Math.min(Math.max(intVal(map.get("potion-level"), 0), 0), 255);
+        String headTexture = stringVal(map.get("head-texture"), null);
+        String headOwner = stringVal(map.get("head-owner"), null);
+        String itemStackData = stringVal(map.get("item-stack"), "");
+
+        List<String> lore = new ArrayList<>();
+        Object loreObj = map.get("lore");
+        if (loreObj instanceof List<?> list) {
+            for (Object l : list) lore.add(l == null ? "" : String.valueOf(l));
+        }
+
+        Map<String, Integer> enchantments = new HashMap<>();
+        Object enchObj = map.get("enchantments");
+        if (enchObj instanceof Map<?, ?> enchMap) {
+            for (Map.Entry<?, ?> entry : enchMap.entrySet()) {
+                if (entry.getKey() == null) continue;
+                try {
+                    enchantments.put(String.valueOf(entry.getKey()), Integer.parseInt(String.valueOf(entry.getValue())));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        boolean hideAttributes = boolVal(map.get("hide-attributes"), false);
+        boolean hideAdditional = boolVal(map.get("hide-additional"), false);
+        boolean requireName = boolVal(map.get("require-name"), false);
+        boolean requireLore = boolVal(map.get("require-lore"), false);
+        boolean unstableTnt = boolVal(map.get("unstable-tnt"), false);
+        int limit = intVal(map.get("limit"), 0);
+        int globalLimit = intVal(map.get("global-limit"), 0);
+
+        boolean dynamicPricing = boolVal(map.get("dynamic-pricing"), false);
+        double minPrice = doubleVal(map.get("min-price"), 0D);
+        double maxPrice = doubleVal(map.get("max-price"), 0D);
+        double priceChange = doubleVal(map.get("price-change"), 0D);
+        String buyPriceFormula = stringVal(map.get("buy-price-formula"), "");
+        String sellPriceFormula = stringVal(map.get("sell-price-formula"), "");
+
+        List<String> commands = new ArrayList<>();
+        Object commandsObj = map.get("commands");
+        if (commandsObj instanceof List<?> list) {
+            for (Object cmd : list) {
+                if (cmd != null) commands.add(String.valueOf(cmd));
+            }
+        }
+
+        boolean runCommandOnly = boolVal(map.get("run-command-only"), true);
+        String runAs = stringVal(map.get("run-as"), "console").trim().toLowerCase(Locale.ROOT);
+        if (!runAs.equals("player") && !runAs.equals("console")) runAs = "console";
+
+        String itemPermission = stringVal(map.get("permission"), "");
+        boolean campaignEnabled = boolVal(map.get("campaign-enabled"), false);
+        String campaignKey = stringVal(map.get("campaign"), "");
+        String campaignName = stringVal(map.get("campaign-name"), "");
+        String campaignStart = stringVal(map.get("campaign-start"), "");
+        String campaignEnd = stringVal(map.get("campaign-end"), "");
+        String campaignTimezone = stringVal(map.get("campaign-timezone"), "");
+        double campaignBuyMultiplier = doubleVal(map.get("campaign-buy-multiplier"), 1.0D);
+        double campaignSellMultiplier = doubleVal(map.get("campaign-sell-multiplier"), 1.0D);
+
+        int minPlayerLevel = intVal(map.get("min-player-level"), 0);
+        int maxPlayerLevel = intVal(map.get("max-player-level"), 0);
+        String requiredGamemode = stringVal(map.get("required-gamemode"), "");
+        List<String> allowedWorlds = stringListVal(map.get("allowed-worlds"));
+        List<String> deniedWorlds = stringListVal(map.get("denied-worlds"));
+        List<String> itemAvailableTimes = stringListVal(map.get("available-times"));
+        StockResetRule itemResetRule = parseItemResetRule(map, matName);
+
+        Boolean sellAddsToStock = map.containsKey("sell-adds-to-stock")
+                ? boolVal(map.get("sell-adds-to-stock"), false)
+                : null;
+        Boolean allowSellStockOverflow = map.containsKey("allow-sell-stock-overflow")
+                ? boolVal(map.get("allow-sell-stock-overflow"), false)
+                : null;
+        boolean showStock = map.containsKey("show-stock")
+                && boolVal(map.get("show-stock"), false);
+        boolean showStockResetTimer = map.containsKey("show-stock-reset-timer")
+                && boolVal(map.get("show-stock-reset-timer"), false);
+
+        String variantKey = stringVal(map.get("variant-key"), "").trim();
+        if (variantKey.isEmpty()) {
+            variantKey = stringVal(map.get("item-key"), "").trim();
+        }
+
+        Integer slot = intVal(map.get("slot"), null);
+
+        return new ShopItem(
+                mat,
+                buyPrice,
+                amount,
+                spawnerType,
+                spawnerItem,
+                potionType,
+                potionLevel,
+                headTexture,
+                headOwner,
+                itemStackData,
+                name,
+                lore,
+                sellPrice,
+                buyPricePerItem,
+                sellPricePerItem,
+                enchantments,
+                hideAttributes,
+                hideAdditional,
+                requireName,
+                requireLore,
+                unstableTnt,
+                limit,
+                globalLimit,
+                dynamicPricing,
+                minPrice,
+                maxPrice,
+                priceChange,
+                buyPriceFormula,
+                sellPriceFormula,
+                commands,
+                runAs,
+                runCommandOnly,
+                itemPermission,
+                campaignEnabled,
+                campaignKey,
+                campaignName,
+                campaignStart,
+                campaignEnd,
+                campaignTimezone,
+                campaignBuyMultiplier,
+                campaignSellMultiplier,
+                minPlayerLevel,
+                maxPlayerLevel,
+                requiredGamemode,
+                allowedWorlds,
+                deniedWorlds,
+                itemAvailableTimes,
+                itemResetRule,
+                sellAddsToStock,
+                allowSellStockOverflow,
+                showStock,
+                showStockResetTimer,
+                variantKey,
+                variantGroupKey,
+                variantMenuEnabled,
+                variantGroupSlot,
+                slot
+        );
+    }
+
+    private Map<String, ShopCampaign> parseShopCampaigns(FileConfiguration config) {
+        Map<String, ShopCampaign> out = new LinkedHashMap<>(globalCampaigns);
+        List<Map<?, ?>> raw = config.getMapList("campaigns");
+        if (raw == null || raw.isEmpty()) return out;
+
+        for (Map<?, ?> entry : raw) {
+            if (entry == null || entry.isEmpty()) continue;
+            String key = stringVal(entry.get("key"), "").trim();
+            if (key.isEmpty()) continue;
+            String name = stringVal(entry.get("name"), key).trim();
+            String start = stringVal(entry.get("start"), "");
+            String end = stringVal(entry.get("end"), "");
+            String timezone = stringVal(entry.get("timezone"), "");
+            double buyMultiplier = doubleVal(entry.get("buy-multiplier"), 1.0D);
+            double sellMultiplier = doubleVal(entry.get("sell-multiplier"), 1.0D);
+            if (buyMultiplier <= 0D) buyMultiplier = 1.0D;
+            if (sellMultiplier <= 0D) sellMultiplier = 1.0D;
+            out.put(key, new ShopCampaign(key, name, start, end, timezone, buyMultiplier, sellMultiplier));
+        }
+
+        return out;
+    }
+
+    private void loadGlobalCampaigns() {
+        globalCampaigns.clear();
+        File file = new File(plugin.getDataFolder(), "campaigns.yml");
+        if (!file.exists()) return;
+        FileConfiguration cfg = YamlUtil.loadUtf8(file);
+        List<Map<?, ?>> raw = cfg.getMapList("campaigns");
+        if (raw == null) return;
+        for (Map<?, ?> entry : raw) {
+            if (entry == null || entry.isEmpty()) continue;
+            String key = stringVal(entry.get("key"), "").trim();
+            if (key.isEmpty()) continue;
+            String name = stringVal(entry.get("name"), key).trim();
+            String start = stringVal(entry.get("start"), "");
+            String end = stringVal(entry.get("end"), "");
+            String timezone = stringVal(entry.get("timezone"), "");
+            double buyMultiplier = doubleVal(entry.get("buy-multiplier"), 1.0D);
+            double sellMultiplier = doubleVal(entry.get("sell-multiplier"), 1.0D);
+            if (buyMultiplier <= 0D) buyMultiplier = 1.0D;
+            if (sellMultiplier <= 0D) sellMultiplier = 1.0D;
+            globalCampaigns.put(key, new ShopCampaign(key, name, start, end, timezone, buyMultiplier, sellMultiplier));
+        }
     }
 
     private StockResetRule parseShopResetRule(String shopKey, FileConfiguration config) {
@@ -514,11 +591,11 @@ public class ShopManager {
     }
 
     public ShopData getShop(String key) {
-        return shops.get(key);
+        return compiledCatalog != null ? compiledCatalog.shops().get(key) : shops.get(key);
     }
 
     public Set<String> getShopKeys() {
-        return shops.keySet();
+        return compiledCatalog != null ? compiledCatalog.shops().keySet() : shops.keySet();
     }
 
     public static class SellInfo {
@@ -547,7 +624,9 @@ public class ShopManager {
         String bestShopKey = null;
         double bestPrice = -1;
 
-        for (Map.Entry<String, ShopData> entry : shops.entrySet()) {
+        Map<String, ShopData> source = compiledCatalog != null ? compiledCatalog.shops() : shops;
+        for (Map.Entry<String, ShopData> entry : source.entrySet()) {
+            if (entry == null || entry.getValue() == null) continue;
             ShopData shop = entry.getValue();
 
             // Permission check
@@ -568,9 +647,17 @@ public class ShopManager {
                     // Item-level time restriction check
                     if (!ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) continue;
 
+                    // Advanced conditions check
+                    if (player != null) {
+                        ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, si);
+                        if (!condition.allowed()) continue;
+                    }
+
                     if (ShopItemUtil.isSameItem(stack, si)) {
-                        if (si.getSellPrice() > bestPrice) {
-                            bestPrice = si.getSellPrice();
+                        double candidatePrice = PriceFormulaUtil.resolveSellBasePrice(plugin, si);
+                        candidatePrice = CampaignUtil.applySellCampaign(shop, si, candidatePrice);
+                        if (candidatePrice > bestPrice) {
+                            bestPrice = candidatePrice;
                             bestItem = si;
                             bestShopKey = entry.getKey();
                         }
@@ -579,6 +666,51 @@ public class ShopManager {
             }
         }
         return bestItem != null ? new SellInfo(bestItem, bestShopKey) : null;
+    }
+
+    public CompiledShopCatalog getCompiledCatalog() {
+        return compiledCatalog;
+    }
+
+    public List<ValidationMessage> getValidationMessages() {
+        return compiledCatalog != null ? compiledCatalog.validationMessages() : List.copyOf(validationMessages);
+    }
+
+    private void runPostCompileValidation() {
+        for (Map.Entry<String, ShopData> entry : shops.entrySet()) {
+            String shopKey = entry.getKey();
+            ShopData shop = entry.getValue();
+            if (shop == null) {
+                validationMessages.add(new ValidationMessage(
+                        ValidationMessage.Severity.ERROR,
+                        "shop:" + shopKey,
+                        "Shop data is null after compile."
+                ));
+                continue;
+            }
+            Map<Integer, Integer> slotCounts = new HashMap<>();
+            for (ShopItem item : shop.getItems()) {
+                if (item == null || item.getSlot() == null) continue;
+                int slot = item.getSlot();
+                slotCounts.put(slot, slotCounts.getOrDefault(slot, 0) + 1);
+                if (slot < 0 || slot >= shop.getRows() * 9) {
+                    validationMessages.add(new ValidationMessage(
+                            ValidationMessage.Severity.WARNING,
+                            "shop:" + shopKey + ".item-slot",
+                            "Item slot " + slot + " is outside visible bounds for rows=" + shop.getRows()
+                    ));
+                }
+            }
+            for (Map.Entry<Integer, Integer> slotEntry : slotCounts.entrySet()) {
+                if (slotEntry.getValue() > 1) {
+                    validationMessages.add(new ValidationMessage(
+                            ValidationMessage.Severity.WARNING,
+                            "shop:" + shopKey + ".slot:" + slotEntry.getKey(),
+                            "Multiple items share slot " + slotEntry.getKey()
+                    ));
+                }
+            }
+        }
     }
 
     /**
@@ -596,5 +728,38 @@ public class ShopManager {
     public ShopItem getBestSellItem(Player player, org.bukkit.inventory.ItemStack stack) {
         SellInfo info = getBestSellInfo(player, stack);
         return info != null ? info.item : null;
+    }
+
+    private int intVal(Object o, int def) {
+        if (o instanceof Number n) return n.intValue();
+        if (o == null) return def;
+        try {
+            return Integer.parseInt(String.valueOf(o));
+        } catch (Exception ignored) {
+            return def;
+        }
+    }
+
+    private List<String> stringListVal(Object o) {
+        List<String> out = new ArrayList<>();
+        if (o instanceof List<?> list) {
+            for (Object entry : list) {
+                if (entry != null) out.add(String.valueOf(entry));
+            }
+        } else if (o != null) {
+            String raw = String.valueOf(o).trim();
+            if (!raw.isEmpty()) out.add(raw);
+        }
+        return out;
+    }
+
+    private double doubleVal(Object o, double def) {
+        if (o instanceof Number n) return n.doubleValue();
+        if (o == null) return def;
+        try {
+            return Double.parseDouble(String.valueOf(o));
+        } catch (Exception ignored) {
+            return def;
+        }
     }
 }
