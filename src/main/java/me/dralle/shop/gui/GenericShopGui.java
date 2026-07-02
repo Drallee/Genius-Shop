@@ -11,6 +11,7 @@ import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -286,9 +287,15 @@ public class GenericShopGui implements Listener {
             inv.setItem(i, createGuiItem(player, variant, shopKey, availableTimesStr, currency, shop));
         }
 
-        String backName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.back-button.name", "&9Back");
-        List<String> backLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.back-button.lore");
-        inv.setItem(backSlot, ShopItemUtil.create(Material.ENDER_CHEST, 1, backName, backLore));
+        FileConfiguration guiConfig = plugin.getMenuManager().getGuiSettingsConfig();
+        String backMaterialStr = guiConfig.getString("gui.back-button.material", "ENDER_CHEST");
+        String backName = guiConfig.getString("gui.back-button.name", "&9Back");
+        List<String> backLore = guiConfig.getStringList("gui.back-button.lore");
+
+        Material backMaterial = Material.matchMaterial(backMaterialStr.toUpperCase());
+        if (backMaterial == null) backMaterial = Material.ENDER_CHEST;
+
+        inv.setItem(backSlot, ShopItemUtil.create(backMaterial, 1, backName, backLore));
 
         player.openInventory(inv);
     }
@@ -431,24 +438,41 @@ public class GenericShopGui implements Listener {
         int nav = totalSlots - 9;
         int prev = nav + 3;
         int back = nav + 4;
-        int next = nav + 5;
+        int next = nav + 5;    
 
-        String backName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.back-button.name", "&9Back");
-        List<String> backLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.back-button.lore");
+        FileConfiguration guiConfig = plugin.getMenuManager().getGuiSettingsConfig();
 
-        inv.setItem(back, ShopItemUtil.create(Material.ENDER_CHEST, 1, backName, backLore));
+// Botón Back
+String backMaterialStr = guiConfig.getString("gui.back-button.material", "ENDER_CHEST");
+String backName = guiConfig.getString("gui.back-button.name", "&9Back");
+List<String> backLore = guiConfig.getStringList("gui.back-button.lore");
 
-        if (page > 1) {
-            String prevName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.prev-button.name", "&e<- Previous");
-            List<String> prevLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.prev-button.lore");
-            inv.setItem(prev, ShopItemUtil.create(Material.ARROW, 1, prevName, prevLore));
-        }
+Material backMaterial = Material.matchMaterial(backMaterialStr.toUpperCase());
+if (backMaterial == null) backMaterial = Material.ENDER_CHEST;
 
-        if (page < totalPages) {
-            String nextName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.next-button.name", "&eNext ->");
-            List<String> nextLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.next-button.lore");
-            inv.setItem(next, ShopItemUtil.create(Material.ARROW, 1, nextName, nextLore));
-        }
+inv.setItem(back, ShopItemUtil.create(backMaterial, 1, backName, backLore));
+
+if (page > 1) {
+    String prevMaterialStr = guiConfig.getString("gui.prev-button.material", "GRAY_DYE");
+    String prevName = guiConfig.getString("gui.prev-button.name", "&e<- Previous");
+    List<String> prevLore = guiConfig.getStringList("gui.prev-button.lore");
+
+    Material prevMaterial = Material.matchMaterial(prevMaterialStr.toUpperCase());
+    if (prevMaterial == null) prevMaterial = Material.GRAY_DYE;
+
+    inv.setItem(prev, ShopItemUtil.create(prevMaterial, 1, prevName, prevLore));
+}
+
+if (page < totalPages) {
+    String nextMaterialStr = guiConfig.getString("gui.next-button.material", "LIME_DYE");
+    String nextName = guiConfig.getString("gui.next-button.name", "&eNext ->");
+    List<String> nextLore = guiConfig.getStringList("gui.next-button.lore");
+
+    Material nextMaterial = Material.matchMaterial(nextMaterialStr.toUpperCase());
+    if (nextMaterial == null) nextMaterial = Material.LIME_DYE;
+
+    inv.setItem(next, ShopItemUtil.create(nextMaterial, 1, nextName, nextLore));
+}
 
         player.openInventory(inv);
 
@@ -498,15 +522,15 @@ public class GenericShopGui implements Listener {
         int totalPages = (int) Math.ceil((double) (maxSlot + 1) / (double) usableSlots);
         if (totalPages < 1) totalPages = 1;
 
-        if (slot == back && clicked.getType() == Material.ENDER_CHEST) {
+        if (slot == back) {
             Bukkit.getScheduler().runTask(plugin, () -> MainMenu.open(player));
             return;
         }
-        if (slot == prev && clicked.getType() == Material.ARROW && page > 1) {
+        if (slot == prev && page > 1) {
             Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, page - 1));
             return;
         }
-        if (slot == next && clicked.getType() == Material.ARROW && page < totalPages) {
+        if (slot == next && page < totalPages) {
             Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, page + 1));
             return;
         }
@@ -540,7 +564,7 @@ public class GenericShopGui implements Listener {
         int nav = (rows * 9) - 9;
         int backSlot = nav + 4;
 
-        if (slot == backSlot && clicked.getType() == Material.ENDER_CHEST) {
+        if (slot == backSlot) {
             Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, returnPage));
             return;
         }

@@ -6,6 +6,7 @@ config-version: 3
 gui:
   # Navigation buttons for shop pages
   back-button:
+    material: "ENDER_CHEST"
     name: '&9BACK TO CATEGORIES'
     lore:
       - ''
@@ -13,6 +14,7 @@ gui:
       - ''
 
   prev-button:
+    material: "GRAY_DYE"
     name: '&e<- PREVIOUS PAGE'
     lore:
       - ''
@@ -20,6 +22,7 @@ gui:
       - ''
 
   next-button:
+    material: "LIME_DYE"
     name: '&eNEXT PAGE ->'
     lore:
       - ''
