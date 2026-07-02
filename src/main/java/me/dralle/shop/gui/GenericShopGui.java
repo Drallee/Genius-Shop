@@ -431,24 +431,41 @@ public class GenericShopGui implements Listener {
         int nav = totalSlots - 9;
         int prev = nav + 3;
         int back = nav + 4;
-        int next = nav + 5;
+        int next = nav + 5;    
 
-        String backName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.back-button.name", "&9Back");
-        List<String> backLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.back-button.lore");
+Config guiConfig = plugin.getMenuManager().getGuiSettingsConfig();
 
-        inv.setItem(back, ShopItemUtil.create(Material.ENDER_CHEST, 1, backName, backLore));
+// Botón Back
+String backMaterialStr = guiConfig.getString("gui.back-button.material", "ENDER_CHEST");
+String backName = guiConfig.getString("gui.back-button.name", "&9Back");
+List<String> backLore = guiConfig.getStringList("gui.back-button.lore");
 
-        if (page > 1) {
-            String prevName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.prev-button.name", "&e<- Previous");
-            List<String> prevLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.prev-button.lore");
-            inv.setItem(prev, ShopItemUtil.create(Material.ARROW, 1, prevName, prevLore));
-        }
+Material backMaterial = Material.matchMaterial(backMaterialStr.toUpperCase());
+if (backMaterial == null) backMaterial = Material.ENDER_CHEST;
 
-        if (page < totalPages) {
-            String nextName = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.next-button.name", "&eNext ->");
-            List<String> nextLore = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.next-button.lore");
-            inv.setItem(next, ShopItemUtil.create(Material.ARROW, 1, nextName, nextLore));
-        }
+inv.setItem(back, ShopItemUtil.create(backMaterial, 1, backName, backLore));
+
+if (page > 1) {
+    String prevMaterialStr = guiConfig.getString("gui.prev-button.material", "ARROW");
+    String prevName = guiConfig.getString("gui.prev-button.name", "&e<- Previous");
+    List<String> prevLore = guiConfig.getStringList("gui.prev-button.lore");
+
+    Material prevMaterial = Material.matchMaterial(prevMaterialStr.toUpperCase());
+    if (prevMaterial == null) prevMaterial = Material.ARROW;
+
+    inv.setItem(prev, ShopItemUtil.create(prevMaterial, 1, prevName, prevLore));
+}
+
+if (page < totalPages) {
+    String nextMaterialStr = guiConfig.getString("gui.next-button.material", "ARROW");
+    String nextName = guiConfig.getString("gui.next-button.name", "&eNext ->");
+    List<String> nextLore = guiConfig.getStringList("gui.next-button.lore");
+
+    Material nextMaterial = Material.matchMaterial(nextMaterialStr.toUpperCase());
+    if (nextMaterial == null) nextMaterial = Material.ARROW;
+
+    inv.setItem(next, ShopItemUtil.create(nextMaterial, 1, nextName, nextLore));
+}
 
         player.openInventory(inv);
 
