@@ -1,45 +1,60 @@
-config-version: 4
+﻿config-version: 4
 
 messages:
-  prefix: "&8&l| &cМАГАЗИН &8&l| "
-  no-permission: "%prefix%&cУ вас нет прав на это действие."
-  player-only: "&cЭту команду могут использовать только игроки."
-  shop-not-found: "&cМагазин '&e%shop%&c' не найден."
-  shop-no-permission: "%prefix%&cУ вас нет прав для открытия магазина &e%shop%&c."
-  shop-not-available: "%prefix%&cМагазин &e%shop%&c сейчас недоступен!\n%prefix%&7Доступен: &e%available-times%"
-  shop-always-available: "<gradient:#0FFF00:#A8FC9B>Всегда</gradient>"
-  economy-not-ready: "&cЭкономика не готова."
-  not-enough-money: "&cВы не можете позволить себе &7%amount%x &4%item%&c за &4%price%."
-  buy-success: "&eВы купили &7%amount%x &6%item%&e за &6%price%."
-  payment-error: "&cЧто-то пошло не так при оплате."
+  prefix: "&8&l| &cÐœÐÐ“ÐÐ—Ð˜Ð &8&l| "
+  no-permission: "%prefix%&cÐ£ Ð²Ð°Ñ Ð½ÐµÑ‚ Ð¿Ñ€Ð°Ð² Ð½Ð° ÑÑ‚Ð¾ Ð´ÐµÐ¹ÑÑ‚Ð²Ð¸Ðµ."
+  player-only: "&cÐ­Ñ‚Ñƒ ÐºÐ¾Ð¼Ð°Ð½Ð´Ñƒ Ð¼Ð¾Ð³ÑƒÑ‚ Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÑŒ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð¸Ð³Ñ€Ð¾ÐºÐ¸."
+  shop-not-found: "&cÐœÐ°Ð³Ð°Ð·Ð¸Ð½ '&e%shop%&c' Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½."
+  shop-no-permission: "%prefix%&cÐ£ Ð²Ð°Ñ Ð½ÐµÑ‚ Ð¿Ñ€Ð°Ð² Ð´Ð»Ñ Ð¾Ñ‚ÐºÑ€Ñ‹Ñ‚Ð¸Ñ Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½Ð° &e%shop%&c."
+  shop-not-available: "%prefix%&cÐœÐ°Ð³Ð°Ð·Ð¸Ð½ &e%shop%&c ÑÐµÐ¹Ñ‡Ð°Ñ Ð½ÐµÐ´Ð¾ÑÑ‚ÑƒÐ¿ÐµÐ½!\n%prefix%&7Ð”Ð¾ÑÑ‚ÑƒÐ¿ÐµÐ½: &e%available-times%"
+  shop-always-available: "<gradient:#0FFF00:#A8FC9B>Ð’ÑÐµÐ³Ð´Ð°</gradient>"
+  economy-not-ready: "&cÐ­ÐºÐ¾Ð½Ð¾Ð¼Ð¸ÐºÐ° Ð½Ðµ Ð³Ð¾Ñ‚Ð¾Ð²Ð°."
+  not-enough-money: "&cÐ’Ñ‹ Ð½Ðµ Ð¼Ð¾Ð¶ÐµÑ‚Ðµ Ð¿Ð¾Ð·Ð²Ð¾Ð»Ð¸Ñ‚ÑŒ ÑÐµÐ±Ðµ &7%amount%x &4%item%&c Ð·Ð° &4%price%."
+  buy-success: "&eÐ’Ñ‹ ÐºÑƒÐ¿Ð¸Ð»Ð¸ &7%amount%x &6%item%&e Ð·Ð° &6%price%."
+  payment-error: "&cÐ§Ñ‚Ð¾-Ñ‚Ð¾ Ð¿Ð¾ÑˆÐ»Ð¾ Ð½Ðµ Ñ‚Ð°Ðº Ð¿Ñ€Ð¸ Ð¾Ð¿Ð»Ð°Ñ‚Ðµ."
 
   # Selling
-  cannot-sell: "%prefix%&cВы не можете продать этот предмет."
-  no-items-to-sell: "%prefix%&cУ вас нет &e%item%&c для продажи."
-  sell-success: "%prefix%&aВы продали &7%amount%x &6%item%&a за &6%price%."
-  sell-all-success: "%prefix%&aВы продали всего &7%amount%x &6%item%&a за &6%price%."
+  cannot-sell: "%prefix%&cÐ’Ñ‹ Ð½Ðµ Ð¼Ð¾Ð¶ÐµÑ‚Ðµ Ð¿Ñ€Ð¾Ð´Ð°Ñ‚ÑŒ ÑÑ‚Ð¾Ñ‚ Ð¿Ñ€ÐµÐ´Ð¼ÐµÑ‚."
+  no-items-to-sell: "%prefix%&cÐ£ Ð²Ð°Ñ Ð½ÐµÑ‚ &e%item%&c Ð´Ð»Ñ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð¸."
+  sell-success: "%prefix%&aÐ’Ñ‹ Ð¿Ñ€Ð¾Ð´Ð°Ð»Ð¸ &7%amount%x &6%item%&a Ð·Ð° &6%price%."
+  sell-all-success: "%prefix%&aÐ’Ñ‹ Ð¿Ñ€Ð¾Ð´Ð°Ð»Ð¸ Ð²ÑÐµÐ³Ð¾ &7%amount%x &6%item%&a Ð·Ð° &6%price%."
+  custom-command-unavailable: "%prefix%&cThis custom command is not available."
+  custom-command-invalid-config: "%prefix%&cThis custom command is not configured correctly. Please contact staff."
+  custom-command-player-only: "%prefix%&cOnly players can use this command."
+  custom-command-no-permission: "%prefix%&cYou do not have permission to use this command."
+  custom-command-no-shop-access: "%prefix%&cYou do not have access to &e%shop%&c."
+  custom-command-shop-not-found: "%prefix%&cShop '&e%shop%&c' was not found."
+  custom-command-item-not-found: "%prefix%&cItem '&e%item%&c' was not found in shop '&e%shop%&c'."
+  custom-command-buy-unavailable: "%prefix%&cThis item cannot be bought."
+  custom-command-sell-unavailable: "%prefix%&cThis item cannot be sold."
+  custom-command-nothing-to-sell: "%prefix%&cYou do not have any eligible items to sell."
+  custom-command-sellall-success: "%prefix%&aYou sold &7%items%x &6items&a for &6%price%&a."
+  custom-command-sellall-partial-success: "%prefix%&aYou sold &7%items%x &6items&a for &6%price%&a. &eSome items could not be sold."
+  custom-command-economy-failure: "%prefix%&cSell-all failed due to an economy error. Your items were restored."
+  custom-command-reload-success: "%prefix%&aCustom commands reloaded."
+  custom-command-reload-failure: "%prefix%&cCustom command reload failed. Check console."
 
   # Buying guard
-  cannot-buy: "%prefix%&cВы не можете купить этот предмет."
+  cannot-buy: "%prefix%&cÐ’Ñ‹ Ð½Ðµ Ð¼Ð¾Ð¶ÐµÑ‚Ðµ ÐºÑƒÐ¿Ð¸Ñ‚ÑŒ ÑÑ‚Ð¾Ñ‚ Ð¿Ñ€ÐµÐ´Ð¼ÐµÑ‚."
 
   # Reload
-  reload-no-permission: "%prefix%&cУ вас нет прав для перезагрузки плагина."
-  reload-success: "%prefix%&aGenius-Shop был перезагружен."
-  reload-failed: "%prefix%&cПерезагрузка не удалась, проверьте консоль."
-  update-available: "%prefix%&aДоступно новое обновление! &7(&c%current% &7-> &a%new%&7)"
+  reload-no-permission: "%prefix%&cÐ£ Ð²Ð°Ñ Ð½ÐµÑ‚ Ð¿Ñ€Ð°Ð² Ð´Ð»Ñ Ð¿ÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ¸ Ð¿Ð»Ð°Ð³Ð¸Ð½Ð°."
+  reload-success: "%prefix%&aGenius-Shop Ð±Ñ‹Ð» Ð¿ÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ¶ÐµÐ½."
+  reload-failed: "%prefix%&cÐŸÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° Ð½Ðµ ÑƒÐ´Ð°Ð»Ð°ÑÑŒ, Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑŒÑ‚Ðµ ÐºÐ¾Ð½ÑÐ¾Ð»ÑŒ."
+  update-available: "%prefix%&aÐ”Ð¾ÑÑ‚ÑƒÐ¿Ð½Ð¾ Ð½Ð¾Ð²Ð¾Ðµ Ð¾Ð±Ð½Ð¾Ð²Ð»ÐµÐ½Ð¸Ðµ! &7(&c%current% &7-> &a%new%&7)"
   
   # Time and Date
   time-separator: ", "
   time-range-separator: "-"
-  date-range-separator: " по "
-  day-range-separator: " по "
+  date-range-separator: " Ð¿Ð¾ "
+  day-range-separator: " Ð¿Ð¾ "
   # Natural language connectors
-  and: " и "
-  during: " в течение "
-  between: " между "
-  on: " в "
-  in: " в "
-  in-the-month-of: " в месяце "
+  and: " Ð¸ "
+  during: " Ð² Ñ‚ÐµÑ‡ÐµÐ½Ð¸Ðµ "
+  between: " Ð¼ÐµÐ¶Ð´Ñƒ "
+  on: " Ð² "
+  in: " Ð² "
+  in-the-month-of: " Ð² Ð¼ÐµÑÑÑ†Ðµ "
   # Use \n for a new line
   line-break: "\n"
   day-suffix-st: ""
@@ -49,67 +64,67 @@ messages:
   
   # Time and Date Translations
   days:
-    monday: "Понедельник"
-    tuesday: "Вторник"
-    wednesday: "Среда"
-    thursday: "Четверг"
-    friday: "Пятница"
-    saturday: "Суббота"
-    sunday: "Воскресенье"
-    mon: "Пн"
-    tue: "Вт"
-    wed: "Ср"
-    thu: "Чт"
-    fri: "Пт"
-    sat: "Сб"
-    sun: "Вс"
+    monday: "ÐŸÐ¾Ð½ÐµÐ´ÐµÐ»ÑŒÐ½Ð¸Ðº"
+    tuesday: "Ð’Ñ‚Ð¾Ñ€Ð½Ð¸Ðº"
+    wednesday: "Ð¡Ñ€ÐµÐ´Ð°"
+    thursday: "Ð§ÐµÑ‚Ð²ÐµÑ€Ð³"
+    friday: "ÐŸÑÑ‚Ð½Ð¸Ñ†Ð°"
+    saturday: "Ð¡ÑƒÐ±Ð±Ð¾Ñ‚Ð°"
+    sunday: "Ð’Ð¾ÑÐºÑ€ÐµÑÐµÐ½ÑŒÐµ"
+    mon: "ÐŸÐ½"
+    tue: "Ð’Ñ‚"
+    wed: "Ð¡Ñ€"
+    thu: "Ð§Ñ‚"
+    fri: "ÐŸÑ‚"
+    sat: "Ð¡Ð±"
+    sun: "Ð’Ñ"
   months:
-    january: "Январь"
-    february: "Февраль"
-    march: "Март"
-    april: "Апрель"
-    may: "Май"
-    june: "Июнь"
-    july: "Июль"
-    august: "Август"
-    september: "Сентябрь"
-    october: "Октябрь"
-    november: "Ноябрь"
-    december: "Декабрь"
-    jan: "Янв"
-    feb: "Фев"
-    mar: "Мар"
-    apr: "Апр"
-    may_short: "Май"
-    jun: "Июн"
-    jul: "Июл"
-    aug: "Авг"
-    sep: "Сен"
-    oct: "Окт"
-    nov: "Ноя"
-    dec: "Дек"
+    january: "Ð¯Ð½Ð²Ð°Ñ€ÑŒ"
+    february: "Ð¤ÐµÐ²Ñ€Ð°Ð»ÑŒ"
+    march: "ÐœÐ°Ñ€Ñ‚"
+    april: "ÐÐ¿Ñ€ÐµÐ»ÑŒ"
+    may: "ÐœÐ°Ð¹"
+    june: "Ð˜ÑŽÐ½ÑŒ"
+    july: "Ð˜ÑŽÐ»ÑŒ"
+    august: "ÐÐ²Ð³ÑƒÑÑ‚"
+    september: "Ð¡ÐµÐ½Ñ‚ÑÐ±Ñ€ÑŒ"
+    october: "ÐžÐºÑ‚ÑÐ±Ñ€ÑŒ"
+    november: "ÐÐ¾ÑÐ±Ñ€ÑŒ"
+    december: "Ð”ÐµÐºÐ°Ð±Ñ€ÑŒ"
+    jan: "Ð¯Ð½Ð²"
+    feb: "Ð¤ÐµÐ²"
+    mar: "ÐœÐ°Ñ€"
+    apr: "ÐÐ¿Ñ€"
+    may_short: "ÐœÐ°Ð¹"
+    jun: "Ð˜ÑŽÐ½"
+    jul: "Ð˜ÑŽÐ»"
+    aug: "ÐÐ²Ð³"
+    sep: "Ð¡ÐµÐ½"
+    oct: "ÐžÐºÑ‚"
+    nov: "ÐÐ¾Ñ"
+    dec: "Ð”ÐµÐº"
 
   stock-reset-timer:
     value-format: "%value% %unit%"
     units:
       second:
-        singular: "секунда"
-        plural: "секунды"
+        singular: "ÑÐµÐºÑƒÐ½Ð´Ð°"
+        plural: "ÑÐµÐºÑƒÐ½Ð´Ñ‹"
       minute:
-        singular: "минута"
-        plural: "минуты"
+        singular: "Ð¼Ð¸Ð½ÑƒÑ‚Ð°"
+        plural: "Ð¼Ð¸Ð½ÑƒÑ‚Ñ‹"
       hour:
-        singular: "час"
-        plural: "часы"
+        singular: "Ñ‡Ð°Ñ"
+        plural: "Ñ‡Ð°ÑÑ‹"
       day:
-        singular: "день"
-        plural: "дни"
+        singular: "Ð´ÐµÐ½ÑŒ"
+        plural: "Ð´Ð½Ð¸"
       month:
-        singular: "месяц"
-        plural: "месяцы"
+        singular: "Ð¼ÐµÑÑÑ†"
+        plural: "Ð¼ÐµÑÑÑ†Ñ‹"
       year:
-        singular: "год"
-        plural: "годы"
+        singular: "Ð³Ð¾Ð´"
+        plural: "Ð³Ð¾Ð´Ñ‹"
 
   # Economy safety and validation
   safety-cooldown: "%prefix%&ePlease wait &f%seconds%s&e before &f%action%&e again."
@@ -134,7 +149,8 @@ messages:
   bulk-sell-stock-skipped: "%prefix%&eSome items were not sold because stock was already full."
   bulk-sell-safety-skipped: "%prefix%&eSome items were skipped by economy safety guards."
   bulk-sell-stock-full: "%prefix%&cCould not sell items because stock is already full."
-  bulk-sell-safety-none: "%prefix%&cNo items were sold because safety guards blocked them."
+  bulk-sell-safety-none: "%prefix%&cNo items were sold because safety guards blocked them."
+
   condition-level-min: "%prefix%&cYou need at least level &e%level%&c for this item."
   condition-level-max: "%prefix%&cYou must be level &e%level%&c or lower for this item."
   condition-world-not-allowed: "%prefix%&cThis item is not available in your current world."
@@ -155,48 +171,315 @@ messages:
   validate-prices-find-base-above-max: "&e[WARN] Base buy price is above max-price for %ref%"
   validate-prices-find-price-change-large: "&e[WARN] price-change is very large vs base buy price for %ref%"
   validate-prices-find-dynamic-fields-ignored: "&e[WARN] Dynamic pricing fields set while dynamic-pricing=false for %ref%"
+  editor-command-disabled: '&cThe /shop editor command is disabled'
+  editor-no-permission: '&cYou do not have permission to access the shop editor!'
+  editor-disabled: '&cShop editor is disabled!'
+  editor-header: '<gradient:#3B82F6:#06B6D4>&l[Shop Editor]</gradient>'
+  editor-open-link: '&7Click the link below to open the shop editor:'
+  editor-clickable-unsupported: '&cYour server build does not support clickable chat links.'
+  editor-compatible-build-required: '&7Please use a compatible Spigot/Paper/Purpur build.'
+  editor-link-expiry: '&7This link will expire in 5 minutes.'
+  editor-server-ip: '&7Server IP: &e%ip%'
+  confirmlogin-player-only: '&cOnly players can use this command.'
+  confirmlogin-api-disabled: '&cAPI server is not running.'
+  confirmlogin-invalid-token: '&cInvalid or expired confirmation token.'
+  confirmlogin-wrong-player: '&cThis confirmation is not for you.'
+  confirmlogin-confirmed-title: '<gradient:#22C55E:#14B8A6>&lLogin Confirmed!</gradient>'
+  confirmlogin-ip-trusted: '&7The IP &e%ip% &7has been trusted.'
+  confirmlogin-access-ready: '&7You can now access the shop editor from this IP.'
+  exportitem-hold-item: '&cHold the item you want to export in your main hand.'
+  exportitem-create-folder-failed: '&cCould not create item-exports folder.'
+  exportitem-success: '&aExported held item to &eplugins/GeniusShop/item-exports/%file%'
+  exportitem-import-hint: '&7Import this JSON in the web editor with the IMPORT button.'
+  exportitem-write-failed: '&cFailed to write item JSON: %error%'
+  wiki-link: '&7Wiki: &b%url%'
+  resetstock-all-success: '&aReset stock for &e%count% &aitem entries across all shops.'
+  resetstock-shop-success: '&aReset stock for &e%count% &aitem entries in shop &e%shop%&a.'
+  resetstock-slot-not-number: '&cSlot must be a number.'
+  resetstock-item-not-found: '&cNo item found in shop &e%shop%&c at slot &e%slot%&c.'
+  resetstock-item-success: '&aReset stock for shop &e%shop%&a item at slot &e%slot%&a.'
+  shop-empty: '&cThis shop is empty.'
+  variant-count: '&bVariants: &f%count%'
+  variant-choose-hint: '&7Left/Right click to choose variant'
+  latest-update-highlights-title: '&7Latest update highlights:'
+  latest-update-highlight-line: '&8- &f%highlight%'
+  purchase-limit-line: '&eLimit: &7%current%/%limit%'
+  purchase-limit-reached: '&cYou have reached the purchase limit for this item! (%current%/%limit%)'
+  global-limit-reached: '&cThe global limit for this item has been reached! (%current%/%limit%)'
+  sale-limit-line: '&eLimit: &7%current%/%limit%'
+  sale-limit-reached: '&cYou have reached the sale limit for this item! (%current%/%limit%)'
+  security-alert-border: '&8&m----------------------------------------------------------------'
+  security-alert-title: '<gradient:#EF4444:#F97316>&lSECURITY ALERT</gradient>'
+  security-alert-request-ip: '&7Someone is trying to access the shop editor from:'
+  security-alert-current-ip: '&7Your current IP: &a%ip%'
+  security-alert-confirm-instruction: '&7If this is you, run this command to confirm:'
+  security-alert-confirm-command: '&aType: &e/shop confirmlogin %token%'
+  security-alert-expires: '&cThis request will expire in 3 minutes.'
+  update-checker-border-console: '&8&m--------------------------------------------------------------'
+  update-checker-border-player: '&8&m---------------------------------------------'
+  update-checker-console-title: '&b&l[GeniusShop] &a&lUPDATE AVAILABLE'
+  update-checker-current-version: '&7Current version: &e%current%'
+  update-checker-latest-version: '&7Latest version:  &a%latest%'
+  update-checker-download-latest: '&7Download latest: &d%url%'
+  update-checker-project-page: '&7Project page:    &d%url%'
+  update-checker-player-title: '&9&l-------- &d&lGENIUSSHOP UPDATE &9&l--------'
+  update-checker-player-new: '&a&l>> &aNEW UPDATE AVAILABLE!'
+  update-checker-player-versions: '&7>> CURRENT: &e%current% &7* LATEST: &a%latest%'
+  update-checker-player-download: '&5&l>> &d&l[DOWNLOAD] &7%url%'
+  menus:
+    main:
+      title: '<gradient:#B154F4:#5482B6>Shop Menu</gradient>'
+      items:
+        info:
+          name: '<gradient:#54DAF4:#8CA5E7>INFO</gradient>'
+          lore:
+            - ''
+            - '&7Made by <gradient:#C81BA8:#F03B9C>Dralle</gradient>'
+            - '&7Version: <gradient:#46F7D9:#62ED44>%version%</gradient>'
+            - '%update-available%'
+            - '%latest-update-highlights%'
+            - ''
+        blocks:
+          name: '<gradient:#92E28D:#2FA53C>Blocks</gradient>'
+          lore:
+            - ''
+            - '&7Buy building blocks here.'
+            - '&7Available: %available-times%'
+            - ''
+        spawners:
+          name: '<gradient:#8A5CF6:#5EE7FF:#7DFFB3>Spawners</gradient>'
+          lore:
+            - ''
+            - '&7Buy mob spawners here.'
+            - '&7Available: %available-times%'
+            - ''
+        farming:
+          name: '<gradient:#6EDC4B:#A8E063:#F6D365>Farming</gradient>'
+          lore:
+            - ''
+            - '&7Buy and sell crops.'
+            - '&7Available: %available-times%'
+            - ''
+        misc:
+          name: '<gradient:#00FF26:#688AFE:#9C3CC5:#E03F9A>Misc Items</gradient>'
+          lore:
+            - ''
+            - '&7Random stuff.'
+            - '&7Available: %available-times%'
+            - ''
+        potions:
+          name: '<gradient:#2C7CF8:#45CCF8>Potions</gradient>'
+          lore:
+            - ''
+            - '&7Buy magical potions.'
+            - '&7Available: %available-times%'
+            - ''
+        special:
+          name: '<gradient:#8B5AFF:#9BECFC>Special Items</gradient>'
+          lore:
+            - ''
+            - '&7Exclusive and unique items!'
+            - '&7Available: %available-times%'
+            - ''
+        weekend-market:
+          name: '<gradient:#FF21E7:#B09BFC>&lWeekend Market</gradient>'
+          lore:
+            - ''
+            - '&7Special items at discounted prices!'
+            - '&7Available: <gradient:#C8FF00:#9BFCA2>%available-times%</gradient>'
+            - ''
+        premium:
+          name: '<gradient:#FF0072:#FC9BF5>Premium Shop</gradient>'
+          lore:
+            - ''
+            - '&7Exclusive / premium items.'
+            - '&7Available: %available-times%'
+            - ''
+        wiki:
+          name: '<gradient:#54daf4:#5482B6>Wiki</gradient>'
+          lore:
+            - ''
+            - '&7Open documentation in chat.'
+            - ''
+        close:
+          name: '<gradient:#ff0000:#ff6666>Close</gradient>'
+          lore:
+            - ''
+            - '&7Close this menu.'
+            - ''
+    gui-settings:
+      back-button:
+        name: '&9BACK TO CATEGORIES'
+        lore:
+          - ''
+          - '&bClick to return to the main menu.'
+          - ''
+      prev-button:
+        name: '&e<- PREVIOUS PAGE'
+        lore:
+          - ''
+          - '&7See the previous page.'
+          - ''
+      next-button:
+        name: '&eNEXT PAGE ->'
+        lore:
+          - ''
+          - '&7See the next page.'
+          - ''
+      purchase:
+        title-prefix: '&8Buying '
+      sell:
+        title-prefix: '&8Selling '
+        selected-amount: '&eSelected amount: &7%amount%'
+        sell-price: '&eSell price: &7%price%'
+        you-own: '&eYou own: &7%owned%'
+      item-lore:
+        buy-price-line: '&6Buy Price: &a%price%'
+        sell-price-line: '&cSell Price: &a%sell-price%'
+        buy-hint-line: '&eLeft-click to buy'
+        sell-hint-line: '&aRight-click to sell'
+        amount-line: '&eAmount: &7%amount%'
+        total-line: '&eTotal: &7%total%'
+        spawner-type-line: '&7Spawner Type: &e%type%'
+        spawner-item-line: '&7Spawner Item: &e%item%'
+        potion-type-line: '&7Potion Type: &d%type%'
+        global-limit-value-format: '%current%/%limit%'
+        player-limit-value-format: '%current%/%limit%'
+        stock-reset-timer-value-format: 'Stock resets in %time%'
+        global-limit-line: '&7Stock: &e%global-limit%'
+        player-limit-line: '&7Your limit: &e%player-limit%'
+        stock-reset-timer-line: '&7%stock-reset-timer%'
+    purchase:
+      buttons:
+        confirm:
+          name: '&aCONFIRM PURCHASE'
+          lore:
+            - ''
+            - '&7Click to complete your purchase'
+            - ''
+        cancel:
+          name: '&cCancel'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        back:
+          name: '&9Back'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        add:
+          '1':
+            name: '&aAdd 1'
+          '10':
+            name: '&aAdd 10'
+        remove:
+          '1':
+            name: '&cRemove 1'
+          '10':
+            name: '&cRemove 10'
+        set:
+          '64':
+            name: '&aSet to 64'
+          '1':
+            name: '&cSet to 1'
+    sell:
+      buttons:
+        confirm:
+          name: '&aCONFIRM SELL'
+          lore:
+            - ''
+            - '&7Click to complete your sale'
+            - ''
+        sell-all:
+          name: '&6SELL ALL'
+          lore:
+            - ''
+            - '&7Sell all items in your inventory'
+            - '&7(Max: %max% items)'
+            - ''
+        cancel:
+          name: '&cCancel'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        back:
+          name: '&9Back'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        add:
+          '1':
+            name: '&aAdd 1'
+          '10':
+            name: '&aAdd 10'
+        remove:
+          '1':
+            name: '&cRemove 1'
+          '10':
+            name: '&cRemove 10'
+        set:
+          '64':
+            name: '&aSet 64'
+          '1':
+            name: '&cSet to 1'
+    bulk-sell:
+      title: '&8Bulk Sell'
+      buttons:
+        confirm:
+          name: '&aConfirm Sell'
+          lore:
+            - '&7Click to sell all items'
+            - '&7in the GUI.'
 web-editor:
-  title: "Genius Shop - Редактор конфигурации"
-  hero-title: "РЕДАКТОР GENIUS SHOP"
-  hero-subtitle: "Настройте свой магазин с живым предварительным просмотром Minecraft"
-  beta-badge: "БЕТА - Некоторые функции могут работать, а некоторые могут отсутствовать"
-  bug-report: "Сообщить об ошибках или недостающих функциях"
-  auto-save: "Автосохранение"
-  animations: "Анимации"
-  history: "ИСТОРИЯ"
-  reload: "ОБНОВИТЬ"
-  save-tab: "СОХРАНИТЬ ВКЛАДКУ"
-  publish-all: "ОПУБЛИКОВАТЬ ВСЕ"
-  logout: "ВЫЙТИ"
-  rows: "Ряды:"
-  permission: "Разрешение:"
-  available-times: "Время:"
-  display-material: "Материал:"
-  display-slot: "Слот:"
-  max-amount: "Макс:"
-  spawner-lore: "Описание спавнера:"
+  title: "Genius Shop - Ð ÐµÐ´Ð°ÐºÑ‚Ð¾Ñ€ ÐºÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸Ð¸"
+  hero-title: "Ð Ð•Ð”ÐÐšÐ¢ÐžÐ  GENIUS SHOP"
+  hero-subtitle: "ÐÐ°ÑÑ‚Ñ€Ð¾Ð¹Ñ‚Ðµ ÑÐ²Ð¾Ð¹ Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½ Ñ Ð¶Ð¸Ð²Ñ‹Ð¼ Ð¿Ñ€ÐµÐ´Ð²Ð°Ñ€Ð¸Ñ‚ÐµÐ»ÑŒÐ½Ñ‹Ð¼ Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€Ð¾Ð¼ Minecraft"
+  beta-badge: "Ð‘Ð•Ð¢Ð - ÐÐµÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ðµ Ñ„ÑƒÐ½ÐºÑ†Ð¸Ð¸ Ð¼Ð¾Ð³ÑƒÑ‚ Ñ€Ð°Ð±Ð¾Ñ‚Ð°Ñ‚ÑŒ, Ð° Ð½ÐµÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ðµ Ð¼Ð¾Ð³ÑƒÑ‚ Ð¾Ñ‚ÑÑƒÑ‚ÑÑ‚Ð²Ð¾Ð²Ð°Ñ‚ÑŒ"
+  bug-report: "Ð¡Ð¾Ð¾Ð±Ñ‰Ð¸Ñ‚ÑŒ Ð¾Ð± Ð¾ÑˆÐ¸Ð±ÐºÐ°Ñ… Ð¸Ð»Ð¸ Ð½ÐµÐ´Ð¾ÑÑ‚Ð°ÑŽÑ‰Ð¸Ñ… Ñ„ÑƒÐ½ÐºÑ†Ð¸ÑÑ…"
+  auto-save: "ÐÐ²Ñ‚Ð¾ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ"
+  animations: "ÐÐ½Ð¸Ð¼Ð°Ñ†Ð¸Ð¸"
+  history: "Ð˜Ð¡Ð¢ÐžÐ Ð˜Ð¯"
+  reload: "ÐžÐ‘ÐÐžÐ’Ð˜Ð¢Ð¬"
+  save-tab: "Ð¡ÐžÐ¥Ð ÐÐÐ˜Ð¢Ð¬ Ð’ÐšÐ›ÐÐ”ÐšÐ£"
+  publish-all: "ÐžÐŸÐ£Ð‘Ð›Ð˜ÐšÐžÐ’ÐÐ¢Ð¬ Ð’Ð¡Ð•"
+  logout: "Ð’Ð«Ð™Ð¢Ð˜"
+  rows: "Ð ÑÐ´Ñ‹:"
+  permission: "Ð Ð°Ð·Ñ€ÐµÑˆÐµÐ½Ð¸Ðµ:"
+  available-times: "Ð’Ñ€ÐµÐ¼Ñ:"
+  display-material: "ÐœÐ°Ñ‚ÐµÑ€Ð¸Ð°Ð»:"
+  display-slot: "Ð¡Ð»Ð¾Ñ‚:"
+  max-amount: "ÐœÐ°ÐºÑ:"
+  spawner-lore: "ÐžÐ¿Ð¸ÑÐ°Ð½Ð¸Ðµ ÑÐ¿Ð°Ð²Ð½ÐµÑ€Ð°:"
   tabs:
-    main-menu: "ГЛАВНОЕ МЕНЮ"
-    shop: "МАГАЗИН"
-    purchase: "ПОКУПКА"
-    sell: "ПРОДАЖА"
-    gui-settings: "НАСТРОЙКИ GUI"
-  preview-loading: "Загрузка..."
-  prev: "НАЗАД"
-  next: "ВПЕРЕД"
-  page-indicator: "Страница %page%/%total%"
+    main-menu: "Ð“Ð›ÐÐ’ÐÐžÐ• ÐœÐ•ÐÐ®"
+    shop: "ÐœÐÐ“ÐÐ—Ð˜Ð"
+    purchase: "ÐŸÐžÐšÐ£ÐŸÐšÐ"
+    sell: "ÐŸÐ ÐžÐ”ÐÐ–Ð"
+    gui-settings: "ÐÐÐ¡Ð¢Ð ÐžÐ™ÐšÐ˜ GUI"
+  preview-loading: "Ð—Ð°Ð³Ñ€ÑƒÐ·ÐºÐ°..."
+  prev: "ÐÐÐ—ÐÐ”"
+  next: "Ð’ÐŸÐ•Ð Ð•Ð”"
+  page-indicator: "Ð¡Ñ‚Ñ€Ð°Ð½Ð¸Ñ†Ð° %page%/%total%"
   main-menu:
-    title: "РЕДАКТОР ГЛАВНОГО МЕНЮ"
-    buttons-count: "Кнопок: %count%"
-    settings: "НАСТРОЙКИ"
-    add-button: "ДОБАВИТЬ КНОПКУ"
+    title: "Ð Ð•Ð”ÐÐšÐ¢ÐžÐ  Ð“Ð›ÐÐ’ÐÐžÐ“Ðž ÐœÐ•ÐÐ®"
+    buttons-count: "ÐšÐ½Ð¾Ð¿Ð¾Ðº: %count%"
+    settings: "ÐÐÐ¡Ð¢Ð ÐžÐ™ÐšÐ˜"
+    add-button: "Ð”ÐžÐ‘ÐÐ’Ð˜Ð¢Ð¬ ÐšÐÐžÐŸÐšÐ£"
   shop:
-    current-file: "ТЕКУЩИЙ ФАЙЛ МАГАЗИНА"
-    loading: "Загрузка магазинов..."
-    create-new: "СОЗДАТЬ НОВЫЙ МАГАЗИН"
-    title: "СОДЕРЖИМОЕ МАГАЗИНА"
-    items-count: "Предметов: %count%"
-    sort-label: "Сортировка:"
+    current-file: "Ð¢Ð•ÐšÐ£Ð©Ð˜Ð™ Ð¤ÐÐ™Ð› ÐœÐÐ“ÐÐ—Ð˜ÐÐ"
+    loading: "Ð—Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½Ð¾Ð²..."
+    create-new: "Ð¡ÐžÐ—Ð”ÐÐ¢Ð¬ ÐÐžÐ’Ð«Ð™ ÐœÐÐ“ÐÐ—Ð˜Ð"
+    title: "Ð¡ÐžÐ”Ð•Ð Ð–Ð˜ÐœÐžÐ• ÐœÐÐ“ÐÐ—Ð˜ÐÐ"
+    items-count: "ÐŸÑ€ÐµÐ´Ð¼ÐµÑ‚Ð¾Ð²: %count%"
+    sort-label: "Ð¡Ð¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²ÐºÐ°:"
     sort:
       slot-asc: "Slot (Low to High)"
       slot-desc: "Slot (High to Low)"
@@ -210,112 +493,112 @@ web-editor:
       sell-price-desc: "Sell Price (High to Low)"
       id-asc: "ID (Low to High)"
       id-desc: "ID (High to Low)"
-    search-placeholder: "Поиск по названию или материалу..."
-    add-item: "ДОБАВИТЬ ПРЕДМЕТ"
-    delete-file: "Удалить файл магазина"
+    search-placeholder: "ÐŸÐ¾Ð¸ÑÐº Ð¿Ð¾ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸ÑŽ Ð¸Ð»Ð¸ Ð¼Ð°Ñ‚ÐµÑ€Ð¸Ð°Ð»Ñƒ..."
+    add-item: "Ð”ÐžÐ‘ÐÐ’Ð˜Ð¢Ð¬ ÐŸÐ Ð•Ð”ÐœÐ•Ð¢"
+    delete-file: "Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ Ñ„Ð°Ð¹Ð» Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½Ð°"
   purchase:
-    title: "КОНФИГУРАЦИЯ ПОКУПКИ"
-    menu-settings: "НАСТРОЙКИ МЕНЮ"
+    title: "ÐšÐžÐÐ¤Ð˜Ð“Ð£Ð ÐÐ¦Ð˜Ð¯ ÐŸÐžÐšÐ£ÐŸÐšÐ˜"
+    menu-settings: "ÐÐÐ¡Ð¢Ð ÐžÐ™ÐšÐ˜ ÐœÐ•ÐÐ®"
   sell:
-    title: "КОНФИГУРАЦИЯ ПРОДАЖИ"
-    menu-settings: "НАСТРОЙКИ МЕНЮ"
+    title: "ÐšÐžÐÐ¤Ð˜Ð“Ð£Ð ÐÐ¦Ð˜Ð¯ ÐŸÐ ÐžÐ”ÐÐ–Ð˜"
+    menu-settings: "ÐÐÐ¡Ð¢Ð ÐžÐ™ÐšÐ˜ ÐœÐ•ÐÐ®"
   gui-settings:
-    title: "ГЛОБАЛЬНЫЕ НАСТРОЙКИ GUI"
+    title: "Ð“Ð›ÐžÐ‘ÐÐ›Ð¬ÐÐ«Ð• ÐÐÐ¡Ð¢Ð ÐžÐ™ÐšÐ˜ GUI"
     lore-format-title: "Shop Item Lore Format"
     lore-format-label: "Lore Format"
-    lore-format-hint: "Задайте порядок и содержимое лора предмета. По одной строке на запись. Доступно: %price-line%, %buy-price-line%, %sell-price-line%, %custom-lore%, %spawner-type-line%, %spawner-item-line%, %potion-type-line%, %global-limit%, %player-limit%, %stock-reset-timer%, %hint-line%, %buy-hint-line%, %sell-hint-line%"
+    lore-format-hint: "Ð—Ð°Ð´Ð°Ð¹Ñ‚Ðµ Ð¿Ð¾Ñ€ÑÐ´Ð¾Ðº Ð¸ ÑÐ¾Ð´ÐµÑ€Ð¶Ð¸Ð¼Ð¾Ðµ Ð»Ð¾Ñ€Ð° Ð¿Ñ€ÐµÐ´Ð¼ÐµÑ‚Ð°. ÐŸÐ¾ Ð¾Ð´Ð½Ð¾Ð¹ ÑÑ‚Ñ€Ð¾ÐºÐµ Ð½Ð° Ð·Ð°Ð¿Ð¸ÑÑŒ. Ð”Ð¾ÑÑ‚ÑƒÐ¿Ð½Ð¾: %price-line%, %buy-price-line%, %sell-price-line%, %custom-lore%, %spawner-type-line%, %spawner-item-line%, %potion-type-line%, %global-limit%, %player-limit%, %stock-reset-timer%, %hint-line%, %buy-hint-line%, %sell-hint-line%"
   tips:
-    title: "БЫСТРЫЕ СОВЕТЫ"
-    tip1: "Нажимайте предметы в превью, чтобы редактировать свойства"
-    tip2: "Отображаются реальные текстуры Minecraft"
-    tip3: "Автосохранение сохраняет ваши изменения"
-    tip4: "Используйте SYNC, чтобы перезагрузить данные с сервера"
-    tip5: "Создавайте несколько файлов магазинов"
+    title: "Ð‘Ð«Ð¡Ð¢Ð Ð«Ð• Ð¡ÐžÐ’Ð•Ð¢Ð«"
+    tip1: "ÐÐ°Ð¶Ð¸Ð¼Ð°Ð¹Ñ‚Ðµ Ð¿Ñ€ÐµÐ´Ð¼ÐµÑ‚Ñ‹ Ð² Ð¿Ñ€ÐµÐ²ÑŒÑŽ, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ñ€ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ ÑÐ²Ð¾Ð¹ÑÑ‚Ð²Ð°"
+    tip2: "ÐžÑ‚Ð¾Ð±Ñ€Ð°Ð¶Ð°ÑŽÑ‚ÑÑ Ñ€ÐµÐ°Ð»ÑŒÐ½Ñ‹Ðµ Ñ‚ÐµÐºÑÑ‚ÑƒÑ€Ñ‹ Minecraft"
+    tip3: "ÐÐ²Ñ‚Ð¾ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ ÑÐ¾Ñ…Ñ€Ð°Ð½ÑÐµÑ‚ Ð²Ð°ÑˆÐ¸ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ñ"
+    tip4: "Ð˜ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐ¹Ñ‚Ðµ SYNC, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¿ÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ·Ð¸Ñ‚ÑŒ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ñ ÑÐµÑ€Ð²ÐµÑ€Ð°"
+    tip5: "Ð¡Ð¾Ð·Ð´Ð°Ð²Ð°Ð¹Ñ‚Ðµ Ð½ÐµÑÐºÐ¾Ð»ÑŒÐºÐ¾ Ñ„Ð°Ð¹Ð»Ð¾Ð² Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½Ð¾Ð²"
   modals:
-    edit-item: "Редактировать предмет"
-    edit-button: "Редактировать кнопку меню"
-    delete: "Удалить"
-    cancel: "Отмена"
-    confirm-title: "Подтвердите действие"
-    confirm-button: "Подтвердить"
-    alert-title: "Сообщение"
-    error-title: "Ошибка"
-    success-title: "Успех"
-    warning-title: "Предупреждение"
-    prompt-title: "Введите значение"
-    save-confirm-title: "Подтвердить сохранение"
-    activity-detail-title: "Детали изменений"
-    rollback: "ОТКАТИТЬ"
-    rollback-success: "Действие успешно отменено"
-    refresh: "ОБНОВИТЬ"
-    clear: "ОЧИСТИТЬ ВСЕ"
-    history-log: "ЖУРНАЛ ИСТОРИИ"
-    about-history-title: "О ЖУРНАЛЕ ИСТОРИИ"
-    about-history-text: "Отслеживайте все изменения, внесенные пользователями. Нажмите на любую запись, чтобы просмотреть подробное сравнение до и после."
-    no-activity: "Действий пока нет"
-    session-expired: "Сессия истекла. Пожалуйста, войдите снова."
-    item-updated: "Предмет обновлен"
-    item-removed: "Предмет удален"
-    remove-confirm: "Вы уверены, что хотите удалить %item%?"
-    remove-file-confirm: "Вы уверены, что хотите НАВСЕГДА УДАЛИТЬ %file% с сервера? Это действие нельзя отменить!"
-    reload-confirm: "Вы уверены, что хотите перезагрузить все конфигурации с сервера? Все несохраненные изменения будут потеряны."
-    logout-confirm: "Вы уверены, что хотите выйти?"
-    shop-created: "Новый магазин создан"
-    shop-removed: "Файл магазина удален"
-    file-saved: "Файл успешно сохранен"
-    save-error: "Не удалось сохранить файл"
-    publish-success: "Все изменения успешно опубликованы"
-    publish-error: "Не удалось опубликовать изменения"
-    reload-success: "Конфигурация перезагружена с сервера"
-    reload-error: "Не удалось перезагрузить конфигурацию"
-    loaded: "Загружено"
-    load-failed: "Загрузка не удалась"
-    saving: "Сохранение..."
-    saved: "Сохранено"
-    save-failed: "Ошибка сохранения"
-    delete-error: "Не удалось удалить"
-    connect-error: "Не удалось подключиться к серверу"
-    api-hint: "Убедитесь, что API включен в config.yml и порт открыт."
-    rollback-failed: "Откат не удался"
-    copied: "Скопировано в буфер обмена!"
-    shop-exists: "Магазин с таким именем уже существует!"
-    enter-filename: "Введите имя файла нового магазина (например, tools.yml):"
-    publishing: "Публикация..."
-    published: "Опубликовано"
+    edit-item: "Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ Ð¿Ñ€ÐµÐ´Ð¼ÐµÑ‚"
+    edit-button: "Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ ÐºÐ½Ð¾Ð¿ÐºÑƒ Ð¼ÐµÐ½ÑŽ"
+    delete: "Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ"
+    cancel: "ÐžÑ‚Ð¼ÐµÐ½Ð°"
+    confirm-title: "ÐŸÐ¾Ð´Ñ‚Ð²ÐµÑ€Ð´Ð¸Ñ‚Ðµ Ð´ÐµÐ¹ÑÑ‚Ð²Ð¸Ðµ"
+    confirm-button: "ÐŸÐ¾Ð´Ñ‚Ð²ÐµÑ€Ð´Ð¸Ñ‚ÑŒ"
+    alert-title: "Ð¡Ð¾Ð¾Ð±Ñ‰ÐµÐ½Ð¸Ðµ"
+    error-title: "ÐžÑˆÐ¸Ð±ÐºÐ°"
+    success-title: "Ð£ÑÐ¿ÐµÑ…"
+    warning-title: "ÐŸÑ€ÐµÐ´ÑƒÐ¿Ñ€ÐµÐ¶Ð´ÐµÐ½Ð¸Ðµ"
+    prompt-title: "Ð’Ð²ÐµÐ´Ð¸Ñ‚Ðµ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ðµ"
+    save-confirm-title: "ÐŸÐ¾Ð´Ñ‚Ð²ÐµÑ€Ð´Ð¸Ñ‚ÑŒ ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ"
+    activity-detail-title: "Ð”ÐµÑ‚Ð°Ð»Ð¸ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ð¹"
+    rollback: "ÐžÐ¢ÐšÐÐ¢Ð˜Ð¢Ð¬"
+    rollback-success: "Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ðµ ÑƒÑÐ¿ÐµÑˆÐ½Ð¾ Ð¾Ñ‚Ð¼ÐµÐ½ÐµÐ½Ð¾"
+    refresh: "ÐžÐ‘ÐÐžÐ’Ð˜Ð¢Ð¬"
+    clear: "ÐžÐ§Ð˜Ð¡Ð¢Ð˜Ð¢Ð¬ Ð’Ð¡Ð•"
+    history-log: "Ð–Ð£Ð ÐÐÐ› Ð˜Ð¡Ð¢ÐžÐ Ð˜Ð˜"
+    about-history-title: "Ðž Ð–Ð£Ð ÐÐÐ›Ð• Ð˜Ð¡Ð¢ÐžÐ Ð˜Ð˜"
+    about-history-text: "ÐžÑ‚ÑÐ»ÐµÐ¶Ð¸Ð²Ð°Ð¹Ñ‚Ðµ Ð²ÑÐµ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ñ, Ð²Ð½ÐµÑÐµÐ½Ð½Ñ‹Ðµ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑÐ¼Ð¸. ÐÐ°Ð¶Ð¼Ð¸Ñ‚Ðµ Ð½Ð° Ð»ÑŽÐ±ÑƒÑŽ Ð·Ð°Ð¿Ð¸ÑÑŒ, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€ÐµÑ‚ÑŒ Ð¿Ð¾Ð´Ñ€Ð¾Ð±Ð½Ð¾Ðµ ÑÑ€Ð°Ð²Ð½ÐµÐ½Ð¸Ðµ Ð´Ð¾ Ð¸ Ð¿Ð¾ÑÐ»Ðµ."
+    no-activity: "Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ð¹ Ð¿Ð¾ÐºÐ° Ð½ÐµÑ‚"
+    session-expired: "Ð¡ÐµÑÑÐ¸Ñ Ð¸ÑÑ‚ÐµÐºÐ»Ð°. ÐŸÐ¾Ð¶Ð°Ð»ÑƒÐ¹ÑÑ‚Ð°, Ð²Ð¾Ð¹Ð´Ð¸Ñ‚Ðµ ÑÐ½Ð¾Ð²Ð°."
+    item-updated: "ÐŸÑ€ÐµÐ´Ð¼ÐµÑ‚ Ð¾Ð±Ð½Ð¾Ð²Ð»ÐµÐ½"
+    item-removed: "ÐŸÑ€ÐµÐ´Ð¼ÐµÑ‚ ÑƒÐ´Ð°Ð»ÐµÐ½"
+    remove-confirm: "Ð’Ñ‹ ÑƒÐ²ÐµÑ€ÐµÐ½Ñ‹, Ñ‡Ñ‚Ð¾ Ñ…Ð¾Ñ‚Ð¸Ñ‚Ðµ ÑƒÐ´Ð°Ð»Ð¸Ñ‚ÑŒ %item%?"
+    remove-file-confirm: "Ð’Ñ‹ ÑƒÐ²ÐµÑ€ÐµÐ½Ñ‹, Ñ‡Ñ‚Ð¾ Ñ…Ð¾Ñ‚Ð¸Ñ‚Ðµ ÐÐÐ’Ð¡Ð•Ð“Ð”Ð Ð£Ð”ÐÐ›Ð˜Ð¢Ð¬ %file% Ñ ÑÐµÑ€Ð²ÐµÑ€Ð°? Ð­Ñ‚Ð¾ Ð´ÐµÐ¹ÑÑ‚Ð²Ð¸Ðµ Ð½ÐµÐ»ÑŒÐ·Ñ Ð¾Ñ‚Ð¼ÐµÐ½Ð¸Ñ‚ÑŒ!"
+    reload-confirm: "Ð’Ñ‹ ÑƒÐ²ÐµÑ€ÐµÐ½Ñ‹, Ñ‡Ñ‚Ð¾ Ñ…Ð¾Ñ‚Ð¸Ñ‚Ðµ Ð¿ÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ·Ð¸Ñ‚ÑŒ Ð²ÑÐµ ÐºÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸Ð¸ Ñ ÑÐµÑ€Ð²ÐµÑ€Ð°? Ð’ÑÐµ Ð½ÐµÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð½Ñ‹Ðµ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ñ Ð±ÑƒÐ´ÑƒÑ‚ Ð¿Ð¾Ñ‚ÐµÑ€ÑÐ½Ñ‹."
+    logout-confirm: "Ð’Ñ‹ ÑƒÐ²ÐµÑ€ÐµÐ½Ñ‹, Ñ‡Ñ‚Ð¾ Ñ…Ð¾Ñ‚Ð¸Ñ‚Ðµ Ð²Ñ‹Ð¹Ñ‚Ð¸?"
+    shop-created: "ÐÐ¾Ð²Ñ‹Ð¹ Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½ ÑÐ¾Ð·Ð´Ð°Ð½"
+    shop-removed: "Ð¤Ð°Ð¹Ð» Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½Ð° ÑƒÐ´Ð°Ð»ÐµÐ½"
+    file-saved: "Ð¤Ð°Ð¹Ð» ÑƒÑÐ¿ÐµÑˆÐ½Ð¾ ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½"
+    save-error: "ÐÐµ ÑƒÐ´Ð°Ð»Ð¾ÑÑŒ ÑÐ¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ Ñ„Ð°Ð¹Ð»"
+    publish-success: "Ð’ÑÐµ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ñ ÑƒÑÐ¿ÐµÑˆÐ½Ð¾ Ð¾Ð¿ÑƒÐ±Ð»Ð¸ÐºÐ¾Ð²Ð°Ð½Ñ‹"
+    publish-error: "ÐÐµ ÑƒÐ´Ð°Ð»Ð¾ÑÑŒ Ð¾Ð¿ÑƒÐ±Ð»Ð¸ÐºÐ¾Ð²Ð°Ñ‚ÑŒ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ñ"
+    reload-success: "ÐšÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸Ñ Ð¿ÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ¶ÐµÐ½Ð° Ñ ÑÐµÑ€Ð²ÐµÑ€Ð°"
+    reload-error: "ÐÐµ ÑƒÐ´Ð°Ð»Ð¾ÑÑŒ Ð¿ÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ·Ð¸Ñ‚ÑŒ ÐºÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸ÑŽ"
+    loaded: "Ð—Ð°Ð³Ñ€ÑƒÐ¶ÐµÐ½Ð¾"
+    load-failed: "Ð—Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° Ð½Ðµ ÑƒÐ´Ð°Ð»Ð°ÑÑŒ"
+    saving: "Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ..."
+    saved: "Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¾"
+    save-failed: "ÐžÑˆÐ¸Ð±ÐºÐ° ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ñ"
+    delete-error: "ÐÐµ ÑƒÐ´Ð°Ð»Ð¾ÑÑŒ ÑƒÐ´Ð°Ð»Ð¸Ñ‚ÑŒ"
+    connect-error: "ÐÐµ ÑƒÐ´Ð°Ð»Ð¾ÑÑŒ Ð¿Ð¾Ð´ÐºÐ»ÑŽÑ‡Ð¸Ñ‚ÑŒÑÑ Ðº ÑÐµÑ€Ð²ÐµÑ€Ñƒ"
+    api-hint: "Ð£Ð±ÐµÐ´Ð¸Ñ‚ÐµÑÑŒ, Ñ‡Ñ‚Ð¾ API Ð²ÐºÐ»ÑŽÑ‡ÐµÐ½ Ð² config.yml Ð¸ Ð¿Ð¾Ñ€Ñ‚ Ð¾Ñ‚ÐºÑ€Ñ‹Ñ‚."
+    rollback-failed: "ÐžÑ‚ÐºÐ°Ñ‚ Ð½Ðµ ÑƒÐ´Ð°Ð»ÑÑ"
+    copied: "Ð¡ÐºÐ¾Ð¿Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð¾ Ð² Ð±ÑƒÑ„ÐµÑ€ Ð¾Ð±Ð¼ÐµÐ½Ð°!"
+    shop-exists: "ÐœÐ°Ð³Ð°Ð·Ð¸Ð½ Ñ Ñ‚Ð°ÐºÐ¸Ð¼ Ð¸Ð¼ÐµÐ½ÐµÐ¼ ÑƒÐ¶Ðµ ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÐµÑ‚!"
+    enter-filename: "Ð’Ð²ÐµÐ´Ð¸Ñ‚Ðµ Ð¸Ð¼Ñ Ñ„Ð°Ð¹Ð»Ð° Ð½Ð¾Ð²Ð¾Ð³Ð¾ Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½Ð° (Ð½Ð°Ð¿Ñ€Ð¸Ð¼ÐµÑ€, tools.yml):"
+    publishing: "ÐŸÑƒÐ±Ð»Ð¸ÐºÐ°Ñ†Ð¸Ñ..."
+    published: "ÐžÐ¿ÑƒÐ±Ð»Ð¸ÐºÐ¾Ð²Ð°Ð½Ð¾"
     fields:
-      material: "Материал"
-      material-hint: "Название материала Minecraft (например, DIAMOND_SWORD)"
-      display-name: "Отображаемое имя"
-      display-name-hint: "Поддерживает цветовые коды &"
-      slot: "Слот"
-      slot-hint: "Позиция в GUI (абсолютный индекс)"
-      buy-price: "Цена покупки"
-      buy-price-hint: "0 = нельзя купить"
-      sell-price: "Цена продажи"
-      sell-price-hint: "0 = нельзя продать"
-      amount: "Количество"
-      lore: "Описание (по одной строке)"
-      enchantments: "Зачарования"
-      enchantments-hint: "Формат: ЗАЧАРОВАНИЕ:УРОВЕНЬ (например, SHARPNESS:5)"
-      spawner-type: "Тип спавнера"
-      spawner-type-hint: "Тип сущности для спавнера"
+      material: "ÐœÐ°Ñ‚ÐµÑ€Ð¸Ð°Ð»"
+      material-hint: "ÐÐ°Ð·Ð²Ð°Ð½Ð¸Ðµ Ð¼Ð°Ñ‚ÐµÑ€Ð¸Ð°Ð»Ð° Minecraft (Ð½Ð°Ð¿Ñ€Ð¸Ð¼ÐµÑ€, DIAMOND_SWORD)"
+      display-name: "ÐžÑ‚Ð¾Ð±Ñ€Ð°Ð¶Ð°ÐµÐ¼Ð¾Ðµ Ð¸Ð¼Ñ"
+      display-name-hint: "ÐŸÐ¾Ð´Ð´ÐµÑ€Ð¶Ð¸Ð²Ð°ÐµÑ‚ Ñ†Ð²ÐµÑ‚Ð¾Ð²Ñ‹Ðµ ÐºÐ¾Ð´Ñ‹ &"
+      slot: "Ð¡Ð»Ð¾Ñ‚"
+      slot-hint: "ÐŸÐ¾Ð·Ð¸Ñ†Ð¸Ñ Ð² GUI (Ð°Ð±ÑÐ¾Ð»ÑŽÑ‚Ð½Ñ‹Ð¹ Ð¸Ð½Ð´ÐµÐºÑ)"
+      buy-price: "Ð¦ÐµÐ½Ð° Ð¿Ð¾ÐºÑƒÐ¿ÐºÐ¸"
+      buy-price-hint: "0 = Ð½ÐµÐ»ÑŒÐ·Ñ ÐºÑƒÐ¿Ð¸Ñ‚ÑŒ"
+      sell-price: "Ð¦ÐµÐ½Ð° Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð¸"
+      sell-price-hint: "0 = Ð½ÐµÐ»ÑŒÐ·Ñ Ð¿Ñ€Ð¾Ð´Ð°Ñ‚ÑŒ"
+      amount: "ÐšÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾"
+      lore: "ÐžÐ¿Ð¸ÑÐ°Ð½Ð¸Ðµ (Ð¿Ð¾ Ð¾Ð´Ð½Ð¾Ð¹ ÑÑ‚Ñ€Ð¾ÐºÐµ)"
+      enchantments: "Ð—Ð°Ñ‡Ð°Ñ€Ð¾Ð²Ð°Ð½Ð¸Ñ"
+      enchantments-hint: "Ð¤Ð¾Ñ€Ð¼Ð°Ñ‚: Ð—ÐÐ§ÐÐ ÐžÐ’ÐÐÐ˜Ð•:Ð£Ð ÐžÐ’Ð•ÐÐ¬ (Ð½Ð°Ð¿Ñ€Ð¸Ð¼ÐµÑ€, SHARPNESS:5)"
+      spawner-type: "Ð¢Ð¸Ð¿ ÑÐ¿Ð°Ð²Ð½ÐµÑ€Ð°"
+      spawner-type-hint: "Ð¢Ð¸Ð¿ ÑÑƒÑ‰Ð½Ð¾ÑÑ‚Ð¸ Ð´Ð»Ñ ÑÐ¿Ð°Ð²Ð½ÐµÑ€Ð°"
 
       spawner-item: "Spawner Item"
       spawner-item-hint: "Item to spawn (requires SmartSpawner and material to be SPAWNER)"
       spawner-mode: "Spawner Mode"
       spawner-mode-entity: "Entity Spawner"
       spawner-mode-item: "Item Spawner"
-      potion-type: "Тип зелья"
-      potion-type-hint: "Базовый эффект зелья"
-      potion-level: "Уровень зелья"
-      potion-level-hint: "0 = по умолчанию, 1+ = кастомный уровень"
-      hide-attributes: "Скрыть атрибуты"
-      hide-additional: "Скрыть доп. информацию"
-      require-name: "Требовать имя"
-      require-name-hint: "Требуется точное совпадение имени для продажи"
-      require-lore: "Требовать описание"
-      require-lore-hint: "Требуется точное совпадение описания для продажи"
-      unstable-tnt: "Нестабильный TNT"
+      potion-type: "Ð¢Ð¸Ð¿ Ð·ÐµÐ»ÑŒÑ"
+      potion-type-hint: "Ð‘Ð°Ð·Ð¾Ð²Ñ‹Ð¹ ÑÑ„Ñ„ÐµÐºÑ‚ Ð·ÐµÐ»ÑŒÑ"
+      potion-level: "Ð£Ñ€Ð¾Ð²ÐµÐ½ÑŒ Ð·ÐµÐ»ÑŒÑ"
+      potion-level-hint: "0 = Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ, 1+ = ÐºÐ°ÑÑ‚Ð¾Ð¼Ð½Ñ‹Ð¹ ÑƒÑ€Ð¾Ð²ÐµÐ½ÑŒ"
+      hide-attributes: "Ð¡ÐºÑ€Ñ‹Ñ‚ÑŒ Ð°Ñ‚Ñ€Ð¸Ð±ÑƒÑ‚Ñ‹"
+      hide-additional: "Ð¡ÐºÑ€Ñ‹Ñ‚ÑŒ Ð´Ð¾Ð¿. Ð¸Ð½Ñ„Ð¾Ñ€Ð¼Ð°Ñ†Ð¸ÑŽ"
+      require-name: "Ð¢Ñ€ÐµÐ±Ð¾Ð²Ð°Ñ‚ÑŒ Ð¸Ð¼Ñ"
+      require-name-hint: "Ð¢Ñ€ÐµÐ±ÑƒÐµÑ‚ÑÑ Ñ‚Ð¾Ñ‡Ð½Ð¾Ðµ ÑÐ¾Ð²Ð¿Ð°Ð´ÐµÐ½Ð¸Ðµ Ð¸Ð¼ÐµÐ½Ð¸ Ð´Ð»Ñ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð¸"
+      require-lore: "Ð¢Ñ€ÐµÐ±Ð¾Ð²Ð°Ñ‚ÑŒ Ð¾Ð¿Ð¸ÑÐ°Ð½Ð¸Ðµ"
+      require-lore-hint: "Ð¢Ñ€ÐµÐ±ÑƒÐµÑ‚ÑÑ Ñ‚Ð¾Ñ‡Ð½Ð¾Ðµ ÑÐ¾Ð²Ð¿Ð°Ð´ÐµÐ½Ð¸Ðµ Ð¾Ð¿Ð¸ÑÐ°Ð½Ð¸Ñ Ð´Ð»Ñ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð¸"
+      unstable-tnt: "ÐÐµÑÑ‚Ð°Ð±Ð¸Ð»ÑŒÐ½Ñ‹Ð¹ TNT"
       limit-type: "Limit Type"
       limit-type-hint: "Choose between player-specific limit, global stock limit, or no limit"
       limit-none: "No Limit"
@@ -323,63 +606,66 @@ web-editor:
       limit-global: "Global Limit (Stock)"
       limit-value: "Limit Value"
       limit-value-hint: "The value for the selected limit type"
-      player-limit: "Лимит игрока"
-      player-limit-hint: "Общее количество, которое игрок может купить/продать (0 = безлимитно)"
-      dynamic-pricing: "Динамические цены"
-      min-price: "Мин. цена"
-      min-price-hint: "Минимальная динамическая цена"
-      max-price: "Макс. цена"
-      max-price-hint: "Максимальная динамическая цена"
-      price-change: "Изменение цены"
-      price-change-hint: "Изменение цены за купленный/проданный предмет"
+      player-limit: "Ð›Ð¸Ð¼Ð¸Ñ‚ Ð¸Ð³Ñ€Ð¾ÐºÐ°"
+      player-limit-hint: "ÐžÐ±Ñ‰ÐµÐµ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾, ÐºÐ¾Ñ‚Ð¾Ñ€Ð¾Ðµ Ð¸Ð³Ñ€Ð¾Ðº Ð¼Ð¾Ð¶ÐµÑ‚ ÐºÑƒÐ¿Ð¸Ñ‚ÑŒ/Ð¿Ñ€Ð¾Ð´Ð°Ñ‚ÑŒ (0 = Ð±ÐµÐ·Ð»Ð¸Ð¼Ð¸Ñ‚Ð½Ð¾)"
+      dynamic-pricing: "Ð”Ð¸Ð½Ð°Ð¼Ð¸Ñ‡ÐµÑÐºÐ¸Ðµ Ñ†ÐµÐ½Ñ‹"
+      min-price: "ÐœÐ¸Ð½. Ñ†ÐµÐ½Ð°"
+      min-price-hint: "ÐœÐ¸Ð½Ð¸Ð¼Ð°Ð»ÑŒÐ½Ð°Ñ Ð´Ð¸Ð½Ð°Ð¼Ð¸Ñ‡ÐµÑÐºÐ°Ñ Ñ†ÐµÐ½Ð°"
+      max-price: "ÐœÐ°ÐºÑ. Ñ†ÐµÐ½Ð°"
+      max-price-hint: "ÐœÐ°ÐºÑÐ¸Ð¼Ð°Ð»ÑŒÐ½Ð°Ñ Ð´Ð¸Ð½Ð°Ð¼Ð¸Ñ‡ÐµÑÐºÐ°Ñ Ñ†ÐµÐ½Ð°"
+      price-change: "Ð˜Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ðµ Ñ†ÐµÐ½Ñ‹"
+      price-change-hint: "Ð˜Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ðµ Ñ†ÐµÐ½Ñ‹ Ð·Ð° ÐºÑƒÐ¿Ð»ÐµÐ½Ð½Ñ‹Ð¹/Ð¿Ñ€Ð¾Ð´Ð°Ð½Ð½Ñ‹Ð¹ Ð¿Ñ€ÐµÐ´Ð¼ÐµÑ‚"
 
       commands: "Commands"
       commands-hint: "Commands to run on purchase (%player%, %amount%, %item%, %price%)"
       run-command-only: "Run Command Only"
       run-command-only-hint: "If enabled, the item will not be given to the player if commands are present."
-      permission: "Разрешение"
+      permission: "Ð Ð°Ð·Ñ€ÐµÑˆÐµÐ½Ð¸Ðµ"
       permission-hint: "Optional permission required to buy/sell this item."
-    item-location: "Страница %page%, Слот %slot%"
+    item-location: "Ð¡Ñ‚Ñ€Ð°Ð½Ð¸Ñ†Ð° %page%, Ð¡Ð»Ð¾Ñ‚ %slot%"
   item:
-    item-location: "Страница %page%, Слот %slot%"
-    new-item-name: "&eНовый предмет"
-    new-item-lore: "&7Добавлено через веб-редактор"
-    new-shop-name: "&eНовый магазин"
-    click-to-open: "&7Нажмите, чтобы открыть"
-    buying-title: "&8Покупка "
-    selling-title: "&8Продажа "
-    confirm-purchase: "&aПОДТВЕРДИТЬ ПОКУПКУ"
-    confirm-sell: "&aПОДТВЕРДИТЬ ПРОДАЖУ"
-    sell-all: "&6ПРОДАТЬ ВСЕ"
+    item-location: "Ð¡Ñ‚Ñ€Ð°Ð½Ð¸Ñ†Ð° %page%, Ð¡Ð»Ð¾Ñ‚ %slot%"
+    new-item-name: "&eÐÐ¾Ð²Ñ‹Ð¹ Ð¿Ñ€ÐµÐ´Ð¼ÐµÑ‚"
+    new-item-lore: "&7Ð”Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð¾ Ñ‡ÐµÑ€ÐµÐ· Ð²ÐµÐ±-Ñ€ÐµÐ´Ð°ÐºÑ‚Ð¾Ñ€"
+    new-shop-name: "&eÐÐ¾Ð²Ñ‹Ð¹ Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½"
+    click-to-open: "&7ÐÐ°Ð¶Ð¼Ð¸Ñ‚Ðµ, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¾Ñ‚ÐºÑ€Ñ‹Ñ‚ÑŒ"
+    buying-title: "&8ÐŸÐ¾ÐºÑƒÐ¿ÐºÐ° "
+    selling-title: "&8ÐŸÑ€Ð¾Ð´Ð°Ð¶Ð° "
+    confirm-purchase: "&aÐŸÐžÐ”Ð¢Ð’Ð•Ð Ð”Ð˜Ð¢Ð¬ ÐŸÐžÐšÐ£ÐŸÐšÐ£"
+    confirm-sell: "&aÐŸÐžÐ”Ð¢Ð’Ð•Ð Ð”Ð˜Ð¢Ð¬ ÐŸÐ ÐžÐ”ÐÐ–Ð£"
+    sell-all: "&6ÐŸÐ ÐžÐ”ÐÐ¢Ð¬ Ð’Ð¡Ð•"
   login:
-    title: "Вход - Genius Shop Редактор"
+    title: "Ð’Ñ…Ð¾Ð´ - Genius Shop Ð ÐµÐ´Ð°ÐºÑ‚Ð¾Ñ€"
     heading: "GENIUS SHOP"
-    subtitle: "Редактор конфигурации"
-    requirements-title: "Требования"
-    req1: "Вы должны быть авторизованы на сервере Minecraft"
-    req2: "Вам нужны права администратора (geniusshop.admin или OP)"
-    req3: "Ваш пароль — это ваш UUID игрока (или код входа)"
-    username-label: "Имя пользователя Minecraft"
-    username-placeholder: "Ваш игровой ник"
-    password-label: "Пароль (Ваш UUID)"
+    subtitle: "Ð ÐµÐ´Ð°ÐºÑ‚Ð¾Ñ€ ÐºÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸Ð¸"
+    requirements-title: "Ð¢Ñ€ÐµÐ±Ð¾Ð²Ð°Ð½Ð¸Ñ"
+    req1: "Ð’Ñ‹ Ð´Ð¾Ð»Ð¶Ð½Ñ‹ Ð±Ñ‹Ñ‚ÑŒ Ð°Ð²Ñ‚Ð¾Ñ€Ð¸Ð·Ð¾Ð²Ð°Ð½Ñ‹ Ð½Ð° ÑÐµÑ€Ð²ÐµÑ€Ðµ Minecraft"
+    req2: "Ð’Ð°Ð¼ Ð½ÑƒÐ¶Ð½Ñ‹ Ð¿Ñ€Ð°Ð²Ð° Ð°Ð´Ð¼Ð¸Ð½Ð¸ÑÑ‚Ñ€Ð°Ñ‚Ð¾Ñ€Ð° (geniusshop.admin Ð¸Ð»Ð¸ OP)"
+    req3: "Ð’Ð°Ñˆ Ð¿Ð°Ñ€Ð¾Ð»ÑŒ â€” ÑÑ‚Ð¾ Ð²Ð°Ñˆ UUID Ð¸Ð³Ñ€Ð¾ÐºÐ° (Ð¸Ð»Ð¸ ÐºÐ¾Ð´ Ð²Ñ…Ð¾Ð´Ð°)"
+    username-label: "Ð˜Ð¼Ñ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»Ñ Minecraft"
+    username-placeholder: "Ð’Ð°Ñˆ Ð¸Ð³Ñ€Ð¾Ð²Ð¾Ð¹ Ð½Ð¸Ðº"
+    password-label: "ÐŸÐ°Ñ€Ð¾Ð»ÑŒ (Ð’Ð°Ñˆ UUID)"
     password-placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    password-hint: "Получите свой UUID на https://mcuuid.net/ или используйте вкладку Вход по коду"
-    login-button: "Войти"
-    security-title: "Требуется подтверждение безопасности"
-    security-text: "Вы входите с другого IP-адреса.<br>Пожалуйста, проверьте вашу игру Minecraft и подтвердите запрос на вход."
-    waiting: "Ожидание подтверждения..."
-    retry-auto: "Повтор будет выполнен автоматически"
-    retry-in: "Повтор через"
-    confirmed: "Вход подтвержден!"
-    redirecting: "Перенаправление..."
-    timeout: "Время подтверждения истекло. Пожалуйста, попробуйте войти снова."
-    failed: "Ошибка входа"
+    password-hint: "ÐŸÐ¾Ð»ÑƒÑ‡Ð¸Ñ‚Ðµ ÑÐ²Ð¾Ð¹ UUID Ð½Ð° https://mcuuid.net/ Ð¸Ð»Ð¸ Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐ¹Ñ‚Ðµ Ð²ÐºÐ»Ð°Ð´ÐºÑƒ Ð’Ñ…Ð¾Ð´ Ð¿Ð¾ ÐºÐ¾Ð´Ñƒ"
+    login-button: "Ð’Ð¾Ð¹Ñ‚Ð¸"
+    security-title: "Ð¢Ñ€ÐµÐ±ÑƒÐµÑ‚ÑÑ Ð¿Ð¾Ð´Ñ‚Ð²ÐµÑ€Ð¶Ð´ÐµÐ½Ð¸Ðµ Ð±ÐµÐ·Ð¾Ð¿Ð°ÑÐ½Ð¾ÑÑ‚Ð¸"
+    security-text: "Ð’Ñ‹ Ð²Ñ…Ð¾Ð´Ð¸Ñ‚Ðµ Ñ Ð´Ñ€ÑƒÐ³Ð¾Ð³Ð¾ IP-Ð°Ð´Ñ€ÐµÑÐ°.<br>ÐŸÐ¾Ð¶Ð°Ð»ÑƒÐ¹ÑÑ‚Ð°, Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑŒÑ‚Ðµ Ð²Ð°ÑˆÑƒ Ð¸Ð³Ñ€Ñƒ Minecraft Ð¸ Ð¿Ð¾Ð´Ñ‚Ð²ÐµÑ€Ð´Ð¸Ñ‚Ðµ Ð·Ð°Ð¿Ñ€Ð¾Ñ Ð½Ð° Ð²Ñ…Ð¾Ð´."
+    waiting: "ÐžÐ¶Ð¸Ð´Ð°Ð½Ð¸Ðµ Ð¿Ð¾Ð´Ñ‚Ð²ÐµÑ€Ð¶Ð´ÐµÐ½Ð¸Ñ..."
+    retry-auto: "ÐŸÐ¾Ð²Ñ‚Ð¾Ñ€ Ð±ÑƒÐ´ÐµÑ‚ Ð²Ñ‹Ð¿Ð¾Ð»Ð½ÐµÐ½ Ð°Ð²Ñ‚Ð¾Ð¼Ð°Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¸"
+    retry-in: "ÐŸÐ¾Ð²Ñ‚Ð¾Ñ€ Ñ‡ÐµÑ€ÐµÐ·"
+    confirmed: "Ð’Ñ…Ð¾Ð´ Ð¿Ð¾Ð´Ñ‚Ð²ÐµÑ€Ð¶Ð´ÐµÐ½!"
+    redirecting: "ÐŸÐµÑ€ÐµÐ½Ð°Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ðµ..."
+    timeout: "Ð’Ñ€ÐµÐ¼Ñ Ð¿Ð¾Ð´Ñ‚Ð²ÐµÑ€Ð¶Ð´ÐµÐ½Ð¸Ñ Ð¸ÑÑ‚ÐµÐºÐ»Ð¾. ÐŸÐ¾Ð¶Ð°Ð»ÑƒÐ¹ÑÑ‚Ð°, Ð¿Ð¾Ð¿Ñ€Ð¾Ð±ÑƒÐ¹Ñ‚Ðµ Ð²Ð¾Ð¹Ñ‚Ð¸ ÑÐ½Ð¾Ð²Ð°."
+    failed: "ÐžÑˆÐ¸Ð±ÐºÐ° Ð²Ñ…Ð¾Ð´Ð°"
   footer:
-    description: "Мощный редактор конфигурации для плагинов магазинов Minecraft с живым просмотром"
-    github: "Звезда на GitHub"
-    issues: "Сообщить о проблемах"
-    made-with: "Сделано с любовью Dralle для сообщества Minecraft"
-    copyright: "© 2025 Genius Shop - Проект с открытым исходным кодом"
+    description: "ÐœÐ¾Ñ‰Ð½Ñ‹Ð¹ Ñ€ÐµÐ´Ð°ÐºÑ‚Ð¾Ñ€ ÐºÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð°Ñ†Ð¸Ð¸ Ð´Ð»Ñ Ð¿Ð»Ð°Ð³Ð¸Ð½Ð¾Ð² Ð¼Ð°Ð³Ð°Ð·Ð¸Ð½Ð¾Ð² Minecraft Ñ Ð¶Ð¸Ð²Ñ‹Ð¼ Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€Ð¾Ð¼"
+    github: "Ð—Ð²ÐµÐ·Ð´Ð° Ð½Ð° GitHub"
+    issues: "Ð¡Ð¾Ð¾Ð±Ñ‰Ð¸Ñ‚ÑŒ Ð¾ Ð¿Ñ€Ð¾Ð±Ð»ÐµÐ¼Ð°Ñ…"
+    made-with: "Ð¡Ð´ÐµÐ»Ð°Ð½Ð¾ Ñ Ð»ÑŽÐ±Ð¾Ð²ÑŒÑŽ Dralle Ð´Ð»Ñ ÑÐ¾Ð¾Ð±Ñ‰ÐµÑÑ‚Ð²Ð° Minecraft"
+    copyright: "Â© 2025 Genius Shop - ÐŸÑ€Ð¾ÐµÐºÑ‚ Ñ Ð¾Ñ‚ÐºÑ€Ñ‹Ñ‚Ñ‹Ð¼ Ð¸ÑÑ…Ð¾Ð´Ð½Ñ‹Ð¼ ÐºÐ¾Ð´Ð¾Ð¼"
+
+
+
 
 
 

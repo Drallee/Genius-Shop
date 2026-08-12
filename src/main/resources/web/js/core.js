@@ -23,6 +23,9 @@ let currentShopFile = 'blocks.yml'; // Current shop being edited
 let currentTab = 'mainmenu'; // Track current active tab
 let allShops = {}; // Store all loaded shops
 let globalCampaigns = []; // Global campaigns loaded from campaigns.yml
+let customCommands = []; // Custom commands loaded from commands.yml
+let commandsFileRaw = ''; // Raw commands.yml content
+let commandCatalog = {}; // Runtime shop/item catalog for command selectors
 let stockAnalyticsData = { totals: {}, entries: [], generatedAt: '' };
 let databaseEditorData = { totals: {}, playerCounts: [], globalCounts: [], stockResets: [], generatedAt: '' };
 let campaignHubSelectedKey = '';
@@ -758,7 +761,25 @@ applyTranslations();
 // Start loading translations immediately
 loadTranslations();
 
+function isLocalActivityEntry(entry) {
+    return entry && typeof entry.id === 'string';
+}
+
+function mergeActivityEntries(primaryEntries, secondaryEntries) {
+    const seenIds = new Set();
+    return [...primaryEntries, ...secondaryEntries]
+        .filter(entry => {
+            if (!entry) return false;
+            const id = entry.id === undefined || entry.id === null ? '' : String(entry.id);
+            if (id && seenIds.has(id)) return false;
+            if (id) seenIds.add(id);
+            return true;
+        })
+        .slice(0, 250);
+}
+
 async function loadActivityLog() {
+    const localEntries = (Array.isArray(activityLog) ? activityLog : []).filter(isLocalActivityEntry);
     try {
         const response = await fetch(`api/activity-log?t=${Date.now()}`, {
             headers: {
@@ -767,7 +788,8 @@ async function loadActivityLog() {
         });
         if (response.ok) {
             const data = await response.json();
-            activityLog = Array.isArray(data) ? data : [];
+            const serverEntries = Array.isArray(data) ? data : [];
+            activityLog = mergeActivityEntries(localEntries, serverEntries);
             return;
         }
     } catch (e) {
@@ -777,11 +799,12 @@ async function loadActivityLog() {
     try {
         const saved = localStorage.getItem(ACTIVITY_LOG_KEY);
         if (saved) {
-            activityLog = JSON.parse(saved);
+            const savedEntries = JSON.parse(saved);
+            activityLog = mergeActivityEntries(localEntries, Array.isArray(savedEntries) ? savedEntries : []);
         }
     } catch (e) {
         console.error('Failed to load activity log:', e);
-        activityLog = [];
+        activityLog = localEntries;
     }
 }
 
@@ -878,6 +901,7 @@ function getActivitySummary(entry) {
         'sell-menu-settings': 'Sell Menu Settings',
         'main-menu-settings': 'Main Menu Settings',
         'shop-settings': 'Shop Settings',
+        'custom-command': 'Custom Command',
         'gui-settings': 'GUI Settings',
         'file': 'File'
     };
@@ -975,6 +999,15 @@ function escapeHtml(text) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function stripMinecraftDisplayCodes(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/<gradient:[^>]+>([\s\S]*?)<\/gradient>/gi, '$1')
+        .replace(/&[0-9a-fk-or]/gi, '')
+        .replace(/&#[0-9a-fA-F]{6}/gi, '')
+        .replace(/§[0-9a-fk-or]/gi, '');
 }
 
 function getTimeAgo(date) {

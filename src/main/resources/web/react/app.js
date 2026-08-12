@@ -3,6 +3,7 @@ import { autoLogin, fetchFiles, saveFile } from "./api.js";
 import { getUrlToken } from "./utils.js";
 import { Button, StatusBanner, Tabs } from "./components/ui.js";
 import { ShopFeature } from "./components/feature-shop.js";
+import { CommandsFeature } from "./components/feature-commands.js";
 import {
     MainMenuFeature,
     PurchaseFeature,
@@ -19,6 +20,7 @@ const TABS = [
     { id: "campaigns", label: "Campaigns" },
     { id: "stock", label: "Stock" },
     { id: "data", label: "Data" },
+    { id: "commands", label: "Commands" },
     { id: "purchase", label: "Purchase" },
     { id: "sell", label: "Sell" },
     { id: "guisettings", label: "GUI Settings" }
@@ -38,6 +40,8 @@ function App() {
         sellMenu: "",
         guiSettings: "",
         campaignsFile: "",
+        commandsFile: "",
+        commandCatalog: {},
         stockJson: "",
         dataJson: ""
     });
@@ -99,6 +103,8 @@ function App() {
             sellMenu: data?.sellMenu || "",
             guiSettings: data?.guiSettings || "",
             campaignsFile: data?.campaignsFile || "",
+            commandsFile: data?.commandsFile || "commands:\n",
+            commandCatalog: data?.commandCatalog || {},
             stockJson: JSON.stringify(data?.stockAnalytics || {}, null, 2),
             dataJson: JSON.stringify(data?.database || {}, null, 2)
         });
@@ -147,6 +153,8 @@ function App() {
                 await saveFile(sessionToken, "menus/gui-settings.yml", files.guiSettings);
             } else if (activeTab === "campaigns") {
                 await saveFile(sessionToken, "campaigns.yml", files.campaignsFile);
+            } else if (activeTab === "commands") {
+                await saveFile(sessionToken, "commands.yml", files.commandsFile);
             } else {
                 setStatus({ type: "warn", text: "This tab is read-only in React beta." });
                 return;
@@ -199,6 +207,14 @@ function App() {
                 onChange: (v) => setFiles((p) => ({ ...p, campaignsFile: v }))
             });
         }
+        if (activeTab === "commands") {
+            return React.createElement(CommandsFeature, {
+                value: files.commandsFile,
+                onChange: (v) => setFiles((p) => ({ ...p, commandsFile: v })),
+                shops: files.shops,
+                commandCatalog: files.commandCatalog
+            });
+        }
         if (activeTab === "stock") {
             return React.createElement(StockFeature, { value: files.stockJson });
         }
@@ -236,4 +252,3 @@ function App() {
 }
 
 createRoot(document.getElementById("root")).render(React.createElement(App));
-

@@ -98,6 +98,14 @@ public final class ErrorFileLogger {
     }
 
     public void logError(String source, String message, Throwable throwable) {
+        log(source, message, throwable);
+    }
+
+    public void logDiagnostic(String source, String message) {
+        log(source, message, null);
+    }
+
+    private void log(String source, String message, Throwable throwable) {
         if (!enabled || logPath == null) {
             return;
         }

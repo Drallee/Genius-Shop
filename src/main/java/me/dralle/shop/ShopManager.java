@@ -102,7 +102,12 @@ public class ShopManager {
         if (!validationMessages.isEmpty()) {
             long errors = validationMessages.stream().filter(m -> m.severity() == ValidationMessage.Severity.ERROR).count();
             long warns = validationMessages.stream().filter(m -> m.severity() == ValidationMessage.Severity.WARNING).count();
-            me.dralle.shop.util.ConsoleLog.warn(plugin, "Shop compile completed with " + warns + " warning(s) and " + errors + " error(s).");
+            String summary = "Shop compile completed with " + warns + " warning(s) and " + errors + " error(s).";
+            if (errors > 0) {
+                me.dralle.shop.util.ConsoleLog.warn(plugin, summary);
+            } else {
+                me.dralle.shop.util.ConsoleLog.info(plugin, summary);
+            }
         }
     }
 
@@ -620,13 +625,21 @@ public class ShopManager {
      * considering the player's permissions and shop availability.
      */
     public SellInfo getBestSellInfo(Player player, org.bukkit.inventory.ItemStack stack) {
-        ShopItem bestItem = null;
-        String bestShopKey = null;
-        double bestPrice = -1;
+        return getBestSellInfo(player, stack, null);
+    }
+
+    public SellInfo getBestSellInfo(Player player, org.bukkit.inventory.ItemStack stack, String onlyShopKey) {
+        List<SellInfo> sellInfos = getSellInfos(player, stack, onlyShopKey);
+        return sellInfos.isEmpty() ? null : sellInfos.get(0);
+    }
+
+    public List<SellInfo> getSellInfos(Player player, org.bukkit.inventory.ItemStack stack, String onlyShopKey) {
+        List<SellInfo> matches = new ArrayList<>();
 
         Map<String, ShopData> source = compiledCatalog != null ? compiledCatalog.shops() : shops;
         for (Map.Entry<String, ShopData> entry : source.entrySet()) {
             if (entry == null || entry.getValue() == null) continue;
+            if (onlyShopKey != null && !onlyShopKey.isEmpty() && !entry.getKey().equalsIgnoreCase(onlyShopKey)) continue;
             ShopData shop = entry.getValue();
 
             // Permission check
@@ -654,18 +667,20 @@ public class ShopManager {
                     }
 
                     if (ShopItemUtil.isSameItem(stack, si)) {
-                        double candidatePrice = PriceFormulaUtil.resolveSellBasePrice(plugin, si);
-                        candidatePrice = CampaignUtil.applySellCampaign(shop, si, candidatePrice);
-                        if (candidatePrice > bestPrice) {
-                            bestPrice = candidatePrice;
-                            bestItem = si;
-                            bestShopKey = entry.getKey();
-                        }
+                        matches.add(new SellInfo(si, entry.getKey()));
                     }
                 }
             }
         }
-        return bestItem != null ? new SellInfo(bestItem, bestShopKey) : null;
+        matches.sort((a, b) -> Double.compare(currentSellPrice(b), currentSellPrice(a)));
+        return matches;
+    }
+
+    private double currentSellPrice(SellInfo info) {
+        if (info == null || info.item == null) return 0D;
+        ShopData shop = info.shopKey != null ? getShop(info.shopKey) : null;
+        double candidatePrice = PriceFormulaUtil.resolveSellBasePrice(plugin, info.item);
+        return CampaignUtil.applySellCampaign(shop, info.item, candidatePrice);
     }
 
     public CompiledShopCatalog getCompiledCatalog() {
@@ -693,11 +708,11 @@ public class ShopManager {
                 if (item == null || item.getSlot() == null) continue;
                 int slot = item.getSlot();
                 slotCounts.put(slot, slotCounts.getOrDefault(slot, 0) + 1);
-                if (slot < 0 || slot >= shop.getRows() * 9) {
+                if (slot < 0) {
                     validationMessages.add(new ValidationMessage(
                             ValidationMessage.Severity.WARNING,
                             "shop:" + shopKey + ".item-slot",
-                            "Item slot " + slot + " is outside visible bounds for rows=" + shop.getRows()
+                            "Item slot " + slot + " is invalid; shop item slots must be zero or greater"
                     ));
                 }
             }

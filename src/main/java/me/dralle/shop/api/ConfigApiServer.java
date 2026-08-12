@@ -8,6 +8,8 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import org.bukkit.Bukkit;
@@ -23,6 +25,8 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,12 +39,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.zip.GZIPOutputStream;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 
 public class ConfigApiServer {
     private final ShopPlugin plugin;
     private HttpServer server;
     private final int port;
     private final String apiKey;
+    private final boolean sslEnabled;
+    private final String keyStorePath;
+    private final String keyStorePassword;
+    private final String keyPassword;
+    private final String keyStoreType;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final Map<String, SessionData> sessions = new ConcurrentHashMap<>();
     private final Map<String, AutoLoginToken> autoLoginTokens = new ConcurrentHashMap<>();
@@ -93,9 +104,27 @@ public class ConfigApiServer {
     }
 
     public ConfigApiServer(ShopPlugin plugin, int port, String apiKey) {
+        this(plugin, port, apiKey, false, "", "", "", "PKCS12");
+    }
+
+    public ConfigApiServer(
+            ShopPlugin plugin,
+            int port,
+            String apiKey,
+            boolean sslEnabled,
+            String keyStorePath,
+            String keyStorePassword,
+            String keyPassword,
+            String keyStoreType
+    ) {
         this.plugin = plugin;
         this.port = port;
         this.apiKey = apiKey;
+        this.sslEnabled = sslEnabled;
+        this.keyStorePath = keyStorePath == null ? "" : keyStorePath.trim();
+        this.keyStorePassword = keyStorePassword == null ? "" : keyStorePassword;
+        this.keyPassword = keyPassword == null || keyPassword.isEmpty() ? this.keyStorePassword : keyPassword;
+        this.keyStoreType = keyStoreType == null || keyStoreType.trim().isEmpty() ? "PKCS12" : keyStoreType.trim();
         loadTrustedIps();
     }
 
@@ -201,8 +230,7 @@ public class ConfigApiServer {
 
     public void start() {
         try {
-            // Bind to all interfaces (0.0.0.0) so it can be accessed from network
-            server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+            server = createServer();
             server.setExecutor(Executors.newFixedThreadPool(4));
 
             // Serve static web UI files
@@ -229,15 +257,56 @@ public class ConfigApiServer {
             });
 
             server.start();
-            me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Online on port " + port + " (http://localhost:" + port + "/)");
-        } catch (IOException e) {
-            if (e instanceof BindException) {
+            me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Online on port " + port + " (" + getScheme() + "://localhost:" + port + "/)");
+        } catch (Exception e) {
+            if (e instanceof BindException || e.getCause() instanceof BindException) {
                 me.dralle.shop.util.ConsoleLog.apiError(plugin, "Failed to start: port " + port + " is already in use. Change 'api.port' in config.yml.");
             } else {
                 me.dralle.shop.util.ConsoleLog.apiError(plugin, "Failed to start on port " + port + ": " + e.getMessage());
             }
             plugin.debug("WebEditor API startup exception: " + e);
         }
+    }
+
+    public String getScheme() {
+        return sslEnabled ? "https" : "http";
+    }
+
+    private HttpServer createServer() throws Exception {
+        InetSocketAddress address = new InetSocketAddress("0.0.0.0", port);
+        if (!sslEnabled) {
+            return HttpServer.create(address, 0);
+        }
+
+        HttpsServer httpsServer = HttpsServer.create(address, 0);
+        httpsServer.setHttpsConfigurator(new HttpsConfigurator(createSslContext()));
+        return httpsServer;
+    }
+
+    private SSLContext createSslContext() throws Exception {
+        if (keyStorePath.isEmpty()) {
+            throw new IOException("HTTPS is enabled but 'api.ssl.keystore' is empty");
+        }
+
+        File keyStoreFile = new File(keyStorePath);
+        if (!keyStoreFile.isAbsolute()) {
+            keyStoreFile = new File(plugin.getDataFolder(), keyStorePath);
+        }
+        if (!keyStoreFile.isFile()) {
+            throw new FileNotFoundException("HTTPS keystore not found: " + keyStoreFile.getPath());
+        }
+
+        KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+        try (InputStream input = new FileInputStream(keyStoreFile)) {
+            keyStore.load(input, keyStorePassword.toCharArray());
+        }
+
+        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        keyManagerFactory.init(keyStore, keyPassword.toCharArray());
+
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(keyManagerFactory.getKeyManagers(), null, new SecureRandom());
+        return sslContext;
     }
 
     public void stop() {
@@ -795,6 +864,7 @@ public class ConfigApiServer {
         // discord.yml
         putIfPresent(response, "discord", new File(plugin.getDataFolder(), "discord.yml"));
         putIfPresent(response, "campaignsFile", new File(plugin.getDataFolder(), "campaigns.yml"));
+        putIfPresent(response, "commandsFile", new File(plugin.getDataFolder(), "commands.yml"));
 
         // Sanitized price format config for web preview (no sensitive config values exposed).
         Map<String, Object> priceFormat = new HashMap<>();
@@ -880,6 +950,7 @@ public class ConfigApiServer {
         }
         java.util.Collections.sort(materials);
         serverInfo.put("materials", materials);
+        response.put("commandCatalog", buildCommandCatalog());
         
         response.put("serverInfo", serverInfo);
 
@@ -1228,6 +1299,7 @@ public class ConfigApiServer {
         ensureDefaultResourceExists("menus/bulk-sell-menu.yml");
         ensureDefaultResourceExists("menus/gui-settings.yml");
         ensureDefaultResourceExists("discord.yml");
+        ensureDefaultResourceExists("commands.yml");
         ensureTextFileExists(new File(plugin.getDataFolder(), "campaigns.yml"), "campaigns: []\n");
     }
 
@@ -1270,6 +1342,31 @@ public class ConfigApiServer {
         if (content != null) {
             response.put(key, content);
         }
+    }
+
+    private Map<String, Object> buildCommandCatalog() {
+        Map<String, Object> catalog = new LinkedHashMap<>();
+        if (plugin.getShopManager() == null) return catalog;
+        for (String shopKey : plugin.getShopManager().getShopKeys()) {
+            ShopData shop = plugin.getShopManager().getShop(shopKey);
+            if (shop == null) continue;
+            List<Map<String, Object>> items = new ArrayList<>();
+            for (ShopItem item : shop.getItems()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("key", item.getUniqueKey());
+                row.put("material", item.getMaterial().name());
+                row.put("name", item.getName() != null ? item.getName() : item.getMaterial().name());
+                row.put("slot", item.getSlot());
+                row.put("canBuy", item.getPrice() > 0D);
+                row.put("canSell", item.getSellPrice() != null && item.getSellPrice() > 0D);
+                items.add(row);
+            }
+            Map<String, Object> shopRow = new LinkedHashMap<>();
+            shopRow.put("name", shop.getGuiName());
+            shopRow.put("items", items);
+            catalog.put(shopKey, shopRow);
+        }
+        return catalog;
     }
 
     private void handleGetFile(HttpExchange exchange, String fileName) throws IOException {
@@ -1323,6 +1420,17 @@ public class ConfigApiServer {
             return;
         }
 
+        if (fileName.equals("commands.yml") && plugin.getCustomCommandRepository() != null) {
+            java.util.List<String> commandErrors = plugin.getCustomCommandRepository().validateYamlForSave(fileContent);
+            if (!commandErrors.isEmpty()) {
+                Map<String, Object> errorData = new HashMap<>();
+                errorData.put("fileName", fileName);
+                errorData.put("validationErrors", commandErrors);
+                sendError(exchange, 400, "Invalid Command Configuration", String.join("; ", commandErrors), errorData);
+                return;
+            }
+        }
+
         // Create parent directories if needed
         if (!file.getParentFile().exists()) {
             boolean created = file.getParentFile().mkdirs();
@@ -1334,7 +1442,12 @@ public class ConfigApiServer {
         String previousContent = readFileSafely(file);
 
         // Save file
-        Files.writeString(file.toPath(), fileContent, StandardCharsets.UTF_8);
+        if (fileName.equals("commands.yml") && plugin.getCustomCommandRepository() != null) {
+            plugin.getCustomCommandRepository().saveValidated(fileContent);
+            plugin.reloadCustomCommands();
+        } else {
+            Files.writeString(file.toPath(), fileContent, StandardCharsets.UTF_8);
+        }
 
         String username = getSessionUsername(exchange);
         boolean existedBefore = previousContent != null;
@@ -1604,8 +1717,8 @@ public class ConfigApiServer {
         }
 
         // Handle main config files
-        if (fileName.equals("discord.yml") || fileName.equals("config.yml") || 
-            fileName.equals("gui.yml") || fileName.equals("campaigns.yml")) {
+        if (fileName.equals("discord.yml") || fileName.equals("config.yml") ||
+            fileName.equals("gui.yml") || fileName.equals("campaigns.yml") || fileName.equals("commands.yml")) {
             return new File(plugin.getDataFolder(), fileName);
         }
 
@@ -1944,10 +2057,10 @@ public class ConfigApiServer {
                 String content = new String(resourceStream.readAllBytes(), StandardCharsets.UTF_8);
                 resourceStream.close();
 
-                // Send response with minimal caching for HTML files
                 exchange.getResponseHeaders().add("Content-Type", contentType);
-                // Short cache to allow for updates while still being performant
-                exchange.getResponseHeaders().add("Cache-Control", "public, max-age=30, must-revalidate");
+                exchange.getResponseHeaders().add("Cache-Control", "no-cache, no-store, must-revalidate");
+                exchange.getResponseHeaders().add("Pragma", "no-cache");
+                exchange.getResponseHeaders().add("Expires", "0");
 
                 bytes = content.getBytes(StandardCharsets.UTF_8);
             }
@@ -1979,19 +2092,19 @@ public class ConfigApiServer {
     }
 
     private void sendSecurityConfirmationPrompt(Player player, String requestIp, String currentIp, String confirmToken) {
-        player.sendMessage(ShopItemUtil.color("&8&m----------------------------------------------------------------"));
-        player.sendMessage(ShopItemUtil.color("<gradient:#EF4444:#F97316>&lSECURITY ALERT</gradient>"));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-border"));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-title"));
         player.sendMessage("");
-        player.sendMessage(ShopItemUtil.color("&7Someone is trying to access the shop editor from:"));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-request-ip"));
         player.sendMessage(ShopItemUtil.color("&e" + requestIp));
         player.sendMessage("");
-        player.sendMessage(ShopItemUtil.color("&7Your current IP: &a" + currentIp));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-current-ip").replace("%ip%", currentIp));
         player.sendMessage("");
-        player.sendMessage(ShopItemUtil.color("&7If this is you, run this command to confirm:"));
-        player.sendMessage(ShopItemUtil.color("&aType: &e/shop confirmlogin " + confirmToken));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-confirm-instruction"));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-confirm-command").replace("%token%", confirmToken));
         player.sendMessage("");
-        player.sendMessage(ShopItemUtil.color("&cThis request will expire in 3 minutes."));
-        player.sendMessage(ShopItemUtil.color("&8&m----------------------------------------------------------------"));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-expires"));
+        player.sendMessage(plugin.getMessages().getMessage("security-alert-border"));
     }
 
     private Player getPlayerByName(String username) {

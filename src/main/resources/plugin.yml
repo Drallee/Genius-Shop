@@ -10,21 +10,45 @@ commands:
   shop:
     description: Open the shop menu or reload the plugin
     usage: /shop [reload|editor|sell|wiki|resetstock|validate-prices|exportitem]
-    permission: geniusshop.use
-    permission-message: '&8&l| &cGENIUS-SHOP &8&l| &cYou do not have permission.'
 
 permissions:
+  geniusshop.use:
+    description: Allows opening /shop
+    default: true
+  geniusshop.shop:
+    description: Allows access to all default protected shops
+    default: false
+    children:
+      geniusshop.shop.spawners: true
+      geniusshop.shop.premium: true
+      geniusshop.spawners: true
+      geniusshop.premium: true
+  geniusshop.shop.spawners:
+    description: Allows access to the default spawners shop
+    default: false
+  geniusshop.shop.premium:
+    description: Allows access to the default premium shop
+    default: false
+  geniusshop.spawners:
+    description: Legacy permission for the default spawners menu button
+    default: false
+  geniusshop.premium:
+    description: Legacy permission for the default premium menu button
+    default: false
+  geniusshop.reload:
+    description: Allows reloading the plugin with /shop reload
+    default: op
   geniusshop.sell:
-    description: Allows using /shop sell (bulk sell GUI)
+    description: Allows using /shop sell
     default: true
   geniusshop.resetstock:
     description: Allows using /shop resetstock commands
     default: op
   geniusshop.wiki:
-    description: Allows using /shop wiki to receive the wiki link
+    description: Allows using /shop wiki
     default: op
   geniusshop.validateprices:
-    description: Allows using /shop validate-prices dry-run scanner
+    description: Allows using /shop validate-prices
     default: op
   geniusshop.exportitem:
     description: Allows exporting the held item to a web-editor JSON file
@@ -32,3 +56,11 @@ permissions:
   geniusshop.admin:
     description: Allows access to advanced commands and configuration
     default: op
+    children:
+      geniusshop.use: true
+      geniusshop.reload: true
+      geniusshop.sell: true
+      geniusshop.resetstock: true
+      geniusshop.wiki: true
+      geniusshop.validateprices: true
+      geniusshop.exportitem: true

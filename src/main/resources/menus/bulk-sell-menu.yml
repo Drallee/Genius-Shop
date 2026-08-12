@@ -1,12 +1,11 @@
 config-version: 2
 
-title: "&8Bulk Sell"
+title: menus.bulk-sell.title
 rows: 6
 buttons:
   confirm:
     material: LIME_STAINED_GLASS
-    name: "&aConfirm Sell"
+    name: menus.bulk-sell.buttons.confirm.name
     slot: 49
     lore:
-      - "&7Click to sell all items"
-      - "&7in the GUI."
+      - menus.bulk-sell.buttons.confirm.lore

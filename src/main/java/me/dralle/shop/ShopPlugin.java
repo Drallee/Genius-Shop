@@ -2,6 +2,10 @@ package me.dralle.shop;
 
 import me.dralle.shop.data.DataManager;
 import me.dralle.shop.data.ShopStateRepository;
+import me.dralle.shop.commands.CustomCommandLoadResult;
+import me.dralle.shop.commands.CustomCommandRegistry;
+import me.dralle.shop.commands.CustomCommandRepository;
+import me.dralle.shop.commands.CustomSellAllService;
 import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.gui.BulkSellMenu;
 import me.dralle.shop.gui.GenericShopGui;
@@ -12,6 +16,7 @@ import me.dralle.shop.gui.SpawnerPlaceListener;
 import me.dralle.shop.metrics.MetricsWrapper;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.stock.StockResetService;
+import me.dralle.shop.util.ConfigPathDiagnostics;
 import me.dralle.shop.util.ConfigUpdater;
 import me.dralle.shop.util.ErrorFileLogger;
 import me.dralle.shop.util.ShopItemUtil;
@@ -62,6 +67,9 @@ public class ShopPlugin extends JavaPlugin {
     private UpdateChecker updateChecker;
     private StockResetService stockResetService;
     private ErrorFileLogger errorFileLogger;
+    private CustomCommandRepository customCommandRepository;
+    private CustomCommandRegistry customCommandRegistry;
+    private CustomSellAllService customSellAllService;
     private int dataFlushTaskId = -1;
 
     // Counters for metrics
@@ -131,6 +139,7 @@ public class ShopPlugin extends JavaPlugin {
         saveDefaultResourceIfNotExists("languages/pl_PL.yml");
         saveDefaultResourceIfNotExists("languages/da_DK.yml");
         saveDefaultResourceIfNotExists("discord.yml");
+        saveDefaultResourceIfNotExists("commands.yml");
 
         // run smart updater on config first to get the language setting
         ConfigUpdater.update(this, "config.yml");
@@ -157,6 +166,7 @@ public class ShopPlugin extends JavaPlugin {
 
         // load configs
         reloadAllConfigs();
+        ConfigPathDiagnostics.logMissingConfiguredPaths(this);
 
         // managers
         this.messages = new MessageManager(this);
@@ -170,6 +180,9 @@ public class ShopPlugin extends JavaPlugin {
         this.bulkSellMenu = new BulkSellMenu(this);
         this.discordWebhook = new me.dralle.shop.util.DiscordWebhook(this);
         this.stockResetService = new StockResetService(this);
+        this.customSellAllService = new CustomSellAllService(this);
+        this.customCommandRepository = new CustomCommandRepository(this);
+        this.customCommandRegistry = new CustomCommandRegistry(this, this.customSellAllService);
 
         // listeners
         getServer().getPluginManager().registerEvents(new MainMenu(this), this);
@@ -183,11 +196,17 @@ public class ShopPlugin extends JavaPlugin {
         this.updateChecker.checkForUpdates();
         getServer().getPluginManager().registerEvents(this.updateChecker, this);
         this.stockResetService.start();
+        reloadCustomCommands();
 
         // command /shop
         PluginCommand shopCommand = getCommand("shop");
         if (shopCommand != null) {
             shopCommand.setExecutor((sender, cmd, label, args) -> {
+            if (args.length == 0 && !canUseBaseShop(sender)) {
+                sender.sendMessage(getMessages().getMessage("no-permission"));
+                return true;
+            }
+
             // /shop reload
             if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
                 if (!sender.hasPermission("geniusshop.reload") && !sender.hasPermission("shop.admin")) {
@@ -207,7 +226,7 @@ public class ShopPlugin extends JavaPlugin {
             // /shop editor
             if (args.length > 0 && args[0].equalsIgnoreCase("editor")) {
                 if (!getConfig().getBoolean("api.enable-editor-command", true)) {
-                    sender.sendMessage(ShopItemUtil.color("&cThe /shop editor command is disabled"));
+                    sender.sendMessage(getMessages().getMessage("editor-command-disabled"));
                     return true;
                 }
 
@@ -218,12 +237,12 @@ public class ShopPlugin extends JavaPlugin {
 
                 Player p = (Player) sender;
                 if (!p.hasPermission("geniusshop.admin") && !p.hasPermission("shop.admin") && !p.isOp()) {
-                    sender.sendMessage(ShopItemUtil.color("&cYou don't have permission to access the shop editor!"));
+                    sender.sendMessage(getMessages().getMessage("editor-no-permission"));
                     return true;
                 }
 
                 if (apiServer == null) {
-                    sender.sendMessage(ShopItemUtil.color("&cShop editor is disabled!"));
+                    sender.sendMessage(getMessages().getMessage("editor-disabled"));
                     return true;
                 }
 
@@ -252,15 +271,10 @@ public class ShopPlugin extends JavaPlugin {
                     }
                 }
 
-                String url;
-                if (customDomain != null && !customDomain.trim().isEmpty() && customDomain.contains(":")) {
-                    url = "http://" + serverHost + "/?token=" + token;
-                } else {
-                    url = "http://" + serverHost + ":" + port + "/?token=" + token;
-                }
+                String url = buildWebEditorUrl(customDomain, serverHost, port, token);
 
-                sender.sendMessage(ShopItemUtil.color("<gradient:#3B82F6:#06B6D4>&l[Shop Editor]</gradient>"));
-                sender.sendMessage(ShopItemUtil.color("&7Click the link below to open the shop editor:"));
+                sender.sendMessage(getMessages().getMessage("editor-header"));
+                sender.sendMessage(getMessages().getMessage("editor-open-link"));
 
                 try {
                     net.md_5.bungee.api.chat.TextComponent message = new net.md_5.bungee.api.chat.TextComponent("Click to open web editor");
@@ -276,13 +290,13 @@ public class ShopPlugin extends JavaPlugin {
                     ));
                     p.spigot().sendMessage(message);
                 } catch (Exception e) {
-                    sender.sendMessage(ShopItemUtil.color("&cYour server build does not support clickable chat links."));
-                    sender.sendMessage(ShopItemUtil.color("&7Please use a compatible Spigot/Paper/Purpur build."));
+                    sender.sendMessage(getMessages().getMessage("editor-clickable-unsupported"));
+                    sender.sendMessage(getMessages().getMessage("editor-compatible-build-required"));
                 }
 
-                sender.sendMessage(ShopItemUtil.color("&7This link will expire in 5 minutes."));
+                sender.sendMessage(getMessages().getMessage("editor-link-expiry"));
                 if (!serverHost.equals("localhost")) {
-                    sender.sendMessage(ShopItemUtil.color("&7Server IP: &e" + serverHost));
+                    sender.sendMessage(getMessages().getMessage("editor-server-ip").replace("%ip%", serverHost));
                 }
 
                 return true;
@@ -291,7 +305,7 @@ public class ShopPlugin extends JavaPlugin {
             // /shop confirmlogin <token>
             if (args.length > 0 && args[0].equalsIgnoreCase("confirmlogin")) {
                 if (!(sender instanceof Player)) {
-                    sender.sendMessage(ShopItemUtil.color("&cOnly players can use this command."));
+                    sender.sendMessage(getMessages().getMessage("confirmlogin-player-only"));
                     return true;
                 }
 
@@ -304,7 +318,7 @@ public class ShopPlugin extends JavaPlugin {
                 String confirmToken = args[1];
 
                 if (apiServer == null) {
-                    sender.sendMessage(ShopItemUtil.color("&cAPI server is not running."));
+                    sender.sendMessage(getMessages().getMessage("confirmlogin-api-disabled"));
                     return true;
                 }
 
@@ -312,19 +326,19 @@ public class ShopPlugin extends JavaPlugin {
                         apiServer.getPendingConfirmation(confirmToken);
 
                 if (confirmation == null) {
-                    sender.sendMessage(ShopItemUtil.color("&cInvalid or expired confirmation token."));
+                    sender.sendMessage(getMessages().getMessage("confirmlogin-invalid-token"));
                     return true;
                 }
 
                 if (!confirmation.username.equalsIgnoreCase(player.getName())) {
-                    sender.sendMessage(ShopItemUtil.color("&cThis confirmation is not for you."));
+                    sender.sendMessage(getMessages().getMessage("confirmlogin-wrong-player"));
                     return true;
                 }
 
                 apiServer.addTrustedIp(confirmation.username, confirmation.requestIp);
-                player.sendMessage(ShopItemUtil.color("<gradient:#22C55E:#14B8A6>&lLogin Confirmed!</gradient>"));
-                player.sendMessage(ShopItemUtil.color("&7The IP &e" + confirmation.requestIp + " &7has been trusted."));
-                player.sendMessage(ShopItemUtil.color("&7You can now access the shop editor from this IP."));
+                player.sendMessage(getMessages().getMessage("confirmlogin-confirmed-title"));
+                player.sendMessage(getMessages().getMessage("confirmlogin-ip-trusted").replace("%ip%", confirmation.requestIp));
+                player.sendMessage(getMessages().getMessage("confirmlogin-access-ready"));
 
                 return true;
             }
@@ -342,7 +356,7 @@ public class ShopPlugin extends JavaPlugin {
 
                 ItemStack held = player.getInventory().getItemInMainHand();
                 if (held == null || held.getType() == Material.AIR) {
-                    sender.sendMessage(ShopItemUtil.color("&cHold the item you want to export in your main hand."));
+                    sender.sendMessage(getMessages().getMessage("exportitem-hold-item"));
                     return true;
                 }
 
@@ -355,7 +369,7 @@ public class ShopPlugin extends JavaPlugin {
 
                 File exportDir = new File(getDataFolder(), "item-exports");
                 if (!exportDir.exists() && !exportDir.mkdirs()) {
-                    sender.sendMessage(ShopItemUtil.color("&cCould not create item-exports folder."));
+                    sender.sendMessage(getMessages().getMessage("exportitem-create-folder-failed"));
                     return true;
                 }
 
@@ -364,10 +378,10 @@ public class ShopPlugin extends JavaPlugin {
                 String json = ShopItemUtil.exportHeldItemToJson(held, itemKey);
                 try {
                     Files.writeString(target.toPath(), json, StandardCharsets.UTF_8);
-                    sender.sendMessage(ShopItemUtil.color("&aExported held item to &eplugins/GeniusShop/item-exports/" + target.getName()));
-                    sender.sendMessage(ShopItemUtil.color("&7Import this JSON in the web editor with the IMPORT button."));
+                    sender.sendMessage(getMessages().getMessage("exportitem-success").replace("%file%", target.getName()));
+                    sender.sendMessage(getMessages().getMessage("exportitem-import-hint"));
                 } catch (IOException ex) {
-                    sender.sendMessage(ShopItemUtil.color("&cFailed to write item JSON: " + ex.getMessage()));
+                    sender.sendMessage(getMessages().getMessage("exportitem-write-failed").replace("%error%", ex.getMessage()));
                     me.dralle.shop.util.ConsoleLog.error(this, "Item export failed: " + ex.getMessage(), ex);
                 }
                 return true;
@@ -410,7 +424,7 @@ public class ShopPlugin extends JavaPlugin {
                     url = "https://" + url;
                 }
 
-                sender.sendMessage(ShopItemUtil.color("&7Wiki: &b" + url));
+                sender.sendMessage(getMessages().getMessage("wiki-link").replace("%url%", url));
 
                 if (sender instanceof Player) {
                     try {
@@ -456,7 +470,7 @@ public class ShopPlugin extends JavaPlugin {
 
                 if (mode.equals("all")) {
                     int count = resetService.resetAllShopsManual();
-                    sender.sendMessage(ShopItemUtil.color("&aReset stock for &e" + count + " &aitem entries across all shops."));
+                    sender.sendMessage(getMessages().getMessage("resetstock-all-success").replace("%count%", String.valueOf(count)));
                     return true;
                 }
 
@@ -471,7 +485,9 @@ public class ShopPlugin extends JavaPlugin {
                         return true;
                     }
                     int count = resetService.resetShopManual(shopKey);
-                    sender.sendMessage(ShopItemUtil.color("&aReset stock for &e" + count + " &aitem entries in shop &e" + shopKey + "&a."));
+                    sender.sendMessage(getMessages().getMessage("resetstock-shop-success")
+                            .replace("%count%", String.valueOf(count))
+                            .replace("%shop%", shopKey));
                     return true;
                 }
 
@@ -489,15 +505,19 @@ public class ShopPlugin extends JavaPlugin {
                     try {
                         slot = Integer.parseInt(args[3]);
                     } catch (NumberFormatException ex) {
-                        sender.sendMessage(ShopItemUtil.color("&cSlot must be a number."));
+                        sender.sendMessage(getMessages().getMessage("resetstock-slot-not-number"));
                         return true;
                     }
                     boolean ok = resetService.resetItemManual(shopKey, slot);
                     if (!ok) {
-                        sender.sendMessage(ShopItemUtil.color("&cNo item found in shop &e" + shopKey + "&c at slot &e" + slot + "&c."));
+                        sender.sendMessage(getMessages().getMessage("resetstock-item-not-found")
+                                .replace("%shop%", shopKey)
+                                .replace("%slot%", String.valueOf(slot)));
                         return true;
                     }
-                    sender.sendMessage(ShopItemUtil.color("&aReset stock for shop &e" + shopKey + "&a item at slot &e" + slot + "&a."));
+                    sender.sendMessage(getMessages().getMessage("resetstock-item-success")
+                            .replace("%shop%", shopKey)
+                            .replace("%slot%", String.valueOf(slot)));
                     return true;
                 }
 
@@ -581,7 +601,22 @@ public class ShopPlugin extends JavaPlugin {
                 me.dralle.shop.util.ConsoleLog.info(this, "Generated new API key for web editor security");
             }
 
-            this.apiServer = new me.dralle.shop.api.ConfigApiServer(this, apiPort, apiKey);
+            boolean apiSslEnabled = getConfig().getBoolean("api.ssl.enabled", false);
+            String apiSslKeyStore = getConfig().getString("api.ssl.keystore", "");
+            String apiSslKeyStorePassword = getConfig().getString("api.ssl.keystore-password", "");
+            String apiSslKeyPassword = getConfig().getString("api.ssl.key-password", "");
+            String apiSslKeyStoreType = getConfig().getString("api.ssl.keystore-type", "PKCS12");
+
+            this.apiServer = new me.dralle.shop.api.ConfigApiServer(
+                    this,
+                    apiPort,
+                    apiKey,
+                    apiSslEnabled,
+                    apiSslKeyStore,
+                    apiSslKeyStorePassword,
+                    apiSslKeyPassword,
+                    apiSslKeyStoreType
+            );
             this.apiServer.start();
         }
 
@@ -596,6 +631,9 @@ public class ShopPlugin extends JavaPlugin {
         }
         if (stockResetService != null) {
             stockResetService.stop();
+        }
+        if (customCommandRegistry != null) {
+            customCommandRegistry.unregisterAll();
         }
         if (apiServer != null) {
             apiServer.stop();
@@ -650,6 +688,7 @@ public class ShopPlugin extends JavaPlugin {
 
         // reload yml into memory
         reloadAllConfigs();
+        ConfigPathDiagnostics.logMissingConfiguredPaths(this);
 
         // rebuild managers
         this.messages = new MessageManager(this);
@@ -672,8 +711,31 @@ public class ShopPlugin extends JavaPlugin {
         if (this.genericShopGui != null) {
             this.genericShopGui.requestRefresh();
         }
+        if (this.customSellAllService == null) {
+            this.customSellAllService = new CustomSellAllService(this);
+        }
+        if (this.customCommandRepository == null) {
+            this.customCommandRepository = new CustomCommandRepository(this);
+        }
+        if (this.customCommandRegistry == null) {
+            this.customCommandRegistry = new CustomCommandRegistry(this, this.customSellAllService);
+        }
+        reloadCustomCommands();
 
         me.dralle.shop.util.ConsoleLog.info(this, "Genius-Shop reloaded from disk.");
+    }
+
+    public void reloadCustomCommands() {
+        if (customCommandRepository == null || customCommandRegistry == null) return;
+        CustomCommandLoadResult result = customCommandRepository.load();
+        for (String error : result.getErrors()) {
+            me.dralle.shop.util.ConsoleLog.warn(this, "Custom command validation: " + error);
+        }
+        int registered = customCommandRegistry.reload(result.getCommands());
+        me.dralle.shop.util.ConsoleLog.info(this, "Custom commands loaded: " + result.getCommands().size()
+                + ", registered: " + registered
+                + ", disabled: " + result.getDisabledCount()
+                + ", validation failures: " + result.getErrors().size());
     }
 
     private void startDataFlushTask() {
@@ -866,7 +928,12 @@ public class ShopPlugin extends JavaPlugin {
         if (messages == null || messages.isEmpty()) return;
         long errors = messages.stream().filter(m -> m.severity() == me.dralle.shop.config.ValidationMessage.Severity.ERROR).count();
         long warnings = messages.stream().filter(m -> m.severity() == me.dralle.shop.config.ValidationMessage.Severity.WARNING).count();
-        me.dralle.shop.util.ConsoleLog.warn(this, "Config validation: " + warnings + " warning(s), " + errors + " error(s).");
+        String summary = "Config validation: " + warnings + " warning(s), " + errors + " error(s).";
+        if (errors > 0) {
+            me.dralle.shop.util.ConsoleLog.warn(this, summary);
+        } else {
+            me.dralle.shop.util.ConsoleLog.info(this, summary);
+        }
     }
 
     public ShopFileManager getShopFileManager() {
@@ -883,6 +950,10 @@ public class ShopPlugin extends JavaPlugin {
 
     public BulkSellMenu getBulkSellMenu() {
         return bulkSellMenu;
+    }
+
+    public CustomCommandRepository getCustomCommandRepository() {
+        return customCommandRepository;
     }
 
     public EconomyHook getEconomy() {
@@ -1001,10 +1072,43 @@ public class ShopPlugin extends JavaPlugin {
         return sender instanceof Player && (sender.hasPermission("geniusshop.exportitem") || hasAdminAccess(sender));
     }
 
+    private boolean canUseBaseShop(CommandSender sender) {
+        return sender.hasPermission("geniusshop.use") || hasAdminAccess(sender);
+    }
+
     private boolean hasAdminAccess(CommandSender sender) {
         return sender.hasPermission("geniusshop.admin")
                 || sender.hasPermission("shop.admin")
                 || sender.isOp();
+    }
+
+    private String buildWebEditorUrl(String customDomain, String serverHost, int port, String token) {
+        String configuredDomain = customDomain == null ? "" : customDomain.trim();
+        if (configuredDomain.startsWith("http://") || configuredDomain.startsWith("https://")) {
+            return appendToken(configuredDomain, token);
+        }
+
+        String scheme = apiServer != null ? apiServer.getScheme() : "http";
+        String hostWithPort = serverHost;
+        if (!hasExplicitPort(configuredDomain)) {
+            hostWithPort = serverHost + ":" + port;
+        }
+        return appendToken(scheme + "://" + hostWithPort, token);
+    }
+
+    private boolean hasExplicitPort(String configuredDomain) {
+        if (configuredDomain == null || configuredDomain.trim().isEmpty()) {
+            return false;
+        }
+        String trimmed = configuredDomain.trim();
+        int lastColon = trimmed.lastIndexOf(':');
+        return lastColon > -1 && lastColon < trimmed.length() - 1 && trimmed.substring(lastColon + 1).matches("\\d+");
+    }
+
+    private String appendToken(String baseUrl, String token) {
+        String normalized = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        String separator = normalized.contains("?") ? "&" : "?";
+        return normalized + separator + "token=" + token;
     }
 
     private void runPriceValidation(CommandSender sender) {

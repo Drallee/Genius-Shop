@@ -68,6 +68,7 @@
                 <button class="tab active" data-tab="mainmenu" data-i18n="web-editor.tabs.main-menu" onclick="switchTab('mainmenu')">MAIN MENU</button>
                 <button class="tab" data-tab="shop" data-i18n="web-editor.tabs.shop" onclick="switchTab('shop')">SHOP</button>
                 <button class="tab" data-tab="campaigns" onclick="switchTab('campaigns')">CAMPAIGNS</button>
+                <button class="tab" data-tab="commands" onclick="switchTab('commands')">COMMANDS</button>
                 <button class="tab" data-tab="stockanalytics" data-i18n="web-editor.tabs.stock-analytics" onclick="switchTab('stockanalytics')">STOCK</button>
                 <button class="tab" data-tab="dataeditor" onclick="switchTab('dataeditor')">DATA</button>
                 <button class="tab" data-tab="purchase" data-i18n="web-editor.tabs.purchase" onclick="switchTab('purchase')">PURCHASE</button>
@@ -343,6 +344,30 @@
                         </section>
                     </div>
                     <div id="campaigns-container" class="grid-list campaign-card-grid"></div>
+                </div>
+
+                <!-- COMMANDS TAB -->
+                <div id="commands-tab" class="tab-content">
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div class="flex items-center gap-12">
+                            <div id="commands-count" class="count-badge">0 commands</div>
+                        </div>
+                        <div class="flex items-center gap-12">
+                            <input type="file" id="commands-import-file" accept=".yml,.yaml,text/yaml,text/plain" style="display: none;" onchange="handleCommandsImport(this.files && this.files[0]); this.value = '';">
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="triggerCommandsImport()">
+                                <span style="font-size: 0.78rem; font-weight: 700;">IMPORT</span>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="exportCommandsYaml()">
+                                <span style="font-size: 0.78rem; font-weight: 700;">EXPORT</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="addCustomCommand()">
+                                <span class="btn-icon"></span>
+                                <span>ADD COMMAND</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="commands-validation" class="commands-validation"></div>
+                    <div id="commands-container" class="commands-editor"></div>
                 </div>
 
                 <!-- STOCK ANALYTICS TAB -->
@@ -689,6 +714,7 @@
     <script src="js/database.js"></script>
     <script src="js/modals.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/commands.js?v=custom-commands-dom-save-2"></script>
     <script src="js/save-dispatcher.js"></script>
     <script src="js/autosave-manager.js"></script>
     <script src="js/ui.js"></script>

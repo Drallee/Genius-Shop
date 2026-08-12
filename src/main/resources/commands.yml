@@ -1,0 +1,67 @@
+# Genius-Shop custom commands.
+#
+# Commands are disabled by default to avoid conflicts with server commands.
+# Enable an entry, adjust shop/item IDs to match your shops, then save in the web editor or run /shop reload.
+# Permissions are blank in these examples so they work immediately when enabled.
+# Add permission fields when you want to restrict a command.
+
+commands:
+  shop-example:
+    enabled: false
+    aliases:
+      - shops-example
+      - store-example
+    description: "Open the main shop"
+    usage: "/shop-example"
+    no-permission-message: "<red>You do not have permission to use this command."
+    shop-bypass-permission: "geniusshop.command.shop.bypass"
+    action:
+      type: OPEN_SHOP
+      shop: "blocks"
+
+  item-example:
+    enabled: false
+    description: "Open a shop page containing the configured item; replace item with a real item key from the web editor"
+    usage: "/item-example"
+    action:
+      type: OPEN_ITEM
+      shop: "blocks"
+      item: "DIAMOND"
+      menu: BOTH
+
+  buy-item-example:
+    enabled: false
+    description: "Open only the buy menu for an item; replace item with a real item key from the web editor"
+    usage: "/buy-item-example"
+    action:
+      type: OPEN_ITEM
+      shop: "blocks"
+      item: "DIAMOND"
+      menu: BUY
+
+  sell-item-example:
+    enabled: false
+    description: "Open only the sell menu for an item; replace item with a real item key from the web editor"
+    usage: "/sell-item-example"
+    action:
+      type: OPEN_ITEM
+      shop: "blocks"
+      item: "DIAMOND"
+      menu: SELL
+
+  sellall-example:
+    enabled: false
+    aliases:
+      - sellinventory-example
+    description: "Sell all eligible inventory items across all shops"
+    usage: "/sellall-example"
+    action:
+      type: SELL_ALL
+
+  sellall-shop-example:
+    enabled: false
+    description: "Sell all eligible inventory items from one shop"
+    usage: "/sellall-shop-example"
+    action:
+      type: SELL_ALL
+      shop: "blocks"

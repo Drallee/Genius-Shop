@@ -42,14 +42,14 @@ public class BulkSellMenu implements Listener {
     }
 
     public void open(Player player) {
-        String title = ShopItemUtil.color(plugin.getMenuManager().getBulkSellMenuConfig().getString("title", "&8Bulk Sell"));
+        String title = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getBulkSellMenuConfig(), "title", "&8Bulk Sell");
         int rows = plugin.getMenuManager().getBulkSellMenuConfig().getInt("rows", 6);
         Inventory inv = Bukkit.createInventory(new BulkSellHolder(), rows * 9, me.dralle.shop.util.BedrockUtil.formatTitle(player, title));
 
         // Add confirm button
         Material confirmMat = ShopItemUtil.getMaterial(plugin.getMenuManager().getBulkSellMenuConfig().getString("buttons.confirm.material"), Material.LIME_STAINED_GLASS);
-        String confirmName = plugin.getMenuManager().getBulkSellMenuConfig().getString("buttons.confirm.name", "&aConfirm Sell");
-        List<String> confirmLore = plugin.getMenuManager().getBulkSellMenuConfig().getStringList("buttons.confirm.lore");
+        String confirmName = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getBulkSellMenuConfig(), "buttons.confirm.name", "&aConfirm Sell");
+        List<String> confirmLore = plugin.getMessages().resolveConfigStringList(plugin.getMenuManager().getBulkSellMenuConfig(), "buttons.confirm.lore");
         int confirmSlot = plugin.getMenuManager().getBulkSellMenuConfig().getInt("buttons.confirm.slot", 49);
         
         if (confirmSlot >= 0 && confirmSlot < inv.getSize()) {

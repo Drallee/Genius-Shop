@@ -3,7 +3,7 @@
 
 config-version: 3
 
-title: '<gradient:#B154F4:#5482B6>Shop Menu</gradient>'
+title: menus.main.title
 rows: 4  # Number of rows (each row = 9 slots, so 3 rows = 27 slots)
 
 # Shop buttons
@@ -25,106 +25,75 @@ items:
   info:
     slot: 4
     material: BOOK
-    name: '<gradient:#54DAF4:#8CA5E7>INFO</gradient>'
+    name: menus.main.items.info.name
     lore:
-      - ''
-      - '&7Made by <gradient:#C81BA8:#F03B9C>Dralle</gradient>'
-      - '&7Version: <gradient:#46F7D9:#62ED44>%version%</gradient>'
-      - '%update-available%'
-      - '%latest-update-highlights%'
-      - ''
+      - menus.main.items.info.lore
   blocks:
     slot: 11
     material: DIRT
-    name: '<gradient:#92E28D:#2FA53C>Blocks</gradient>'
+    name: menus.main.items.blocks.name
     lore:
-      - ''
-      - '&7Buy building blocks here.'
-      - '&7Available: %available-times%'
-      - ''
+      - menus.main.items.blocks.lore
     shop-key: blocks
   spawners:
     slot: 12
     material: SPAWNER
-    name: '<gradient:#8A5CF6:#5EE7FF:#7DFFB3>Spawners</gradient>'
+    name: menus.main.items.spawners.name
     lore:
-      - ''
-      - '&7Buy mob spawners here.'
-      - '&7Available: %available-times%'
-      - ''
+      - menus.main.items.spawners.lore
     shop-key: spawners
-    permission: geniusshop.spawners
+    permission: geniusshop.shop.spawners
     hide-attributes: false
     hide-additional: true
   farming:
     slot: 13
     material: GOLDEN_HOE
-    name: '<gradient:#6EDC4B:#A8E063:#F6D365>Farming</gradient>'
+    name: menus.main.items.farming.name
     lore:
-      - ''
-      - '&7Buy and sell crops.'
-      - '&7Available: %available-times%'
-      - ''
+      - menus.main.items.farming.lore
     shop-key: farming
   misc:
     slot: 14
     material: REDSTONE
-    name: '<gradient:#00FF26:#688AFE:#9C3CC5:#E03F9A>Misc Items</gradient>'
+    name: menus.main.items.misc.name
     lore:
-      - ''
-      - '&7Random stuff.'
-      - '&7Available: %available-times%'
-      - ''
+      - menus.main.items.misc.lore
     shop-key: misc
   potions:
     slot: 15
     material: POTION
-    name: '<gradient:#2C7CF8:#45CCF8>Potions</gradient>'
+    name: menus.main.items.potions.name
     lore:
-      - ''
-      - '&7Buy magical potions.'
-      - '&7Available: %available-times%'
-      - ''
+      - menus.main.items.potions.lore
     shop-key: potions
   special:
     slot: 21
     material: NETHERITE_CHESTPLATE
-    name: '<gradient:#8B5AFF:#9BECFC>Special Items</gradient>'
+    name: menus.main.items.special.name
     lore:
-      - ''
-      - '&7Exclusive and unique items!'
-      - '&7Available: %available-times%'
-      - ''
+      - menus.main.items.special.lore
     shop-key: special
   weekend_market:
     slot: 23
     material: NETHER_STAR
-    name: '<gradient:#FF21E7:#B09BFC>&lWeekend Market</gradient>'
+    name: menus.main.items.weekend-market.name
     lore:
-      - ''
-      - '&7Special items at discounted prices!'
-      - '&7Available: <gradient:#C8FF00:#9BFCA2>%available-times%</gradient>'
-      - ''
+      - menus.main.items.weekend-market.lore
     shop-key: weekend_market
   premium:
     slot: 22
     material: EMERALD_BLOCK
-    name: '<gradient:#FF0072:#FC9BF5>Premium Shop</gradient>'
+    name: menus.main.items.premium.name
     lore:
-      - ''
-      - '&7Exclusive / premium items.'
-      - '&7Available: %available-times%'
-      - ''
+      - menus.main.items.premium.lore
     shop-key: premium
-    permission: geniusshop.premium
+    permission: geniusshop.shop.premium
   wiki:
     slot: 27
     material: WRITABLE_BOOK
-    name: '<gradient:#54daf4:#5482B6>Wiki</gradient>'
+    name: menus.main.items.wiki.name
     lore:
-      - ''
-      - '&7Open documentation in chat.'
-      - ''
+      - menus.main.items.wiki.lore
     action: command
     command: 'shop wiki'
     run-as: player
@@ -132,9 +101,7 @@ items:
   close:
     slot: 31
     material: BARRIER
-    name: '<gradient:#ff0000:#ff6666>Close</gradient>'
+    name: menus.main.items.close.name
     lore:
-      - ''
-      - '&7Close this menu.'
-      - ''
+      - menus.main.items.close.lore
     action: close

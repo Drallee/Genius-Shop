@@ -177,6 +177,66 @@ body {
 .status.warn { border-color: rgba(245, 158, 11, 0.5); }
 .status.err { border-color: rgba(248, 113, 113, 0.5); }
 
+.commands-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+.command-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.command-card {
+    border-top: 1px solid rgba(152, 166, 214, 0.16);
+    padding: 12px;
+}
+
+.command-card-head,
+.command-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.command-row {
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 10px;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 13px;
+}
+
+.command-row input:not([type="checkbox"]),
+.command-row select {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: #0a1026;
+    color: var(--text);
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.command-errors,
+.command-ok {
+    margin: 10px 12px;
+    padding: 9px;
+    border: 1px solid rgba(248, 113, 113, 0.5);
+    border-radius: 8px;
+    color: var(--err);
+    font-size: 12px;
+}
+
+.command-ok {
+    border-color: rgba(52, 211, 153, 0.5);
+    color: var(--ok);
+}
+
 @media (max-width: 900px) {
     .grid {
         grid-template-columns: 1fr;

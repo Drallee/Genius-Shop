@@ -3,54 +3,38 @@
 
 config-version: 2
 
-title-prefix: '&8Buying '
-display-material: BOOK
 display-slot: 22
 max-amount: 2304  # Maximum items that can be purchased at once (default: 36 stacks of 64)
-
-# Display item lore placeholders
-lore:
-  amount: '&eAmount: &7'
-  total: '&eTotal: &7'
-  spawner: '&7Spawner: &e'
 
 # Action buttons
 buttons:
   confirm:
     material: LIME_STAINED_GLASS
-    name: '&aCONFIRM PURCHASE'
+    name: menus.purchase.buttons.confirm.name
     lore:
-      - ''
-      - '&7Click to complete your purchase'
-      - ''
+      - menus.purchase.buttons.confirm.lore
     slot: 39
   cancel:
     material: RED_STAINED_GLASS
-    name: '&cCancel'
+    name: menus.purchase.buttons.cancel.name
     lore:
-      - ''
-      - '&7Return to %shop%'
-      - '&7Page %page%'
-      - ''
+      - menus.purchase.buttons.cancel.lore
     slot: 41
   back:
     material: ENDER_CHEST
-    name: '&9Back'
+    name: menus.purchase.buttons.back.name
     lore:
-      - ''
-      - '&7Return to %shop%'
-      - '&7Page %page%'
-      - ''
+      - menus.purchase.buttons.back.lore
     slot: 40
 
   # Add amount buttons
   add:
     material: LIME_STAINED_GLASS_PANE
     '1':
-      name: '&aAdd 1'
+      name: menus.purchase.buttons.add.1.name
       slot: 24
     '10':
-      name: '&aAdd 10'
+      name: menus.purchase.buttons.add.10.name
       slot: 25
     # Example custom buttons - uncomment and adjust as needed:
     # '4':
@@ -62,18 +46,18 @@ buttons:
   remove:
     material: RED_STAINED_GLASS_PANE
     '1':
-      name: '&cRemove 1'
+      name: menus.purchase.buttons.remove.1.name
       slot: 20
     '10':
-      name: '&cRemove 10'
+      name: menus.purchase.buttons.remove.10.name
       slot: 19
 
   # Set amount buttons
   set:
     material: YELLOW_STAINED_GLASS_PANE
     '64':
-      name: '&aSet to 64'
+      name: menus.purchase.buttons.set.64.name
       slot: 26
     '1':
-      name: '&cSet to 1'
+      name: menus.purchase.buttons.set.1.name
       slot: 18

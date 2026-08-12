@@ -263,8 +263,8 @@ public class GenericShopGui implements Listener {
 
         List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         if (!lore.isEmpty()) lore.add("");
-        lore.add(ShopItemUtil.color("&bVariants: &f" + group.options.size()));
-        lore.add(ShopItemUtil.color("&7Left/Right click to choose variant"));
+        lore.add(plugin.getMessages().getMessage("variant-count").replace("%count%", String.valueOf(group.options.size())));
+        lore.add(plugin.getMessages().getMessage("variant-choose-hint"));
         meta.setLore(lore);
         icon.setItemMeta(meta);
         return icon;
@@ -289,8 +289,8 @@ public class GenericShopGui implements Listener {
 
         FileConfiguration guiConfig = plugin.getMenuManager().getGuiSettingsConfig();
         String backMaterialStr = guiConfig.getString("gui.back-button.material", "ENDER_CHEST");
-        String backName = guiConfig.getString("gui.back-button.name", "&9Back");
-        List<String> backLore = guiConfig.getStringList("gui.back-button.lore");
+        String backName = plugin.getMessages().resolveConfigString(guiConfig, "gui.back-button.name", "&9Back");
+        List<String> backLore = plugin.getMessages().resolveConfigStringList(guiConfig, "gui.back-button.lore");
 
         Material backMaterial = Material.matchMaterial(backMaterialStr.toUpperCase());
         if (backMaterial == null) backMaterial = Material.ENDER_CHEST;
@@ -332,6 +332,10 @@ public class GenericShopGui implements Listener {
     }
 
     public void openShop(Player player, String shopKey, int page) {
+        openShop(player, shopKey, page, false);
+    }
+
+    public void openShop(Player player, String shopKey, int page, boolean bypassShopAccess) {
         plugin.debug("Player " + player.getName() + " attempting to open shop: " + shopKey + " (page " + page + ")");
         
         ShopData shop = plugin.getShopManager().getShop(shopKey);
@@ -353,7 +357,7 @@ public class GenericShopGui implements Listener {
         }
 
         // Permission check
-        if (shop.getPermission() != null && !shop.getPermission().isEmpty()) {
+        if (!bypassShopAccess && shop.getPermission() != null && !shop.getPermission().isEmpty()) {
             if (!player.hasPermission(shop.getPermission())) {
                 plugin.debug("Player " + player.getName() + " lacks permission: " + shop.getPermission());
                 player.sendMessage(
@@ -367,7 +371,7 @@ public class GenericShopGui implements Listener {
         }
 
         // Time restriction check
-        if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
+        if (!bypassShopAccess && !ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
             String availableTimes = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
             plugin.debug("Shop " + shopKey + " not available. Restrictions: " + shop.getAvailableTimes());
             player.sendMessage(
@@ -396,7 +400,7 @@ public class GenericShopGui implements Listener {
 
         List<ShopItem> allItems = shop.getItems();
         if (allItems == null || allItems.isEmpty()) {
-            player.sendMessage(ShopItemUtil.color("&cThis shop is empty."));
+            player.sendMessage(plugin.getMessages().getMessage("shop-empty"));
             return;
         }
 
@@ -444,8 +448,8 @@ public class GenericShopGui implements Listener {
 
 // Botón Back
 String backMaterialStr = guiConfig.getString("gui.back-button.material", "ENDER_CHEST");
-String backName = guiConfig.getString("gui.back-button.name", "&9Back");
-List<String> backLore = guiConfig.getStringList("gui.back-button.lore");
+String backName = plugin.getMessages().resolveConfigString(guiConfig, "gui.back-button.name", "&9Back");
+List<String> backLore = plugin.getMessages().resolveConfigStringList(guiConfig, "gui.back-button.lore");
 
 Material backMaterial = Material.matchMaterial(backMaterialStr.toUpperCase());
 if (backMaterial == null) backMaterial = Material.ENDER_CHEST;
@@ -454,8 +458,8 @@ inv.setItem(back, ShopItemUtil.create(backMaterial, 1, backName, backLore));
 
 if (page > 1) {
     String prevMaterialStr = guiConfig.getString("gui.prev-button.material", "GRAY_DYE");
-    String prevName = guiConfig.getString("gui.prev-button.name", "&e<- Previous");
-    List<String> prevLore = guiConfig.getStringList("gui.prev-button.lore");
+    String prevName = plugin.getMessages().resolveConfigString(guiConfig, "gui.prev-button.name", "&e<- Previous");
+    List<String> prevLore = plugin.getMessages().resolveConfigStringList(guiConfig, "gui.prev-button.lore");
 
     Material prevMaterial = Material.matchMaterial(prevMaterialStr.toUpperCase());
     if (prevMaterial == null) prevMaterial = Material.GRAY_DYE;
@@ -465,8 +469,8 @@ if (page > 1) {
 
 if (page < totalPages) {
     String nextMaterialStr = guiConfig.getString("gui.next-button.material", "LIME_DYE");
-    String nextName = guiConfig.getString("gui.next-button.name", "&eNext ->");
-    List<String> nextLore = guiConfig.getStringList("gui.next-button.lore");
+    String nextName = plugin.getMessages().resolveConfigString(guiConfig, "gui.next-button.name", "&eNext ->");
+    List<String> nextLore = plugin.getMessages().resolveConfigStringList(guiConfig, "gui.next-button.lore");
 
     Material nextMaterial = Material.matchMaterial(nextMaterialStr.toUpperCase());
     if (nextMaterial == null) nextMaterial = Material.LIME_DYE;
@@ -479,6 +483,17 @@ if (page < totalPages) {
         // Store page info
         player.setMetadata("shop.current", new FixedMetadataValue(plugin, shopKey));
         player.setMetadata("shop.page", new FixedMetadataValue(plugin, page));
+    }
+
+    public void openItemMenu(Player player, ShopItem item, String shopKey, int page) {
+        ShopData shop = plugin.getShopManager().getShop(shopKey);
+        if (shop != null && item != null && item.getSlot() != null) {
+            int usableSlots = Math.min(Math.max(shop.getRows(), 1) * 9, 45);
+            int itemPage = Math.max(1, (item.getSlot() / Math.max(1, usableSlots)) + 1);
+            openShop(player, shopKey, itemPage);
+            return;
+        }
+        openShop(player, shopKey, page);
     }
 
     /* ================================================================
@@ -589,7 +604,7 @@ if (page < totalPages) {
         if (buy) {
             double displayBuy = getDisplayBuyPriceForAmount(shop, si);
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-price", true) && displayBuy > 0) {
-                String buyPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-price-line", "&6Buy Price: &a%price%");
+                String buyPriceLine = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.buy-price-line", "&6Buy Price: &a%price%");
                 double baseBuy = getBaseBuyPriceForAmount(si);
                 String displayText = formatCampaignPrice(baseBuy, displayBuy);
                 String processed = buyPriceLine.replace("%price%", displayText);
@@ -598,7 +613,7 @@ if (page < totalPages) {
         } else {
             Double displaySell = getDisplaySellPriceForAmount(shop, si);
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-price", true) && displaySell != null && displaySell > 0) {
-                String sellPriceLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-price-line", "&cSell Price: &a%sell-price%");
+                String sellPriceLine = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.sell-price-line", "&cSell Price: &a%sell-price%");
                 Double baseSell = getBaseSellPriceForAmount(si);
                 String displayText = formatCampaignPrice(baseSell != null ? baseSell : displaySell, displaySell);
                 String processed = sellPriceLine.replace("%sell-price%", displayText);
@@ -641,8 +656,7 @@ if (page < totalPages) {
         if (next == null) return "";
 
         String countdown = formatCountdownLocalized(now, next);
-        String valueTemplate = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.item-lore.stock-reset-timer-value-format", "Stock resets in %time%");
+        String valueTemplate = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.stock-reset-timer-value-format", "Stock resets in %time%");
         return valueTemplate.replace("%time%", countdown);
     }
 
@@ -701,8 +715,7 @@ if (page < totalPages) {
         String timerText = getStockResetTimerText(item, shopKey);
         if (timerText == null || timerText.isEmpty()) return;
 
-        String template = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.item-lore.stock-reset-timer-line", "&7%stock-reset-timer%");
+        String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.stock-reset-timer-line", "&7%stock-reset-timer%");
         String processed = template.replace("%stock-reset-timer%", timerText);
         lore.addAll(ShopItemUtil.splitAndColor(processed));
     }
@@ -712,24 +725,21 @@ if (page < totalPages) {
         if (item.getGlobalLimit() <= 0) return;
 
         String value = formatGlobalLimitValue(item);
-        String template = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.item-lore.global-limit-line", "&7Stock: &e%global-limit%");
+        String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.global-limit-line", "&7Stock: &e%global-limit%");
         lore.addAll(ShopItemUtil.splitAndColor(template.replace("%global-limit%", value)));
     }
 
     private void addPlayerLimitLine(List<String> lore, Player viewer, ShopItem item) {
         if (item.getLimit() <= 0) return;
         String value = formatPlayerLimitValue(viewer, item);
-        String template = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.item-lore.player-limit-line", "&7Your limit: &e%player-limit%");
+        String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.player-limit-line", "&7Your limit: &e%player-limit%");
         lore.addAll(ShopItemUtil.splitAndColor(template.replace("%player-limit%", value)));
     }
 
     private String formatGlobalLimitValue(ShopItem item) {
         int current = plugin.getDataManager().getGlobalCount(item.getUniqueKey());
         int limit = item.getGlobalLimit();
-        String valueTemplate = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.item-lore.global-limit-value-format", "%current%/%limit%");
+        String valueTemplate = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.global-limit-value-format", "%current%/%limit%");
         return valueTemplate
                 .replace("%current%", String.valueOf(current))
                 .replace("%limit%", String.valueOf(limit));
@@ -738,8 +748,7 @@ if (page < totalPages) {
     private String formatPlayerLimitValue(Player viewer, ShopItem item) {
         int current = plugin.getDataManager().getPlayerCount(viewer.getUniqueId(), item.getUniqueKey());
         int limit = item.getLimit();
-        String valueTemplate = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.item-lore.player-limit-value-format", "%current%/%limit%");
+        String valueTemplate = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.player-limit-value-format", "%current%/%limit%");
         return valueTemplate
                 .replace("%current%", String.valueOf(current))
                 .replace("%limit%", String.valueOf(limit));
@@ -835,8 +844,7 @@ if (page < totalPages) {
 
     private void addSpawnerTypeLine(List<String> lore, ShopItem si) {
         if (si.getSpawnerType() != null) {
-            String template = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.spawner-type-line", "&7Spawner Type: &e%type%");
+            String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.spawner-type-line", "&7Spawner Type: &e%type%");
             String processed = template.replace("%type%", si.getSpawnerType());
             lore.addAll(ShopItemUtil.splitAndColor(processed));
         }
@@ -844,8 +852,7 @@ if (page < totalPages) {
 
     private void addSpawnerItemLine(List<String> lore, ShopItem si) {
         if (si.getSpawnerItem() != null) {
-            String template = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.spawner-item-line", "&7Spawner Item: &e%item%");
+            String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.spawner-item-line", "&7Spawner Item: &e%item%");
             String processed = template.replace("%item%", si.getSpawnerItem());
             lore.addAll(ShopItemUtil.splitAndColor(processed));
         }
@@ -853,8 +860,7 @@ if (page < totalPages) {
 
     private void addPotionTypeLine(List<String> lore, ShopItem si) {
         if (si.getPotionType() != null) {
-            String template = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.potion-type-line", "&7Potion Type: &d%type%");
+            String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.potion-type-line", "&7Potion Type: &d%type%");
             String processed = template.replace("%type%", si.getPotionType());
             lore.addAll(ShopItemUtil.splitAndColor(processed));
         }
@@ -874,14 +880,14 @@ if (page < totalPages) {
         if (buy) {
             double displayBuy = getDisplayBuyPriceForAmount(shop, si);
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-buy-hint", true) && displayBuy > 0) {
-                String buyHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.buy-hint-line", "&aLeft-click to buy");
+                String buyHint = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.buy-hint-line", "&aLeft-click to buy");
                 String processed = buyHint.replace("%price%", plugin.formatCurrency(displayBuy));
                 lore.addAll(ShopItemUtil.splitAndColor(processed));
             }
         } else {
             Double displaySell = getDisplaySellPriceForAmount(shop, si);
             if (plugin.getMenuManager().getGuiSettingsConfig().getBoolean("gui.item-lore.show-sell-hint", true) && displaySell != null) {
-                String sellHint = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.sell-hint-line", "&eRight-click to sell");
+                String sellHint = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.sell-hint-line", "&eRight-click to sell");
                 String processed = sellHint.replace("%sell-price%", plugin.formatCurrency(displaySell));
                 lore.addAll(ShopItemUtil.splitAndColor(processed));
             }

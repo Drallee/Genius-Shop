@@ -5,7 +5,7 @@
 # smart updates, debugging, and more.
 # ==========================================================
 
-config-version: 13
+config-version: 14
 
 # When true, missing/outdated config files will automatically be updated
 # by merging new keys from defaults (your custom changes are kept).
@@ -183,6 +183,10 @@ wiki:
 # IMPORTANT: Keep your API key secret! Anyone with the key can edit configs
 api:
   enabled: true
+  # The port used by the GeniusShop API.
+  # Replace this with an available port provided by your host
+  # or a port you have opened yourself.
+  # Examples: 8080, 25590, or another unused port.
   port: 8080
   # Generate a secure random key: https://www.uuidgenerator.net/
   # Change this to a unique value for your server
@@ -193,9 +197,22 @@ api:
   enable-editor-command: true
   # Optional: Custom domain for the web editor
   # If set, this domain will be used instead of the server IP when displaying the editor URL
-  # Examples: "shop.example.com" or "example.com:8080"
+  # Examples: "shop.example.com", "example.com:8080", or "https://shop.example.com"
   # Leave empty to use the default (server IP)
   domain: ""
+  # Native HTTPS support.
+  # For public internet access, a reverse proxy with HTTPS is still recommended.
+  # To use native HTTPS, create a PKCS12 keystore and set the path/passwords below.
+  ssl:
+    enabled: false
+    # Relative paths are resolved from plugins/GeniusShop/.
+    # Example: "ssl/keystore.p12"
+    keystore: ""
+    keystore-password: ""
+    # Leave empty to reuse keystore-password.
+    key-password: ""
+    # Common values: "PKCS12" or "JKS"
+    keystore-type: "PKCS12"
   # IP Bypass System
   # When enabled, allows users with permission "geniusshop.login.ip.bypass" to log in from
   # different IPs after confirming their identity in-game

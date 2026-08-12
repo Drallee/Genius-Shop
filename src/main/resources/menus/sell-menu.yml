@@ -3,82 +3,62 @@
 
 config-version: 2
 
-title-prefix: '&8Selling '
-display-material: BOOK
 display-slot: 22
 max-amount: 2304  # Maximum items that can be sold at once (default: 36 stacks of 64)
-
-# Display item lore placeholders
-lore:
-  selected-amount: '&eSelected amount: &7'
-  sell-price: '&eSell price: &7'
-  you-own: '&eYou own: &7'
-  spawner: '&7Spawner: &e'
 
 # Action buttons
 buttons:
   confirm:
     material: LIME_STAINED_GLASS
-    name: '&aCONFIRM SELL'
+    name: menus.sell.buttons.confirm.name
     lore:
-      - ''
-      - '&7Click to complete your sale'
-      - ''
+      - menus.sell.buttons.confirm.lore
     slot: 48
   sell-all:
     material: GOLD_BLOCK
-    name: '&6SELL ALL'
+    name: menus.sell.buttons.sell-all.name
     lore:
-      - ''
-      - '&7Sell all items in your inventory'
-      - '&7(Max: %max% items)'
-      - ''
+      - menus.sell.buttons.sell-all.lore
     slot: 40
   cancel:
     material: RED_STAINED_GLASS
-    name: '&cCancel'
+    name: menus.sell.buttons.cancel.name
     lore:
-      - ''
-      - '&7Return to %shop%'
-      - '&7Page %page%'
-      - ''
+      - menus.sell.buttons.cancel.lore
     slot: 50
   back:
     material: ENDER_CHEST
-    name: '&9Back'
+    name: menus.sell.buttons.back.name
     lore:
-      - ''
-      - '&7Return to %shop%'
-      - '&7Page %page%'
-      - ''
+      - menus.sell.buttons.back.lore
     slot: 49
 
   # Add amount buttons
   add:
     material: LIME_STAINED_GLASS_PANE
     '1':
-      name: '&aAdd 1'
+      name: menus.sell.buttons.add.1.name
       slot: 24
     '10':
-      name: '&aAdd 10'
+      name: menus.sell.buttons.add.10.name
       slot: 25
 
   # Remove amount buttons
   remove:
     material: RED_STAINED_GLASS_PANE
     '1':
-      name: '&cRemove 1'
+      name: menus.sell.buttons.remove.1.name
       slot: 20
     '10':
-      name: '&cRemove 10'
+      name: menus.sell.buttons.remove.10.name
       slot: 19
 
   # Set amount buttons
   set:
     material: YELLOW_STAINED_GLASS_PANE
     '64':
-      name: '&aSet 64'
+      name: menus.sell.buttons.set.64.name
       slot: 26
     '1':
-      name: '&cSet to 1'
+      name: menus.sell.buttons.set.1.name
       slot: 18

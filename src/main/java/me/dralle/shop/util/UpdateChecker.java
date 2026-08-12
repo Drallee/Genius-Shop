@@ -113,13 +113,13 @@ public class UpdateChecker implements Listener {
         String projectUrl = "https://modrinth.com/plugin/" + projectSlug;
         String versionUrl = projectUrl + "/version/" + latestVersionStr;
 
-        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&8&m--------------------------------------------------------------"));
-        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&b&l[GeniusShop] &a&lUPDATE AVAILABLE"));
-        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Current version: &e" + currentVersion));
-        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Latest version:  &a" + latestVersionStr));
-        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Download latest: &d" + versionUrl));
-        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&7Project page:    &d" + projectUrl));
-        Bukkit.getConsoleSender().sendMessage(ShopItemUtil.color("&8&m--------------------------------------------------------------"));
+        Bukkit.getConsoleSender().sendMessage(plugin.getMessages().getMessage("update-checker-border-console"));
+        Bukkit.getConsoleSender().sendMessage(plugin.getMessages().getMessage("update-checker-console-title"));
+        Bukkit.getConsoleSender().sendMessage(plugin.getMessages().getMessage("update-checker-current-version").replace("%current%", currentVersion));
+        Bukkit.getConsoleSender().sendMessage(plugin.getMessages().getMessage("update-checker-latest-version").replace("%latest%", latestVersionStr));
+        Bukkit.getConsoleSender().sendMessage(plugin.getMessages().getMessage("update-checker-download-latest").replace("%url%", versionUrl));
+        Bukkit.getConsoleSender().sendMessage(plugin.getMessages().getMessage("update-checker-project-page").replace("%url%", projectUrl));
+        Bukkit.getConsoleSender().sendMessage(plugin.getMessages().getMessage("update-checker-border-console"));
     }
 
     @EventHandler
@@ -146,15 +146,17 @@ public class UpdateChecker implements Listener {
     private void sendStyledUpdateMessage(Player player, String currentVersion, String latestVersionStr) {
         String downloadUrl = "https://modrinth.com/plugin/" + projectSlug;
 
-        player.sendMessage(ShopItemUtil.color("&8&m---------------------------------------------"));
-        player.sendMessage(ShopItemUtil.color("&9&l-------- &d&lGENIUSSHOP UPDATE &9&l--------"));
+        player.sendMessage(plugin.getMessages().getMessage("update-checker-border-player"));
+        player.sendMessage(plugin.getMessages().getMessage("update-checker-player-title"));
         player.sendMessage("");
-        player.sendMessage(ShopItemUtil.color("&a&l>> &aNEW UPDATE AVAILABLE!"));
-        player.sendMessage(ShopItemUtil.color("&7>> CURRENT: &e" + currentVersion + " &7* LATEST: &a" + latestVersionStr));
-        player.sendMessage(ShopItemUtil.color("&5&l>> &d&l[DOWNLOAD] &7" + downloadUrl));
+        player.sendMessage(plugin.getMessages().getMessage("update-checker-player-new"));
+        player.sendMessage(plugin.getMessages().getMessage("update-checker-player-versions")
+                .replace("%current%", currentVersion)
+                .replace("%latest%", latestVersionStr));
+        player.sendMessage(plugin.getMessages().getMessage("update-checker-player-download").replace("%url%", downloadUrl));
 
         player.sendMessage("");
-        player.sendMessage(ShopItemUtil.color("&8&m---------------------------------------------"));
+        player.sendMessage(plugin.getMessages().getMessage("update-checker-border-player"));
     }
 
     private void playUpdateSound(Player player) {

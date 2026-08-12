@@ -1,32 +1,47 @@
-config-version: 4
+﻿config-version: 4
 
 messages:
   prefix: "&8&l| &cLOJA &8&l| "
-  no-permission: "%prefix%&cNão tens permissão para fazer isso."
+  no-permission: "%prefix%&cNÃ£o tens permissÃ£o para fazer isso."
   player-only: "&cApenas jogadores podem usar este comando."
-  shop-not-found: "&cLoja '&e%shop%&c' não foi encontrada."
-  shop-no-permission: "%prefix%&cNão tens permissão para abrir a loja &e%shop%&c."
-  shop-not-available: "%prefix%&cA loja &e%shop%&c não está disponível agora!\n%prefix%&7Disponível: &e%available-times%"
+  shop-not-found: "&cLoja '&e%shop%&c' nÃ£o foi encontrada."
+  shop-no-permission: "%prefix%&cNÃ£o tens permissÃ£o para abrir a loja &e%shop%&c."
+  shop-not-available: "%prefix%&cA loja &e%shop%&c nÃ£o estÃ¡ disponÃ­vel agora!\n%prefix%&7DisponÃ­vel: &e%available-times%"
   shop-always-available: "<gradient:#0FFF00:#A8FC9B>Sempre</gradient>"
-  economy-not-ready: "&cO plugin de economia não está pronto."
-  not-enough-money: "&cNão tens dinheiro suficiente para &7%amount%x &4%item%&c por &4%price%."
+  economy-not-ready: "&cO plugin de economia nÃ£o estÃ¡ pronto."
+  not-enough-money: "&cNÃ£o tens dinheiro suficiente para &7%amount%x &4%item%&c por &4%price%."
   buy-success: "&eCompraste &7%amount%x &6%item%&e por &6%price%."
   payment-error: "&cAlgo correu mal com o pagamento."
 
   # Selling
-  cannot-sell: "%prefix%&cNão podes vender este item."
-  no-items-to-sell: "%prefix%&cNão tens nenhum &e%item%&c para vender."
+  cannot-sell: "%prefix%&cNÃ£o podes vender este item."
+  no-items-to-sell: "%prefix%&cNÃ£o tens nenhum &e%item%&c para vender."
   sell-success: "%prefix%&aVendeste &7%amount%x &6%item%&a por &6%price%."
   sell-all-success: "%prefix%&aVendeste um total de &7%amount%x &6%item%&a por &6%price%."
+  custom-command-unavailable: "%prefix%&cThis custom command is not available."
+  custom-command-invalid-config: "%prefix%&cThis custom command is not configured correctly. Please contact staff."
+  custom-command-player-only: "%prefix%&cOnly players can use this command."
+  custom-command-no-permission: "%prefix%&cYou do not have permission to use this command."
+  custom-command-no-shop-access: "%prefix%&cYou do not have access to &e%shop%&c."
+  custom-command-shop-not-found: "%prefix%&cShop '&e%shop%&c' was not found."
+  custom-command-item-not-found: "%prefix%&cItem '&e%item%&c' was not found in shop '&e%shop%&c'."
+  custom-command-buy-unavailable: "%prefix%&cThis item cannot be bought."
+  custom-command-sell-unavailable: "%prefix%&cThis item cannot be sold."
+  custom-command-nothing-to-sell: "%prefix%&cYou do not have any eligible items to sell."
+  custom-command-sellall-success: "%prefix%&aYou sold &7%items%x &6items&a for &6%price%&a."
+  custom-command-sellall-partial-success: "%prefix%&aYou sold &7%items%x &6items&a for &6%price%&a. &eSome items could not be sold."
+  custom-command-economy-failure: "%prefix%&cSell-all failed due to an economy error. Your items were restored."
+  custom-command-reload-success: "%prefix%&aCustom commands reloaded."
+  custom-command-reload-failure: "%prefix%&cCustom command reload failed. Check console."
 
   # Buying guard
-  cannot-buy: "%prefix%&cNão podes comprar este item."
+  cannot-buy: "%prefix%&cNÃ£o podes comprar este item."
 
   # Reload
-  reload-no-permission: "%prefix%&cNão tens permissão para recarregar o plugin."
+  reload-no-permission: "%prefix%&cNÃ£o tens permissÃ£o para recarregar o plugin."
   reload-success: "%prefix%&aGenius-Shop foi recarregado."
   reload-failed: "%prefix%&cFalha no recarregamento, verifica a consola."
-  update-available: "%prefix%&aUma nova atualização está disponível! &7(&c%current% &7-> &a%new%&7)"
+  update-available: "%prefix%&aUma nova atualizaÃ§Ã£o estÃ¡ disponÃ­vel! &7(&c%current% &7-> &a%new%&7)"
   
   # Time and Date
   time-separator: ", "
@@ -39,34 +54,34 @@ messages:
   between: " entre "
   on: " em "
   in: " em "
-  in-the-month-of: " no mês de "
+  in-the-month-of: " no mÃªs de "
   # Use \n for a new line
   line-break: "\n"
-  day-suffix-st: "º"
-  day-suffix-nd: "º"
-  day-suffix-rd: "º"
-  day-suffix-th: "º"
+  day-suffix-st: "Âº"
+  day-suffix-nd: "Âº"
+  day-suffix-rd: "Âº"
+  day-suffix-th: "Âº"
   
   # Time and Date Translations
   days:
     monday: "Segunda-feira"
-    tuesday: "Terça-feira"
+    tuesday: "TerÃ§a-feira"
     wednesday: "Quarta-feira"
     thursday: "Quinta-feira"
     friday: "Sexta-feira"
-    saturday: "Sábado"
+    saturday: "SÃ¡bado"
     sunday: "Domingo"
     mon: "Seg"
     tue: "Ter"
     wed: "Qua"
     thu: "Qui"
     fri: "Sex"
-    sat: "Sáb"
+    sat: "SÃ¡b"
     sun: "Dom"
   months:
     january: "Janeiro"
     february: "Fevereiro"
-    march: "Março"
+    march: "MarÃ§o"
     april: "Abril"
     may: "Maio"
     june: "Junho"
@@ -106,7 +121,7 @@ messages:
         singular: "dia"
         plural: "dias"
       month:
-        singular: "mês"
+        singular: "mÃªs"
         plural: "meses"
       year:
         singular: "ano"
@@ -134,7 +149,8 @@ messages:
   bulk-sell-stock-skipped: "%prefix%&eSome items were not sold because stock was already full."
   bulk-sell-safety-skipped: "%prefix%&eSome items were skipped by economy safety guards."
   bulk-sell-stock-full: "%prefix%&cCould not sell items because stock is already full."
-  bulk-sell-safety-none: "%prefix%&cNo items were sold because safety guards blocked them."
+  bulk-sell-safety-none: "%prefix%&cNo items were sold because safety guards blocked them."
+
   condition-level-min: "%prefix%&cYou need at least level &e%level%&c for this item."
   condition-level-max: "%prefix%&cYou must be level &e%level%&c or lower for this item."
   condition-world-not-allowed: "%prefix%&cThis item is not available in your current world."
@@ -155,15 +171,282 @@ messages:
   validate-prices-find-base-above-max: "&e[WARN] Base buy price is above max-price for %ref%"
   validate-prices-find-price-change-large: "&e[WARN] price-change is very large vs base buy price for %ref%"
   validate-prices-find-dynamic-fields-ignored: "&e[WARN] Dynamic pricing fields set while dynamic-pricing=false for %ref%"
+  editor-command-disabled: '&cThe /shop editor command is disabled'
+  editor-no-permission: '&cYou do not have permission to access the shop editor!'
+  editor-disabled: '&cShop editor is disabled!'
+  editor-header: '<gradient:#3B82F6:#06B6D4>&l[Shop Editor]</gradient>'
+  editor-open-link: '&7Click the link below to open the shop editor:'
+  editor-clickable-unsupported: '&cYour server build does not support clickable chat links.'
+  editor-compatible-build-required: '&7Please use a compatible Spigot/Paper/Purpur build.'
+  editor-link-expiry: '&7This link will expire in 5 minutes.'
+  editor-server-ip: '&7Server IP: &e%ip%'
+  confirmlogin-player-only: '&cOnly players can use this command.'
+  confirmlogin-api-disabled: '&cAPI server is not running.'
+  confirmlogin-invalid-token: '&cInvalid or expired confirmation token.'
+  confirmlogin-wrong-player: '&cThis confirmation is not for you.'
+  confirmlogin-confirmed-title: '<gradient:#22C55E:#14B8A6>&lLogin Confirmed!</gradient>'
+  confirmlogin-ip-trusted: '&7The IP &e%ip% &7has been trusted.'
+  confirmlogin-access-ready: '&7You can now access the shop editor from this IP.'
+  exportitem-hold-item: '&cHold the item you want to export in your main hand.'
+  exportitem-create-folder-failed: '&cCould not create item-exports folder.'
+  exportitem-success: '&aExported held item to &eplugins/GeniusShop/item-exports/%file%'
+  exportitem-import-hint: '&7Import this JSON in the web editor with the IMPORT button.'
+  exportitem-write-failed: '&cFailed to write item JSON: %error%'
+  wiki-link: '&7Wiki: &b%url%'
+  resetstock-all-success: '&aReset stock for &e%count% &aitem entries across all shops.'
+  resetstock-shop-success: '&aReset stock for &e%count% &aitem entries in shop &e%shop%&a.'
+  resetstock-slot-not-number: '&cSlot must be a number.'
+  resetstock-item-not-found: '&cNo item found in shop &e%shop%&c at slot &e%slot%&c.'
+  resetstock-item-success: '&aReset stock for shop &e%shop%&a item at slot &e%slot%&a.'
+  shop-empty: '&cThis shop is empty.'
+  variant-count: '&bVariants: &f%count%'
+  variant-choose-hint: '&7Left/Right click to choose variant'
+  latest-update-highlights-title: '&7Latest update highlights:'
+  latest-update-highlight-line: '&8- &f%highlight%'
+  purchase-limit-line: '&eLimit: &7%current%/%limit%'
+  purchase-limit-reached: '&cYou have reached the purchase limit for this item! (%current%/%limit%)'
+  global-limit-reached: '&cThe global limit for this item has been reached! (%current%/%limit%)'
+  sale-limit-line: '&eLimit: &7%current%/%limit%'
+  sale-limit-reached: '&cYou have reached the sale limit for this item! (%current%/%limit%)'
+  security-alert-border: '&8&m----------------------------------------------------------------'
+  security-alert-title: '<gradient:#EF4444:#F97316>&lSECURITY ALERT</gradient>'
+  security-alert-request-ip: '&7Someone is trying to access the shop editor from:'
+  security-alert-current-ip: '&7Your current IP: &a%ip%'
+  security-alert-confirm-instruction: '&7If this is you, run this command to confirm:'
+  security-alert-confirm-command: '&aType: &e/shop confirmlogin %token%'
+  security-alert-expires: '&cThis request will expire in 3 minutes.'
+  update-checker-border-console: '&8&m--------------------------------------------------------------'
+  update-checker-border-player: '&8&m---------------------------------------------'
+  update-checker-console-title: '&b&l[GeniusShop] &a&lUPDATE AVAILABLE'
+  update-checker-current-version: '&7Current version: &e%current%'
+  update-checker-latest-version: '&7Latest version:  &a%latest%'
+  update-checker-download-latest: '&7Download latest: &d%url%'
+  update-checker-project-page: '&7Project page:    &d%url%'
+  update-checker-player-title: '&9&l-------- &d&lGENIUSSHOP UPDATE &9&l--------'
+  update-checker-player-new: '&a&l>> &aNEW UPDATE AVAILABLE!'
+  update-checker-player-versions: '&7>> CURRENT: &e%current% &7* LATEST: &a%latest%'
+  update-checker-player-download: '&5&l>> &d&l[DOWNLOAD] &7%url%'
+  menus:
+    main:
+      title: '<gradient:#B154F4:#5482B6>Shop Menu</gradient>'
+      items:
+        info:
+          name: '<gradient:#54DAF4:#8CA5E7>INFO</gradient>'
+          lore:
+            - ''
+            - '&7Made by <gradient:#C81BA8:#F03B9C>Dralle</gradient>'
+            - '&7Version: <gradient:#46F7D9:#62ED44>%version%</gradient>'
+            - '%update-available%'
+            - '%latest-update-highlights%'
+            - ''
+        blocks:
+          name: '<gradient:#92E28D:#2FA53C>Blocks</gradient>'
+          lore:
+            - ''
+            - '&7Buy building blocks here.'
+            - '&7Available: %available-times%'
+            - ''
+        spawners:
+          name: '<gradient:#8A5CF6:#5EE7FF:#7DFFB3>Spawners</gradient>'
+          lore:
+            - ''
+            - '&7Buy mob spawners here.'
+            - '&7Available: %available-times%'
+            - ''
+        farming:
+          name: '<gradient:#6EDC4B:#A8E063:#F6D365>Farming</gradient>'
+          lore:
+            - ''
+            - '&7Buy and sell crops.'
+            - '&7Available: %available-times%'
+            - ''
+        misc:
+          name: '<gradient:#00FF26:#688AFE:#9C3CC5:#E03F9A>Misc Items</gradient>'
+          lore:
+            - ''
+            - '&7Random stuff.'
+            - '&7Available: %available-times%'
+            - ''
+        potions:
+          name: '<gradient:#2C7CF8:#45CCF8>Potions</gradient>'
+          lore:
+            - ''
+            - '&7Buy magical potions.'
+            - '&7Available: %available-times%'
+            - ''
+        special:
+          name: '<gradient:#8B5AFF:#9BECFC>Special Items</gradient>'
+          lore:
+            - ''
+            - '&7Exclusive and unique items!'
+            - '&7Available: %available-times%'
+            - ''
+        weekend-market:
+          name: '<gradient:#FF21E7:#B09BFC>&lWeekend Market</gradient>'
+          lore:
+            - ''
+            - '&7Special items at discounted prices!'
+            - '&7Available: <gradient:#C8FF00:#9BFCA2>%available-times%</gradient>'
+            - ''
+        premium:
+          name: '<gradient:#FF0072:#FC9BF5>Premium Shop</gradient>'
+          lore:
+            - ''
+            - '&7Exclusive / premium items.'
+            - '&7Available: %available-times%'
+            - ''
+        wiki:
+          name: '<gradient:#54daf4:#5482B6>Wiki</gradient>'
+          lore:
+            - ''
+            - '&7Open documentation in chat.'
+            - ''
+        close:
+          name: '<gradient:#ff0000:#ff6666>Close</gradient>'
+          lore:
+            - ''
+            - '&7Close this menu.'
+            - ''
+    gui-settings:
+      back-button:
+        name: '&9BACK TO CATEGORIES'
+        lore:
+          - ''
+          - '&bClick to return to the main menu.'
+          - ''
+      prev-button:
+        name: '&e<- PREVIOUS PAGE'
+        lore:
+          - ''
+          - '&7See the previous page.'
+          - ''
+      next-button:
+        name: '&eNEXT PAGE ->'
+        lore:
+          - ''
+          - '&7See the next page.'
+          - ''
+      purchase:
+        title-prefix: '&8Buying '
+      sell:
+        title-prefix: '&8Selling '
+        selected-amount: '&eSelected amount: &7%amount%'
+        sell-price: '&eSell price: &7%price%'
+        you-own: '&eYou own: &7%owned%'
+      item-lore:
+        buy-price-line: '&6Buy Price: &a%price%'
+        sell-price-line: '&cSell Price: &a%sell-price%'
+        buy-hint-line: '&eLeft-click to buy'
+        sell-hint-line: '&aRight-click to sell'
+        amount-line: '&eAmount: &7%amount%'
+        total-line: '&eTotal: &7%total%'
+        spawner-type-line: '&7Spawner Type: &e%type%'
+        spawner-item-line: '&7Spawner Item: &e%item%'
+        potion-type-line: '&7Potion Type: &d%type%'
+        global-limit-value-format: '%current%/%limit%'
+        player-limit-value-format: '%current%/%limit%'
+        stock-reset-timer-value-format: 'Stock resets in %time%'
+        global-limit-line: '&7Stock: &e%global-limit%'
+        player-limit-line: '&7Your limit: &e%player-limit%'
+        stock-reset-timer-line: '&7%stock-reset-timer%'
+    purchase:
+      buttons:
+        confirm:
+          name: '&aCONFIRM PURCHASE'
+          lore:
+            - ''
+            - '&7Click to complete your purchase'
+            - ''
+        cancel:
+          name: '&cCancel'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        back:
+          name: '&9Back'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        add:
+          '1':
+            name: '&aAdd 1'
+          '10':
+            name: '&aAdd 10'
+        remove:
+          '1':
+            name: '&cRemove 1'
+          '10':
+            name: '&cRemove 10'
+        set:
+          '64':
+            name: '&aSet to 64'
+          '1':
+            name: '&cSet to 1'
+    sell:
+      buttons:
+        confirm:
+          name: '&aCONFIRM SELL'
+          lore:
+            - ''
+            - '&7Click to complete your sale'
+            - ''
+        sell-all:
+          name: '&6SELL ALL'
+          lore:
+            - ''
+            - '&7Sell all items in your inventory'
+            - '&7(Max: %max% items)'
+            - ''
+        cancel:
+          name: '&cCancel'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        back:
+          name: '&9Back'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        add:
+          '1':
+            name: '&aAdd 1'
+          '10':
+            name: '&aAdd 10'
+        remove:
+          '1':
+            name: '&cRemove 1'
+          '10':
+            name: '&cRemove 10'
+        set:
+          '64':
+            name: '&aSet 64'
+          '1':
+            name: '&cSet to 1'
+    bulk-sell:
+      title: '&8Bulk Sell'
+      buttons:
+        confirm:
+          name: '&aConfirm Sell'
+          lore:
+            - '&7Click to sell all items'
+            - '&7in the GUI.'
 web-editor:
-  title: "Genius Shop - Editor de Configuração"
+  title: "Genius Shop - Editor de ConfiguraÃ§Ã£o"
   hero-title: "EDITOR DO GENIUS SHOP"
-  hero-subtitle: "Configura a tua loja com visualização ao vivo do Minecraft"
+  hero-subtitle: "Configura a tua loja com visualizaÃ§Ã£o ao vivo do Minecraft"
   beta-badge: "BETA - Algumas funcionalidades podem estar a funcionar e outras em falta"
   bug-report: "Reportar erros ou funcionalidades em falta"
-  auto-save: "Gravação automática"
-  animations: "Animações"
-  history: "HISTÓRICO"
+  auto-save: "GravaÃ§Ã£o automÃ¡tica"
+  animations: "AnimaÃ§Ãµes"
+  history: "HISTÃ“RICO"
   reload: "RECARREGAR"
   save-tab: "GUARDAR ABA"
   publish-all: "PUBLICAR TUDO"
@@ -173,21 +456,21 @@ web-editor:
     shop: "LOJA"
     purchase: "COMPRA"
     sell: "VENDA"
-    gui-settings: "CONFIGURAÇÕES GUI"
+    gui-settings: "CONFIGURAÃ‡Ã•ES GUI"
   preview-loading: "A carregar..."
   prev: "ANTERIOR"
-  next: "PRÓXIMO"
-  page-indicator: "Página %page%/%total%"
+  next: "PRÃ“XIMO"
+  page-indicator: "PÃ¡gina %page%/%total%"
   main-menu:
     title: "EDITOR DO MENU PRINCIPAL"
-    buttons-count: "%count% botões"
-    settings: "CONFIGURAÇÕES"
-    add-button: "ADICIONAR BOT�O"
+    buttons-count: "%count% botÃµes"
+    settings: "CONFIGURAÃ‡Ã•ES"
+    add-button: "ADICIONAR BOTï¿½O"
   shop:
     current-file: "FICHEIRO DE LOJA ATUAL"
     loading: "A carregar lojas..."
     create-new: "CRIAR NOVA LOJA"
-    title: "CONTEÚDO DA LOJA"
+    title: "CONTEÃšDO DA LOJA"
     items-count: "%count% itens"
     sort-label: "Ordenar por:"
     sort:
@@ -196,67 +479,67 @@ web-editor:
       name: "Nome"
       material-asc: "Material (A to Z)"
       material-desc: "Material (Z to A)"
-      price: "Preço de Compra"
-      sell-price: "Preço de Venda"
+      price: "PreÃ§o de Compra"
+      sell-price: "PreÃ§o de Venda"
       id-asc: "ID (Low to High)"
       id-desc: "ID (High to Low)"
     search-placeholder: "Pesquisar por nome ou material..."
     add-item: "ADICIONAR ITEM"
     delete-file: "Eliminar Ficheiro de Loja"
   purchase:
-    title: "CONFIGURA��O DE COMPRA"
-    menu-settings: "CONFIGURAÇÕES DO MENU"
+    title: "CONFIGURAï¿½ï¿½O DE COMPRA"
+    menu-settings: "CONFIGURAÃ‡Ã•ES DO MENU"
   sell:
-    title: "CONFIGURA��O DE VENDA"
-    menu-settings: "CONFIGURAÇÕES DO MENU"
+    title: "CONFIGURAï¿½ï¿½O DE VENDA"
+    menu-settings: "CONFIGURAÃ‡Ã•ES DO MENU"
   gui-settings:
-    title: "CONFIGURAÇÕES GLOBAIS GUI"
+    title: "CONFIGURAÃ‡Ã•ES GLOBAIS GUI"
     lore-format-title: "Shop Item Lore Format"
     lore-format-label: "Lore Format"
-    lore-format-hint: "Define a ordem e o conteúdo da lore do item. Uma linha por entrada. Disponíveis: %price-line%, %buy-price-line%, %sell-price-line%, %custom-lore%, %spawner-type-line%, %spawner-item-line%, %potion-type-line%, %global-limit%, %player-limit%, %stock-reset-timer%, %hint-line%, %buy-hint-line%, %sell-hint-line%"
+    lore-format-hint: "Define a ordem e o conteÃºdo da lore do item. Uma linha por entrada. DisponÃ­veis: %price-line%, %buy-price-line%, %sell-price-line%, %custom-lore%, %spawner-type-line%, %spawner-item-line%, %potion-type-line%, %global-limit%, %player-limit%, %stock-reset-timer%, %hint-line%, %buy-hint-line%, %sell-hint-line%"
   tips:
-    title: "DICAS RÁPIDAS"
-    tip1: "Clica nos itens na visualização para editar propriedades"
+    title: "DICAS RÃPIDAS"
+    tip1: "Clica nos itens na visualizaÃ§Ã£o para editar propriedades"
     tip2: "Texturas reais do Minecraft exibidas"
-    tip3: "O salvamento automático mantém as tuas alterações seguras"
+    tip3: "O salvamento automÃ¡tico mantÃ©m as tuas alteraÃ§Ãµes seguras"
     tip4: "Usa SINCRONIZAR para recarregar do servidor"
-    tip5: "Cria vários ficheiros de loja"
+    tip5: "Cria vÃ¡rios ficheiros de loja"
   modals:
     edit-item: "Editar Item"
-    edit-button: "Editar Botão do Menu"
+    edit-button: "Editar BotÃ£o do Menu"
     delete: "Eliminar"
     cancel: "Cancelar"
-    confirm-title: "Confirmar Ação"
+    confirm-title: "Confirmar AÃ§Ã£o"
     confirm-button: "Confirmar"
     alert-title: "Mensagem"
     error-title: "Erro"
     success-title: "Sucesso"
     warning-title: "Aviso"
     prompt-title: "Inserir Valor"
-    save-confirm-title: "Confirmar Gravação"
-    activity-detail-title: "Detalhes da Alteração"
+    save-confirm-title: "Confirmar GravaÃ§Ã£o"
+    activity-detail-title: "Detalhes da AlteraÃ§Ã£o"
     rollback: "REVERTER"
     refresh: "ATUALIZAR"
     clear: "LIMPAR TUDO"
-    history-log: "LOG DE HISTÓRICO"
-    about-history-title: "SOBRE O LOG DE HISTÓRICO"
-    about-history-text: "Acompanha todas as alterações feitas pelos utilizadores. Clica em qualquer entrada para ver a comparação detalhada de antes/depois."
+    history-log: "LOG DE HISTÃ“RICO"
+    about-history-title: "SOBRE O LOG DE HISTÃ“RICO"
+    about-history-text: "Acompanha todas as alteraÃ§Ãµes feitas pelos utilizadores. Clica em qualquer entrada para ver a comparaÃ§Ã£o detalhada de antes/depois."
     no-activity: "Nenhuma Atividade Ainda"
-    session-expired: "Sessão expirada. Por favor, faz login novamente."
+    session-expired: "SessÃ£o expirada. Por favor, faz login novamente."
     item-updated: "Item atualizado"
     item-removed: "Item removido"
     remove-confirm: "Tens a certeza de que desejas remover este %item%?"
-    remove-file-confirm: "Tens a certeza de que desejas ELIMINAR PERMANENTEMENTE %file% do servidor? Isto não pode ser desfeito!"
-    reload-confirm: "Tens a certeza de que desejas recarregar todas as configurações do servidor? Quaisquer alterações não gravadas serão perdidas."
+    remove-file-confirm: "Tens a certeza de que desejas ELIMINAR PERMANENTEMENTE %file% do servidor? Isto nÃ£o pode ser desfeito!"
+    reload-confirm: "Tens a certeza de que desejas recarregar todas as configuraÃ§Ãµes do servidor? Quaisquer alteraÃ§Ãµes nÃ£o gravadas serÃ£o perdidas."
     logout-confirm: "Tens a certeza de que desejas sair?"
     shop-created: "Nova loja criada"
     shop-removed: "Ficheiro de loja removido"
     file-saved: "Ficheiro gravado com sucesso"
     save-error: "Falha ao gravar ficheiro"
-    publish-success: "Todas as alterações publicadas com sucesso"
-    publish-error: "Falha ao publicar alterações"
-    reload-success: "Configuração recarregada do servidor"
-    reload-error: "Falha ao recarregar configuração"
+    publish-success: "Todas as alteraÃ§Ãµes publicadas com sucesso"
+    publish-error: "Falha ao publicar alteraÃ§Ãµes"
+    reload-success: "ConfiguraÃ§Ã£o recarregada do servidor"
+    reload-error: "Falha ao recarregar configuraÃ§Ã£o"
     loaded: "Loaded"
     load-failed: "Load failed"
     saving: "Saving..."
@@ -268,26 +551,26 @@ web-editor:
     copied: "Copied to clipboard!"
     published: "Published"
     delete-error: "Falha ao eliminar"
-    shop-exists: "Uma loja com este nome já existe!"
+    shop-exists: "Uma loja com este nome jÃ¡ existe!"
     enter-filename: "Insere o novo nome do ficheiro da loja (ex: ferramentas.yml):"
     publishing: "A publicar..."
     fields:
       material-asc: "Material (A to Z)"
       material-desc: "Material (Z to A)"
       material-hint: "Nome do material do Minecraft (ex: DIAMOND_SWORD)"
-      display-name: "Nome de Exibição"
-      display-name-hint: "Suporta códigos de cores &"
+      display-name: "Nome de ExibiÃ§Ã£o"
+      display-name-hint: "Suporta cÃ³digos de cores &"
       slot-asc: "Slot (Low to High)"
       slot-desc: "Slot (High to Low)"
-      slot-hint: "Posição na GUI (índice absoluto)"
-      buy-price: "Preço de Compra"
-      buy-price-hint: "0 = não pode comprar"
-      sell-price: "Preço de Venda"
-      sell-price-hint: "0 = não pode vender"
+      slot-hint: "PosiÃ§Ã£o na GUI (Ã­ndice absoluto)"
+      buy-price: "PreÃ§o de Compra"
+      buy-price-hint: "0 = nÃ£o pode comprar"
+      sell-price: "PreÃ§o de Venda"
+      sell-price-hint: "0 = nÃ£o pode vender"
       amount: "Quantidade"
       lore: "Lore (uma por linha)"
       enchantments: "Encantamentos"
-      enchantments-hint: "Formato: ENCANTAMENTO:NÍVEL (ex: SHARPNESS:5)"
+      enchantments-hint: "Formato: ENCANTAMENTO:NÃVEL (ex: SHARPNESS:5)"
       spawner-type: "Tipo de Gerador"
       spawner-type-hint: "Tipo de entidade para o gerador"
 
@@ -296,17 +579,17 @@ web-editor:
       spawner-mode: "Spawner Mode"
       spawner-mode-entity: "Entity Spawner"
       spawner-mode-item: "Item Spawner"
-      potion-type: "Tipo de Poção"
-      potion-type-hint: "Efeito base da poção"
-      potion-level: "Nível da Poção"
-      potion-level-hint: "0 = padrão, 1+ = amplificador personalizado"
+      potion-type: "Tipo de PoÃ§Ã£o"
+      potion-type-hint: "Efeito base da poÃ§Ã£o"
+      potion-level: "NÃ­vel da PoÃ§Ã£o"
+      potion-level-hint: "0 = padrÃ£o, 1+ = amplificador personalizado"
       hide-attributes: "Ocultar Atributos"
-      hide-additional: "Ocultar Informações Adicionais"
+      hide-additional: "Ocultar InformaÃ§Ãµes Adicionais"
       require-name: "Exigir Nome"
-      require-name-hint: "Correspondência exata de nome necessária para venda"
+      require-name-hint: "CorrespondÃªncia exata de nome necessÃ¡ria para venda"
       require-lore: "Exigir Lore"
-      require-lore-hint: "Correspondência exata de lore necessária para venda"
-      unstable-tnt: "TNT Instável"
+      require-lore-hint: "CorrespondÃªncia exata de lore necessÃ¡ria para venda"
+      unstable-tnt: "TNT InstÃ¡vel"
       limit-type: "Limit Type"
       limit-type-hint: "Choose between player-specific limit, global stock limit, or no limit"
       limit-none: "No Limit"
@@ -316,21 +599,21 @@ web-editor:
       limit-value-hint: "The value for the selected limit type"
       player-limit: "Limite de Jogador"
       player-limit-hint: "Quantidade total que um jogador pode comprar/vender (0 = ilimitado)"
-      dynamic-pricing: "Pre�os Din�micos"
-      min-price: "Preço Mín"
-      min-price-hint: "Pre�o din�mico m�nimo"
-      max-price: "Preço Máx"
-      max-price-hint: "Pre�o din�mico m�ximo"
-      price-change: "Alteração de Preço"
-      price-change-hint: "Alteração de preço por unidade comprada/vendida"
+      dynamic-pricing: "Preï¿½os Dinï¿½micos"
+      min-price: "PreÃ§o MÃ­n"
+      min-price-hint: "Preï¿½o dinï¿½mico mï¿½nimo"
+      max-price: "PreÃ§o MÃ¡x"
+      max-price-hint: "Preï¿½o dinï¿½mico mï¿½ximo"
+      price-change: "AlteraÃ§Ã£o de PreÃ§o"
+      price-change-hint: "AlteraÃ§Ã£o de preÃ§o por unidade comprada/vendida"
 
       commands: "Commands"
       commands-hint: "Commands to run on purchase (%player%, %amount%, %item%, %price%)"
       run-command-only: "Run Command Only"
       run-command-only-hint: "If enabled, the item will not be given to the player if commands are present."
-      permission: "Permissão"
+      permission: "PermissÃ£o"
       permission-hint: "Optional permission required to buy/sell this item."
-    item-location: "Página %page%, Slot %slot%"
+    item-location: "PÃ¡gina %page%, Slot %slot%"
     new-item-name: "&eNovo Item"
     new-item-lore: "&7Adicionado via editor web"
     new-shop-name: "&eNova Loja"
@@ -343,16 +626,16 @@ web-editor:
   login:
     title: "Login - Editor Genius Shop"
     heading: "GENIUS SHOP"
-    subtitle: "Editor de Configuração"
+    subtitle: "Editor de ConfiguraÃ§Ã£o"
     requirements-title: "Requisitos"
     req1: "Tens de estar ligado ao servidor de Minecraft"
-    req2: "Precisas de permissões de admin (geniusshop.admin ou OP)"
-    req3: "A tua palavra-passe é o teu UUID de jogador (ou um código de login)"
+    req2: "Precisas de permissÃµes de admin (geniusshop.admin ou OP)"
+    req3: "A tua palavra-passe Ã© o teu UUID de jogador (ou um cÃ³digo de login)"
     username-label: "Utilizador de Minecraft"
     username-placeholder: "O teu nome no jogo"
     password-label: "Palavra-passe (O teu UUID)"
     password-placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    password-hint: "Obtém o teu UUID em https://mcuuid.net/ ou usa o separador Login por código"
+    password-hint: "ObtÃ©m o teu UUID em https://mcuuid.net/ ou usa o separador Login por cÃ³digo"
     login-button: "Entrar"
     security-title: "Security Confirmation Required"
     security-text: "You are logging in from a different IP address.<br>Please check your Minecraft game and confirm the login request."
@@ -364,11 +647,14 @@ web-editor:
     timeout: "Confirmation timeout. Please try logging in again."
     failed: "Login failed"
   footer:
-    description: "Um poderoso editor de configuração para plugins de lojas de Minecraft com visualização ao vivo"
+    description: "Um poderoso editor de configuraÃ§Ã£o para plugins de lojas de Minecraft com visualizaÃ§Ã£o ao vivo"
     github: "Estrela no GitHub"
     issues: "Reportar Problemas"
     made-with: "Feito com amor por Dralle para a comunidade de Minecraft"
-    copyright: "© 2025 Genius Shop - Projeto de Código Aberto"
+    copyright: "Â© 2025 Genius Shop - Projeto de CÃ³digo Aberto"
+
+
+
 
 
 

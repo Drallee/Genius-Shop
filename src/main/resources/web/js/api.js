@@ -214,6 +214,11 @@ async function loadAllFiles() {
         } else {
             globalCampaigns = [];
         }
+        commandCatalog = data.commandCatalog || {};
+        commandsFileRaw = typeof data.commandsFile === 'string' ? data.commandsFile : 'commands:\n';
+        if (typeof parseCommandsYaml === 'function') {
+            parseCommandsYaml(commandsFileRaw);
+        }
         if (data.priceFormat) {
             parsePriceFormatPayload(data.priceFormat);
         }
@@ -224,7 +229,7 @@ async function loadAllFiles() {
         // Update preview based on current active tab
         const previewSection = document.querySelector('.minecraft-preview-section');
         if (previewSection) {
-            previewSection.style.display = (currentTab === 'guisettings' || currentTab === 'campaigns' || currentTab === 'stockanalytics' || currentTab === 'dataeditor') ? 'none' : 'block';
+            previewSection.style.display = (currentTab === 'guisettings' || currentTab === 'campaigns' || currentTab === 'commands' || currentTab === 'stockanalytics' || currentTab === 'dataeditor') ? 'none' : 'block';
         }
 
         if (currentTab === 'mainmenu') {
@@ -233,6 +238,8 @@ async function loadAllFiles() {
             updatePreview();
         } else if (currentTab === 'campaigns') {
             renderCampaignsTab();
+        } else if (currentTab === 'commands' && typeof renderCommandsTab === 'function') {
+            renderCommandsTab();
         } else if (currentTab === 'stockanalytics') {
             await loadStockAnalyticsData(true);
         } else if (currentTab === 'dataeditor') {
@@ -246,6 +253,7 @@ async function loadAllFiles() {
             renderGuiSettings();
         }
         renderCampaignsTab();
+        if (typeof renderCommandsTab === 'function') renderCommandsTab();
 
         showToast(t('web-editor.modals.loaded'), 'success');
         if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files' }, true);
@@ -257,6 +265,57 @@ async function loadAllFiles() {
         showToast(t('web-editor.modals.load-failed'), 'error');
         showAlert(t('web-editor.modals.connect-error', 'Failed to connect to server') + ': ' + error.message + '\n\n' + t('web-editor.modals.api-hint', 'Make sure the API is enabled in config.yml and the port is open.'));
         setEditorState('isLoadingFiles', false);
+    }
+}
+
+async function saveCommandsYaml(isSilent = false) {
+    if (isLoadingFiles) return;
+    if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
+
+    try {
+        if (typeof validateCustomCommandsForSave === 'function') {
+            const errors = validateCustomCommandsForSave();
+            if (errors.length > 0) {
+                throw new Error(errors.slice(0, 8).join('; '));
+            }
+        }
+
+        const yamlContent = typeof generateCommandsYaml === 'function' ? generateCommandsYaml() : commandsFileRaw;
+        const response = await fetch(`api/file/commands.yml`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Token': sessionToken
+            },
+            body: JSON.stringify({ content: yamlContent })
+        });
+
+        if (response.status === 401) {
+            showAlert(t('web-editor.modals.session-expired', 'Session expired. Please login again.'), 'warning');
+            logout();
+            return;
+        }
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const validation = Array.isArray(data.validationErrors) ? data.validationErrors.join('; ') : '';
+            throw new Error(validation || data.message || data.error || `HTTP error! status: ${response.status}`);
+        }
+
+        commandsFileRaw = yamlContent;
+        unsavedChanges = unsavedChanges.filter(c => c.target !== 'custom-command');
+        setUnsavedChanges(unsavedChanges);
+        if (!isSilent) {
+            showToast(t('web-editor.modals.file-saved'), 'success');
+        }
+        return true;
+    } catch (error) {
+        console.error('Failed to save commands.yml:', error);
+        if (!isSilent) {
+            showToast(t('web-editor.modals.save-failed'), 'error');
+            showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
+        }
+        throw error;
     }
 }
 

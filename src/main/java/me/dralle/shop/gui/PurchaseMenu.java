@@ -125,8 +125,7 @@ public class PurchaseMenu implements Listener {
         if (itemKey != null && !itemKey.isEmpty()) {
             if (globalLimit > 0) {
                 int currentGlobal = plugin.getDataManager().getGlobalCount(itemKey);
-                String globalFmt = plugin.getMenuManager().getGuiSettingsConfig()
-                        .getString("gui.item-lore.global-limit-value-format", "%current%/%limit%");
+                String globalFmt = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.global-limit-value-format", "%current%/%limit%");
                 String globalValue = globalFmt
                         .replace("%current%", String.valueOf(currentGlobal))
                         .replace("%limit%", String.valueOf(globalLimit));
@@ -137,8 +136,7 @@ public class PurchaseMenu implements Listener {
 
             if (limit > 0) {
                 int currentPlayer = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
-                String playerFmt = plugin.getMenuManager().getGuiSettingsConfig()
-                        .getString("gui.item-lore.player-limit-value-format", "%current%/%limit%");
+                String playerFmt = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.player-limit-value-format", "%current%/%limit%");
                 String playerValue = playerFmt
                         .replace("%current%", String.valueOf(currentPlayer))
                         .replace("%limit%", String.valueOf(limit));
@@ -200,7 +198,10 @@ public class PurchaseMenu implements Listener {
             return;
         }
 
-        String prefix = plugin.getMenuManager().getPurchaseMenuConfig().getString("title-prefix", "&8Buying ");
+        String prefix = plugin.getMessages().resolveConfigString(
+                plugin.getMenuManager().getGuiSettingsConfig(),
+                "gui.purchase.title-prefix",
+                purchaseCfg.getString("title-prefix", "&8Buying "));
         String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color(prefix + customName));
         Inventory inv = Bukkit.createInventory(new PurchaseHolder(), 54, title);
 
@@ -216,8 +217,8 @@ public class PurchaseMenu implements Listener {
             lore.add("");
         }
 
-        String amountLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.amount-line", "&eAmount: &7%amount%");
-        String totalLine = plugin.getMenuManager().getGuiSettingsConfig().getString("gui.item-lore.total-line", "&eTotal: &7%total%");
+        String amountLine = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.amount-line", "&eAmount: &7%amount%");
+        String totalLine = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.total-line", "&eTotal: &7%total%");
         double totalPrice = calculateTransactionTotal(price, amount, buyPricePerItem, priceUnitAmount);
         lore.add(ShopItemUtil.color(applyStockPlaceholders(plugin, player, amountLine, itemKey, limit, globalLimit)
                 .replace("%amount%", String.valueOf(amount))));
@@ -225,24 +226,23 @@ public class PurchaseMenu implements Listener {
                 .replace("%total%", plugin.formatCurrency(totalPrice))));
 
         if (spawnerType != null) {
-            String line = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.spawner-type-line", "&7Spawner Type: &e%type%");
+            String line = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.spawner-type-line", "&7Spawner Type: &e%type%");
             lore.addAll(ShopItemUtil.splitAndColor(line.replace("%type%", spawnerType)));
         }
         if (spawnerItem != null) {
-            String line = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.spawner-item-line", "&7Spawner Item: &e%item%");
+            String line = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.spawner-item-line", "&7Spawner Item: &e%item%");
             lore.addAll(ShopItemUtil.splitAndColor(line.replace("%item%", spawnerItem)));
         }
         if (potionType != null) {
-            String line = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.potion-type-line", "&7Potion Type: &d%type%");
+            String line = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.potion-type-line", "&7Potion Type: &d%type%");
             lore.addAll(ShopItemUtil.splitAndColor(line.replace("%type%", potionType)));
         }
 
         if (limit > 0 && itemKey != null) {
             int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
-            lore.add(ShopItemUtil.color("&eLimit: &7" + current + "/" + limit));
+            lore.add(plugin.getMessages().getMessage("purchase-limit-line")
+                    .replace("%current%", String.valueOf(current))
+                    .replace("%limit%", String.valueOf(limit)));
         }
 
         lore.add("");
@@ -293,7 +293,7 @@ public class PurchaseMenu implements Listener {
         int displaySlot = plugin.getMenuManager().getPurchaseMenuConfig().getInt("display-slot", 22);
         inv.setItem(displaySlot, display);
 
-        String confirm = purchaseCfg.getString("buttons.confirm.name", "&aCONFIRM PURCHASE");
+        String confirm = plugin.getMessages().resolveConfigString(purchaseCfg, "buttons.confirm.name", "&aCONFIRM PURCHASE");
 
         // Get shop name for placeholders
         String shopName = "Categories";
@@ -304,10 +304,10 @@ public class PurchaseMenu implements Listener {
             }
         }
 
-        String back = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.back.name", "&9BACK TO CATEGORIES")
+        String back = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.back.name", "&9BACK TO CATEGORIES")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
-        String cancel = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.cancel.name", "&cCANCEL PURCHASE")
+        String cancel = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.cancel.name", "&cCANCEL PURCHASE")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
 
@@ -322,7 +322,7 @@ public class PurchaseMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String name = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.add." + key + ".name", "&aAdd " + value);
+                        String name = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.add." + key + ".name", "&aAdd " + value);
                         int slot = plugin.getMenuManager().getPurchaseMenuConfig().getInt("buttons.add." + key + ".slot", -1);
                         if (slot >= 0 && slot < 54) {
                             inv.setItem(slot, ShopItemUtil.create(addMaterial, 1, name, null));
@@ -342,7 +342,7 @@ public class PurchaseMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String name = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.remove." + key + ".name", "&cRemove " + value);
+                        String name = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.remove." + key + ".name", "&cRemove " + value);
                         int slot = plugin.getMenuManager().getPurchaseMenuConfig().getInt("buttons.remove." + key + ".slot", -1);
                         if (slot >= 0 && slot < 54) {
                             if (amount > value) {
@@ -363,7 +363,7 @@ public class PurchaseMenu implements Listener {
                 if (key.equals("material")) continue;
                 try {
                     int value = Integer.parseInt(key);
-                    String name = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.set." + key + ".name", "&aSet to " + value);
+                    String name = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.set." + key + ".name", "&aSet to " + value);
                     int slot = plugin.getMenuManager().getPurchaseMenuConfig().getInt("buttons.set." + key + ".slot", -1);
                     if (slot >= 0 && slot < 54) {
                         if (value != amount && value <= maxAmount) {
@@ -378,7 +378,7 @@ public class PurchaseMenu implements Listener {
         // Confirm purchase
         Material confirmMaterial = ShopItemUtil.getMaterial(plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.confirm.material"), Material.LIME_STAINED_GLASS);
         int confirmSlot = plugin.getMenuManager().getPurchaseMenuConfig().getInt("buttons.confirm.slot", 39);
-        List<String> confirmLore = plugin.getMenuManager().getPurchaseMenuConfig().getStringList("buttons.confirm.lore");
+        List<String> confirmLore = plugin.getMessages().resolveConfigStringList(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.confirm.lore");
         List<String> confirmLoreColored = new ArrayList<>();
         for (String line : confirmLore) {
             confirmLoreColored.add(ShopItemUtil.color(line
@@ -390,7 +390,7 @@ public class PurchaseMenu implements Listener {
         // Back
         Material backMaterial = ShopItemUtil.getMaterial(plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.back.material"), Material.ENDER_CHEST);
         int backSlot = plugin.getMenuManager().getPurchaseMenuConfig().getInt("buttons.back.slot", 40);
-        List<String> backLore = plugin.getMenuManager().getPurchaseMenuConfig().getStringList("buttons.back.lore");
+        List<String> backLore = plugin.getMessages().resolveConfigStringList(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.back.lore");
         List<String> backLoreColored = new ArrayList<>();
         for (String line : backLore) {
             backLoreColored.add(ShopItemUtil.color(line
@@ -402,7 +402,7 @@ public class PurchaseMenu implements Listener {
         // Cancel
         Material cancelMaterial = ShopItemUtil.getMaterial(plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.cancel.material"), Material.RED_STAINED_GLASS);
         int cancelSlot = plugin.getMenuManager().getPurchaseMenuConfig().getInt("buttons.cancel.slot", 41);
-        List<String> cancelLore = plugin.getMenuManager().getPurchaseMenuConfig().getStringList("buttons.cancel.lore");
+        List<String> cancelLore = plugin.getMessages().resolveConfigStringList(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.cancel.lore");
         List<String> cancelLoreColored = new ArrayList<>();
         for (String line : cancelLore) {
             cancelLoreColored.add(ShopItemUtil.color(line
@@ -547,7 +547,7 @@ public class PurchaseMenu implements Listener {
                 clicked.getItemMeta().getDisplayName() : "";
 
         // Config strings
-        String confirm = plugin.getMenuManager().getPurchaseMenuConfig().getString("buttons.confirm.name", "&aCONFIRM PURCHASE");
+        String confirm = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getPurchaseMenuConfig(), "buttons.confirm.name", "&aCONFIRM PURCHASE");
 
         // Get shop name for placeholders
         String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
@@ -560,10 +560,10 @@ public class PurchaseMenu implements Listener {
             }
         }
 
-        String back = purchaseCfg.getString("buttons.back.name", "&cBACK")
+        String back = plugin.getMessages().resolveConfigString(purchaseCfg, "buttons.back.name", "&cBACK")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
-        String cancel = purchaseCfg.getString("buttons.cancel.name", "&cCANCEL")
+        String cancel = plugin.getMessages().resolveConfigString(purchaseCfg, "buttons.cancel.name", "&cCANCEL")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
 
@@ -585,7 +585,7 @@ public class PurchaseMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String buttonName = purchaseCfg.getString("buttons.add." + key + ".name", "&aAdd " + value);
+                        String buttonName = plugin.getMessages().resolveConfigString(purchaseCfg, "buttons.add." + key + ".name", "&aAdd " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             amount = Math.min(amount + value, maxAmount);
                             open(player, material, price, amount, priceUnitAmount, spawnerType, spawnerItem, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, buyPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, commands, commandRunAs, runCommandOnly, permission);
@@ -605,7 +605,7 @@ public class PurchaseMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String buttonName = purchaseCfg.getString("buttons.remove." + key + ".name", "&cRemove " + value);
+                        String buttonName = plugin.getMessages().resolveConfigString(purchaseCfg, "buttons.remove." + key + ".name", "&cRemove " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             amount = Math.max(1, amount - value);
                             open(player, material, price, amount, priceUnitAmount, spawnerType, spawnerItem, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, buyPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, commands, commandRunAs, runCommandOnly, permission);
@@ -625,7 +625,7 @@ public class PurchaseMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String buttonName = purchaseCfg.getString("buttons.set." + key + ".name", "&aSet to " + value);
+                        String buttonName = plugin.getMessages().resolveConfigString(purchaseCfg, "buttons.set." + key + ".name", "&aSet to " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             amount = Math.max(1, Math.min(value, maxAmount));
                             open(player, material, price, amount, priceUnitAmount, spawnerType, spawnerItem, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, buyPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, commands, commandRunAs, runCommandOnly, permission);
@@ -765,7 +765,9 @@ public class PurchaseMenu implements Listener {
               if (limit > 0 && itemKey != null) {
                   int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
                   if (current + amount > limit) {
-                      player.sendMessage(ShopItemUtil.color("&cYou have reached the purchase limit for this item! (" + current + "/" + limit + ")"));
+                      player.sendMessage(plugin.getMessages().getMessage("purchase-limit-reached")
+                              .replace("%current%", String.valueOf(current))
+                              .replace("%limit%", String.valueOf(limit)));
                       return;
                   }
               }
@@ -774,7 +776,9 @@ public class PurchaseMenu implements Listener {
               if (globalLimit > 0 && itemKey != null) {
                   int current = plugin.getDataManager().getGlobalCount(itemKey);
                   if (current + amount > globalLimit) {
-                      player.sendMessage(ShopItemUtil.color("&cThe global limit for this item has been reached! (" + current + "/" + globalLimit + ")"));
+                      player.sendMessage(plugin.getMessages().getMessage("global-limit-reached")
+                              .replace("%current%", String.valueOf(current))
+                              .replace("%limit%", String.valueOf(globalLimit)));
                       return;
                   }
               }

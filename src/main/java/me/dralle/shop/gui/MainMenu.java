@@ -53,8 +53,7 @@ public class MainMenu implements Listener {
             return;
         }
 
-        String rawTitle = mainConfig.getString("title", "&8Shop Menu");
-        String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, plugin.getMessages().color(rawTitle));
+        String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, plugin.getMessages().resolveConfigString(plugin.getMenuManager().getMainMenuConfig(), "title", "&8Shop Menu"));
 
         // Support both 'rows' and 'size' config (rows = number of rows, size = total slots)
         int size;
@@ -79,11 +78,6 @@ public class MainMenu implements Listener {
                 if (itemSec == null) continue;
 
                 // Permission check
-                String permission = itemSec.getString("permission", "");
-                if (permission != null && !permission.isEmpty()) {
-                    if (!player.hasPermission(permission)) continue;
-                }
-
                 int slot = itemSec.getInt("slot", -1);
                 if (slot < 0 || slot >= size) continue;
 
@@ -91,8 +85,8 @@ public class MainMenu implements Listener {
                 Material mat = Material.matchMaterial(matName);
                 if (mat == null) mat = Material.BARRIER;
 
-                String name = itemSec.getString("name", key);
-                List<String> loreRaw = itemSec.getStringList("lore");
+                String name = plugin.getMessages().resolveConfigString(mainConfig, "items." + key + ".name", key);
+                List<String> loreRaw = plugin.getMessages().resolveConfigStringList(mainConfig, "items." + key + ".lore");
                 List<String> lore = new ArrayList<>();
                 List<String> latestHighlights = plugin.getUpdateChecker() != null
                         ? plugin.getUpdateChecker().getLatestReleaseHighlights()
@@ -101,6 +95,8 @@ public class MainMenu implements Listener {
                 
 // Get shop key to check for available times
                 String shopKey = itemSec.getString("shop-key", null);
+                if (!canUseMenuItem(player, itemSec, shopKey)) continue;
+
                 String availableTimes = "";
                 if (shopKey != null) {
                     ShopData shopData = plugin.getShopManager().getShop(shopKey);
@@ -133,9 +129,9 @@ public class MainMenu implements Listener {
                             continue;
                         }
 
-                        lore.add(ShopItemUtil.color("&7Latest update highlights:"));
+                        lore.add(plugin.getMessages().getMessage("latest-update-highlights-title"));
                         for (String highlight : latestHighlights) {
-                            lore.add(ShopItemUtil.color("&8- &f" + highlight));
+                            lore.add(plugin.getMessages().getMessage("latest-update-highlight-line").replace("%highlight%", highlight));
                         }
                         continue;
                     }
@@ -199,17 +195,13 @@ public class MainMenu implements Listener {
 
         ConfigurationSection clickedItem = slotToItem.get(clickedSlot);
 
-        // Optional per-button permission (from gui.yml)
-        String buttonPermission = clickedItem.getString("permission", "");
-        if (buttonPermission != null && !buttonPermission.isEmpty()) {
-            if (!player.hasPermission(buttonPermission)) {
-                player.sendMessage(plugin.getMessages().getMessage("no-permission"));
-                return;
-            }
+        String shopKey = clickedItem.getString("shop-key", null);
+        if (!canUseMenuItem(player, clickedItem, shopKey)) {
+            player.sendMessage(plugin.getMessages().getMessage("no-permission"));
+            return;
         }
 
         String action = clickedItem.getString("action", "").trim().toLowerCase(Locale.ROOT);
-        String shopKey = clickedItem.getString("shop-key", null);
         if (action.isEmpty()) {
             if (shopKey != null && !shopKey.isEmpty()) {
                 action = "shop";
@@ -285,6 +277,21 @@ public class MainMenu implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getGenericShopGui().openShop(player, shopKey, 1));
             plugin.shopsOpened++;
         }
+    }
+
+    private static boolean canUseMenuItem(Player player, ConfigurationSection itemSec, String shopKey) {
+        String buttonPermission = itemSec.getString("permission", "");
+        if (buttonPermission == null || buttonPermission.isEmpty() || player.hasPermission(buttonPermission)) {
+            return true;
+        }
+
+        if (shopKey == null || shopKey.isEmpty()) {
+            return false;
+        }
+
+        ShopData shop = ShopPlugin.getInstance().getShopManager().getShop(shopKey);
+        String shopPermission = shop != null ? shop.getPermission() : "";
+        return shopPermission != null && !shopPermission.isEmpty() && player.hasPermission(shopPermission);
     }
 
     /**

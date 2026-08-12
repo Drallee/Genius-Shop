@@ -127,8 +127,7 @@ public class SellMenu implements Listener {
         if (itemKey != null && !itemKey.isEmpty()) {
             if (globalLimit > 0) {
                 int currentGlobal = plugin.getDataManager().getGlobalCount(itemKey);
-                String globalFmt = plugin.getMenuManager().getGuiSettingsConfig()
-                        .getString("gui.item-lore.global-limit-value-format", "%current%/%limit%");
+                String globalFmt = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.global-limit-value-format", "%current%/%limit%");
                 String globalValue = globalFmt
                         .replace("%current%", String.valueOf(currentGlobal))
                         .replace("%limit%", String.valueOf(globalLimit));
@@ -139,8 +138,7 @@ public class SellMenu implements Listener {
 
             if (limit > 0) {
                 int currentPlayer = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
-                String playerFmt = plugin.getMenuManager().getGuiSettingsConfig()
-                        .getString("gui.item-lore.player-limit-value-format", "%current%/%limit%");
+                String playerFmt = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.player-limit-value-format", "%current%/%limit%");
                 String playerValue = playerFmt
                         .replace("%current%", String.valueOf(currentPlayer))
                         .replace("%limit%", String.valueOf(limit));
@@ -193,8 +191,10 @@ public class SellMenu implements Listener {
 
         FileConfiguration guiCfg = plugin.getMenuManager().getSellMenuConfig();
 
-        String titlePrefix = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.sell.title-prefix", "&8Selling ");
+        String titlePrefix = plugin.getMessages().resolveConfigString(
+                plugin.getMenuManager().getGuiSettingsConfig(),
+                "gui.sell.title-prefix",
+                guiCfg.getString("title-prefix", "&8Selling "));
         String titleText = titlePrefix + (customName != null ? customName : material.name());
         String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color(titleText));
         Inventory inv = Bukkit.createInventory(new SellHolder(), 54, title);
@@ -212,8 +212,7 @@ public class SellMenu implements Listener {
             lore.add("");
         }
 
-        String selectedAmountTemplate = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.sell.selected-amount", "&eSelected amount: &7");
+        String selectedAmountTemplate = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.sell.selected-amount", "&eSelected amount: &7");
         String selectedAmountLine = selectedAmountTemplate.contains("%amount%")
                 ? selectedAmountTemplate.replace("%amount%", String.valueOf(amount))
                 : selectedAmountTemplate + amount;
@@ -221,8 +220,7 @@ public class SellMenu implements Listener {
                 applyStockPlaceholders(plugin, player, selectedAmountLine, itemKey, limit, globalLimit)
         ));
 
-        String sellPriceTemplate = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.sell.sell-price", "&eSell price: &7");
+        String sellPriceTemplate = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.sell.sell-price", "&eSell price: &7");
         double totalPrice = calculateTransactionTotal(sellPrice, amount, sellPricePerItem, priceUnitAmount);
         String sellPriceValue = plugin.formatCurrency(totalPrice);
         String sellPriceLine = sellPriceTemplate;
@@ -239,8 +237,7 @@ public class SellMenu implements Listener {
                 applyStockPlaceholders(plugin, player, sellPriceLine, itemKey, limit, globalLimit)
         ));
 
-        String youOwnTemplate = plugin.getMenuManager().getGuiSettingsConfig()
-                .getString("gui.sell.you-own", "&eYou own: &7");
+        String youOwnTemplate = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.sell.you-own", "&eYou own: &7");
         String youOwnLine = youOwnTemplate.contains("%owned%")
                 ? youOwnTemplate.replace("%owned%", String.valueOf(owned))
                 : youOwnTemplate + owned;
@@ -249,27 +246,26 @@ public class SellMenu implements Listener {
         ));
 
         if (spawnerType != null && !spawnerType.isEmpty()) {
-            String template = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.spawner-type-line", "&7Spawner Type: &e%type%");
+            String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.spawner-type-line", "&7Spawner Type: &e%type%");
             String processed = template.replace("%type%", spawnerType);
             lore.addAll(ShopItemUtil.splitAndColor(processed));
         }
         if (spawnerItem != null && !spawnerItem.isEmpty()) {
-            String template = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.spawner-item-line", "&7Spawner Item: &e%item%");
+            String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.spawner-item-line", "&7Spawner Item: &e%item%");
             String processed = template.replace("%item%", spawnerItem);
             lore.addAll(ShopItemUtil.splitAndColor(processed));
         }
         if (potionType != null && !potionType.isEmpty()) {
-            String template = plugin.getMenuManager().getGuiSettingsConfig()
-                    .getString("gui.item-lore.potion-type-line", "&7Potion Type: &d%type%");
+            String template = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getGuiSettingsConfig(), "gui.item-lore.potion-type-line", "&7Potion Type: &d%type%");
             String processed = template.replace("%type%", potionType);
             lore.addAll(ShopItemUtil.splitAndColor(processed));
         }
 
         if (limit > 0 && itemKey != null) {
             int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
-            lore.add(ShopItemUtil.color("&eLimit: &7" + current + "/" + limit));
+            lore.add(plugin.getMessages().getMessage("sale-limit-line")
+                    .replace("%current%", String.valueOf(current))
+                    .replace("%limit%", String.valueOf(limit)));
         }
 
         lore.add("");
@@ -304,8 +300,8 @@ public class SellMenu implements Listener {
         inv.setItem(displaySlot, display);
 
         /* Buttons - using nested gui.yml structure */
-        String confirmName = guiCfg.getString("buttons.confirm.name", "&aCONFIRM SELL");
-        String sellAllName = guiCfg.getString("buttons.sell-all.name", "&6SELL ALL");
+        String confirmName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.confirm.name", "&aCONFIRM SELL");
+        String sellAllName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.sell-all.name", "&6SELL ALL");
         
         // Get shop name for placeholders
         String shopName = "Categories";
@@ -316,10 +312,10 @@ public class SellMenu implements Listener {
             }
         }
         
-        String backName = guiCfg.getString("buttons.back.name", "&9BACK")
+        String backName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.back.name", "&9BACK")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
-        String cancelName = guiCfg.getString("buttons.cancel.name", "&cCANCEL")
+        String cancelName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.cancel.name", "&cCANCEL")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
 
@@ -349,7 +345,7 @@ public class SellMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String name = guiCfg.getString("buttons.add." + key + ".name", "&aAdd " + value);
+                        String name = plugin.getMessages().resolveConfigString(guiCfg, "buttons.add." + key + ".name", "&aAdd " + value);
                         int slot = guiCfg.getInt("buttons.add." + key + ".slot", -1);
                         if (slot >= 0 && slot < 54) {
                             inv.setItem(slot, ShopItemUtil.create(addMaterial, 1, name, null));
@@ -367,7 +363,7 @@ public class SellMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String name = guiCfg.getString("buttons.remove." + key + ".name", "&cRemove " + value);
+                        String name = plugin.getMessages().resolveConfigString(guiCfg, "buttons.remove." + key + ".name", "&cRemove " + value);
                         int slot = guiCfg.getInt("buttons.remove." + key + ".slot", -1);
                         if (slot >= 0 && slot < 54) {
                             if (amount > value || value == 1) {
@@ -386,7 +382,7 @@ public class SellMenu implements Listener {
                 if (key.equals("material")) continue;
                 try {
                     int value = Integer.parseInt(key);
-                    String name = guiCfg.getString("buttons.set." + key + ".name", "&aSet to " + value);
+                    String name = plugin.getMessages().resolveConfigString(guiCfg, "buttons.set." + key + ".name", "&aSet to " + value);
                     int slot = guiCfg.getInt("buttons.set." + key + ".slot", -1);
                     if (slot >= 0 && slot < 54) {
                         if (value != amount && value <= effectiveMax) {
@@ -398,7 +394,7 @@ public class SellMenu implements Listener {
         }
 
         // Confirm button with lore
-        List<String> confirmLore = guiCfg.getStringList("buttons.confirm.lore");
+        List<String> confirmLore = plugin.getMessages().resolveConfigStringList(guiCfg, "buttons.confirm.lore");
         List<String> confirmLoreColored = new ArrayList<>();
         for (String line : confirmLore) {
             confirmLoreColored.addAll(ShopItemUtil.splitAndColor(line
@@ -409,7 +405,7 @@ public class SellMenu implements Listener {
 
         // Sell All button with lore
         if (owned > 0) {
-            List<String> sellAllLore = guiCfg.getStringList("buttons.sell-all.lore");
+            List<String> sellAllLore = plugin.getMessages().resolveConfigStringList(guiCfg, "buttons.sell-all.lore");
             List<String> sellAllLoreColored = new ArrayList<>();
             for (String line : sellAllLore) {
                 sellAllLoreColored.addAll(ShopItemUtil.splitAndColor(line
@@ -421,7 +417,7 @@ public class SellMenu implements Listener {
         }
 
         // Back button with lore
-        List<String> backLore = guiCfg.getStringList("buttons.back.lore");
+        List<String> backLore = plugin.getMessages().resolveConfigStringList(guiCfg, "buttons.back.lore");
         List<String> backLoreColored = new ArrayList<>();
         for (String line : backLore) {
             backLoreColored.addAll(ShopItemUtil.splitAndColor(line
@@ -431,7 +427,7 @@ public class SellMenu implements Listener {
         inv.setItem(backSlot, ShopItemUtil.create(backMaterial, 1, backName, backLoreColored.isEmpty() ? null : backLoreColored));
 
         // Cancel button with lore
-        List<String> cancelLore = guiCfg.getStringList("buttons.cancel.lore");
+        List<String> cancelLore = plugin.getMessages().resolveConfigStringList(guiCfg, "buttons.cancel.lore");
         List<String> cancelLoreColored = new ArrayList<>();
         for (String line : cancelLore) {
             cancelLoreColored.addAll(ShopItemUtil.splitAndColor(line
@@ -563,8 +559,8 @@ public class SellMenu implements Listener {
 
         /* Button names - using nested gui.yml structure */
         FileConfiguration guiCfg = plugin.getMenuManager().getSellMenuConfig();
-        String confirmName = guiCfg.getString("buttons.confirm.name", "&aCONFIRM SELL");
-        String sellAllName = guiCfg.getString("buttons.sell-all.name", "&6SELL ALL");
+        String confirmName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.confirm.name", "&aCONFIRM SELL");
+        String sellAllName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.sell-all.name", "&6SELL ALL");
         
         // Get shop name for placeholders
         String shopKey = player.hasMetadata("sell.shopKey") ? player.getMetadata("sell.shopKey").get(0).asString() : null;
@@ -577,10 +573,10 @@ public class SellMenu implements Listener {
             }
         }
         
-        String backName = guiCfg.getString("buttons.back.name", "&9BACK")
+        String backName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.back.name", "&9BACK")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
-        String cancelName = guiCfg.getString("buttons.cancel.name", "&cCANCEL")
+        String cancelName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.cancel.name", "&cCANCEL")
                 .replace("%shop%", shopName)
                 .replace("%page%", String.valueOf(shopPage));
 
@@ -612,7 +608,7 @@ public class SellMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String buttonName = guiCfg.getString("buttons.add." + key + ".name", "&aAdd " + value);
+                        String buttonName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.add." + key + ".name", "&aAdd " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             int newAmount = Math.min(amount + value, Math.min(owned, maxAmount));
                             open(player, material, sellPrice, newAmount, priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
@@ -631,7 +627,7 @@ public class SellMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String buttonName = guiCfg.getString("buttons.remove." + key + ".name", "&cRemove " + value);
+                        String buttonName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.remove." + key + ".name", "&cRemove " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             open(player, material, sellPrice, Math.max(1, amount - value), priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
                             return;
@@ -649,7 +645,7 @@ public class SellMenu implements Listener {
                     if (key.equals("material")) continue;
                     try {
                         int value = Integer.parseInt(key);
-                        String buttonName = guiCfg.getString("buttons.set." + key + ".name", "&aSet to " + value);
+                        String buttonName = plugin.getMessages().resolveConfigString(guiCfg, "buttons.set." + key + ".name", "&aSet to " + value);
                         if (name.equals(ShopItemUtil.color(buttonName))) {
                             int newAmount = Math.max(1, Math.min(value, Math.min(owned, maxAmount)));
                             open(player, material, sellPrice, newAmount, priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
@@ -762,7 +758,9 @@ public class SellMenu implements Listener {
         if (limit > 0 && itemKey != null) {
             int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
             if (current + amount > limit) {
-                player.sendMessage(ShopItemUtil.color("&cYou have reached the sale limit for this item! (" + current + "/" + limit + ")"));
+                player.sendMessage(plugin.getMessages().getMessage("sale-limit-reached")
+                        .replace("%current%", String.valueOf(current))
+                        .replace("%limit%", String.valueOf(limit)));
                 return;
             }
         }

@@ -1,32 +1,47 @@
-config-version: 4
+﻿config-version: 4
 
 messages:
-  prefix: "&8&l| &cMAĞAZA &8&l| "
-  no-permission: "%prefix%&cBunu yapmak için izniniz yok."
+  prefix: "&8&l| &cMAÄžAZA &8&l| "
+  no-permission: "%prefix%&cBunu yapmak iÃ§in izniniz yok."
   player-only: "&cSadece oyuncular bu komutu kullanabilir."
-  shop-not-found: "&cMağaza '&e%shop%&c' bulunamadı."
-  shop-no-permission: "%prefix%&c&e%shop%&c mağazasını açmak için izniniz yok."
-  shop-not-available: "%prefix%&c&e%shop%&c mağazası şu anda kullanılamıyor!\n%prefix%&7Müsait: &e%available-times%"
+  shop-not-found: "&cMaÄŸaza '&e%shop%&c' bulunamadÄ±."
+  shop-no-permission: "%prefix%&c&e%shop%&c maÄŸazasÄ±nÄ± aÃ§mak iÃ§in izniniz yok."
+  shop-not-available: "%prefix%&c&e%shop%&c maÄŸazasÄ± ÅŸu anda kullanÄ±lamÄ±yor!\n%prefix%&7MÃ¼sait: &e%available-times%"
   shop-always-available: "<gradient:#0FFF00:#A8FC9B>Her Zaman</gradient>"
-  economy-not-ready: "&cEkonomi eklentisi hazır değil."
-  not-enough-money: "&7%amount%x &4%item%&c için &4%price%&c ödeyemezsiniz."
-  buy-success: "&e&6%price%&e karşılığında &7%amount%x &6%item%&e satın aldınız."
-  payment-error: "&cÖdeme sırasında bir hata oluştu."
+  economy-not-ready: "&cEkonomi eklentisi hazÄ±r deÄŸil."
+  not-enough-money: "&7%amount%x &4%item%&c iÃ§in &4%price%&c Ã¶deyemezsiniz."
+  buy-success: "&e&6%price%&e karÅŸÄ±lÄ±ÄŸÄ±nda &7%amount%x &6%item%&e satÄ±n aldÄ±nÄ±z."
+  payment-error: "&cÃ–deme sÄ±rasÄ±nda bir hata oluÅŸtu."
 
   # Selling
-  cannot-sell: "%prefix%&cBu eşyayı satamazsınız."
-  no-items-to-sell: "%prefix%&cSatmak için &e%item%&c eşyanız yok."
-  sell-success: "%prefix%&a&7%amount%x &6%item%&a eşyasını &6%price%&a karşılığında sattınız."
-  sell-all-success: "%prefix%&aToplamda &7%amount%x &6%item%&a eşyasını &6%price%&a karşılığında sattınız."
+  cannot-sell: "%prefix%&cBu eÅŸyayÄ± satamazsÄ±nÄ±z."
+  no-items-to-sell: "%prefix%&cSatmak iÃ§in &e%item%&c eÅŸyanÄ±z yok."
+  sell-success: "%prefix%&a&7%amount%x &6%item%&a eÅŸyasÄ±nÄ± &6%price%&a karÅŸÄ±lÄ±ÄŸÄ±nda sattÄ±nÄ±z."
+  sell-all-success: "%prefix%&aToplamda &7%amount%x &6%item%&a eÅŸyasÄ±nÄ± &6%price%&a karÅŸÄ±lÄ±ÄŸÄ±nda sattÄ±nÄ±z."
+  custom-command-unavailable: "%prefix%&cThis custom command is not available."
+  custom-command-invalid-config: "%prefix%&cThis custom command is not configured correctly. Please contact staff."
+  custom-command-player-only: "%prefix%&cOnly players can use this command."
+  custom-command-no-permission: "%prefix%&cYou do not have permission to use this command."
+  custom-command-no-shop-access: "%prefix%&cYou do not have access to &e%shop%&c."
+  custom-command-shop-not-found: "%prefix%&cShop '&e%shop%&c' was not found."
+  custom-command-item-not-found: "%prefix%&cItem '&e%item%&c' was not found in shop '&e%shop%&c'."
+  custom-command-buy-unavailable: "%prefix%&cThis item cannot be bought."
+  custom-command-sell-unavailable: "%prefix%&cThis item cannot be sold."
+  custom-command-nothing-to-sell: "%prefix%&cYou do not have any eligible items to sell."
+  custom-command-sellall-success: "%prefix%&aYou sold &7%items%x &6items&a for &6%price%&a."
+  custom-command-sellall-partial-success: "%prefix%&aYou sold &7%items%x &6items&a for &6%price%&a. &eSome items could not be sold."
+  custom-command-economy-failure: "%prefix%&cSell-all failed due to an economy error. Your items were restored."
+  custom-command-reload-success: "%prefix%&aCustom commands reloaded."
+  custom-command-reload-failure: "%prefix%&cCustom command reload failed. Check console."
 
   # Buying guard
-  cannot-buy: "%prefix%&cBu eşyayı satın alamazsınız."
+  cannot-buy: "%prefix%&cBu eÅŸyayÄ± satÄ±n alamazsÄ±nÄ±z."
 
   # Reload
-  reload-no-permission: "%prefix%&cEklentiyi yeniden yüklemek için izniniz yok."
-  reload-success: "%prefix%&aGenius-Shop başarıyla yeniden yüklendi."
-  reload-failed: "%prefix%&cYeniden yükleme başarısız oldu, konsolu kontrol edin."
-  update-available: "%prefix%&aYeni bir güncelleme mevcut! &7(&c%current% &7-> &a%new%&7)"
+  reload-no-permission: "%prefix%&cEklentiyi yeniden yÃ¼klemek iÃ§in izniniz yok."
+  reload-success: "%prefix%&aGenius-Shop baÅŸarÄ±yla yeniden yÃ¼klendi."
+  reload-failed: "%prefix%&cYeniden yÃ¼kleme baÅŸarÄ±sÄ±z oldu, konsolu kontrol edin."
+  update-available: "%prefix%&aYeni bir gÃ¼ncelleme mevcut! &7(&c%current% &7-> &a%new%&7)"
   
   # Time and Date
   time-separator: ", "
@@ -36,10 +51,10 @@ messages:
   # Natural language connectors
   and: " ve "
   during: " boyunca "
-  between: " arasında "
+  between: " arasÄ±nda "
   on: " "
-  in: " içinde "
-  in-the-month-of: " ayında "
+  in: " iÃ§inde "
+  in-the-month-of: " ayÄ±nda "
   # Use \n for a new line
   line-break: "\n"
   day-suffix-st: "."
@@ -50,40 +65,40 @@ messages:
   # Time and Date Translations
   days:
     monday: "Pazartesi"
-    tuesday: "Salı"
-    wednesday: "Çarşamba"
-    thursday: "Perşembe"
+    tuesday: "SalÄ±"
+    wednesday: "Ã‡arÅŸamba"
+    thursday: "PerÅŸembe"
     friday: "Cuma"
     saturday: "Cumartesi"
     sunday: "Pazar"
     mon: "Pzt"
     tue: "Sal"
-    wed: "Çar"
+    wed: "Ã‡ar"
     thu: "Per"
     fri: "Cum"
     sat: "Cmt"
     sun: "Paz"
   months:
     january: "Ocak"
-    february: "Şubat"
+    february: "Åžubat"
     march: "Mart"
     april: "Nisan"
-    may: "Mayıs"
+    may: "MayÄ±s"
     june: "Haziran"
     july: "Temmuz"
-    august: "Ağustos"
-    september: "Eylül"
+    august: "AÄŸustos"
+    september: "EylÃ¼l"
     october: "Ekim"
-    november: "Kasım"
-    december: "Aralık"
+    november: "KasÄ±m"
+    december: "AralÄ±k"
     jan: "Oca"
-    feb: "Şub"
+    feb: "Åžub"
     mar: "Mar"
     apr: "Nis"
     may_short: "May"
     jun: "Haz"
     jul: "Tem"
-    aug: "Ağu"
+    aug: "AÄŸu"
     sep: "Eyl"
     oct: "Eki"
     nov: "Kas"
@@ -134,7 +149,8 @@ messages:
   bulk-sell-stock-skipped: "%prefix%&eSome items were not sold because stock was already full."
   bulk-sell-safety-skipped: "%prefix%&eSome items were skipped by economy safety guards."
   bulk-sell-stock-full: "%prefix%&cCould not sell items because stock is already full."
-  bulk-sell-safety-none: "%prefix%&cNo items were sold because safety guards blocked them."
+  bulk-sell-safety-none: "%prefix%&cNo items were sold because safety guards blocked them."
+
   condition-level-min: "%prefix%&cYou need at least level &e%level%&c for this item."
   condition-level-max: "%prefix%&cYou must be level &e%level%&c or lower for this item."
   condition-world-not-allowed: "%prefix%&cThis item is not available in your current world."
@@ -155,107 +171,374 @@ messages:
   validate-prices-find-base-above-max: "&e[WARN] Base buy price is above max-price for %ref%"
   validate-prices-find-price-change-large: "&e[WARN] price-change is very large vs base buy price for %ref%"
   validate-prices-find-dynamic-fields-ignored: "&e[WARN] Dynamic pricing fields set while dynamic-pricing=false for %ref%"
+  editor-command-disabled: '&cThe /shop editor command is disabled'
+  editor-no-permission: '&cYou do not have permission to access the shop editor!'
+  editor-disabled: '&cShop editor is disabled!'
+  editor-header: '<gradient:#3B82F6:#06B6D4>&l[Shop Editor]</gradient>'
+  editor-open-link: '&7Click the link below to open the shop editor:'
+  editor-clickable-unsupported: '&cYour server build does not support clickable chat links.'
+  editor-compatible-build-required: '&7Please use a compatible Spigot/Paper/Purpur build.'
+  editor-link-expiry: '&7This link will expire in 5 minutes.'
+  editor-server-ip: '&7Server IP: &e%ip%'
+  confirmlogin-player-only: '&cOnly players can use this command.'
+  confirmlogin-api-disabled: '&cAPI server is not running.'
+  confirmlogin-invalid-token: '&cInvalid or expired confirmation token.'
+  confirmlogin-wrong-player: '&cThis confirmation is not for you.'
+  confirmlogin-confirmed-title: '<gradient:#22C55E:#14B8A6>&lLogin Confirmed!</gradient>'
+  confirmlogin-ip-trusted: '&7The IP &e%ip% &7has been trusted.'
+  confirmlogin-access-ready: '&7You can now access the shop editor from this IP.'
+  exportitem-hold-item: '&cHold the item you want to export in your main hand.'
+  exportitem-create-folder-failed: '&cCould not create item-exports folder.'
+  exportitem-success: '&aExported held item to &eplugins/GeniusShop/item-exports/%file%'
+  exportitem-import-hint: '&7Import this JSON in the web editor with the IMPORT button.'
+  exportitem-write-failed: '&cFailed to write item JSON: %error%'
+  wiki-link: '&7Wiki: &b%url%'
+  resetstock-all-success: '&aReset stock for &e%count% &aitem entries across all shops.'
+  resetstock-shop-success: '&aReset stock for &e%count% &aitem entries in shop &e%shop%&a.'
+  resetstock-slot-not-number: '&cSlot must be a number.'
+  resetstock-item-not-found: '&cNo item found in shop &e%shop%&c at slot &e%slot%&c.'
+  resetstock-item-success: '&aReset stock for shop &e%shop%&a item at slot &e%slot%&a.'
+  shop-empty: '&cThis shop is empty.'
+  variant-count: '&bVariants: &f%count%'
+  variant-choose-hint: '&7Left/Right click to choose variant'
+  latest-update-highlights-title: '&7Latest update highlights:'
+  latest-update-highlight-line: '&8- &f%highlight%'
+  purchase-limit-line: '&eLimit: &7%current%/%limit%'
+  purchase-limit-reached: '&cYou have reached the purchase limit for this item! (%current%/%limit%)'
+  global-limit-reached: '&cThe global limit for this item has been reached! (%current%/%limit%)'
+  sale-limit-line: '&eLimit: &7%current%/%limit%'
+  sale-limit-reached: '&cYou have reached the sale limit for this item! (%current%/%limit%)'
+  security-alert-border: '&8&m----------------------------------------------------------------'
+  security-alert-title: '<gradient:#EF4444:#F97316>&lSECURITY ALERT</gradient>'
+  security-alert-request-ip: '&7Someone is trying to access the shop editor from:'
+  security-alert-current-ip: '&7Your current IP: &a%ip%'
+  security-alert-confirm-instruction: '&7If this is you, run this command to confirm:'
+  security-alert-confirm-command: '&aType: &e/shop confirmlogin %token%'
+  security-alert-expires: '&cThis request will expire in 3 minutes.'
+  update-checker-border-console: '&8&m--------------------------------------------------------------'
+  update-checker-border-player: '&8&m---------------------------------------------'
+  update-checker-console-title: '&b&l[GeniusShop] &a&lUPDATE AVAILABLE'
+  update-checker-current-version: '&7Current version: &e%current%'
+  update-checker-latest-version: '&7Latest version:  &a%latest%'
+  update-checker-download-latest: '&7Download latest: &d%url%'
+  update-checker-project-page: '&7Project page:    &d%url%'
+  update-checker-player-title: '&9&l-------- &d&lGENIUSSHOP UPDATE &9&l--------'
+  update-checker-player-new: '&a&l>> &aNEW UPDATE AVAILABLE!'
+  update-checker-player-versions: '&7>> CURRENT: &e%current% &7* LATEST: &a%latest%'
+  update-checker-player-download: '&5&l>> &d&l[DOWNLOAD] &7%url%'
+  menus:
+    main:
+      title: '<gradient:#B154F4:#5482B6>Shop Menu</gradient>'
+      items:
+        info:
+          name: '<gradient:#54DAF4:#8CA5E7>INFO</gradient>'
+          lore:
+            - ''
+            - '&7Made by <gradient:#C81BA8:#F03B9C>Dralle</gradient>'
+            - '&7Version: <gradient:#46F7D9:#62ED44>%version%</gradient>'
+            - '%update-available%'
+            - '%latest-update-highlights%'
+            - ''
+        blocks:
+          name: '<gradient:#92E28D:#2FA53C>Blocks</gradient>'
+          lore:
+            - ''
+            - '&7Buy building blocks here.'
+            - '&7Available: %available-times%'
+            - ''
+        spawners:
+          name: '<gradient:#8A5CF6:#5EE7FF:#7DFFB3>Spawners</gradient>'
+          lore:
+            - ''
+            - '&7Buy mob spawners here.'
+            - '&7Available: %available-times%'
+            - ''
+        farming:
+          name: '<gradient:#6EDC4B:#A8E063:#F6D365>Farming</gradient>'
+          lore:
+            - ''
+            - '&7Buy and sell crops.'
+            - '&7Available: %available-times%'
+            - ''
+        misc:
+          name: '<gradient:#00FF26:#688AFE:#9C3CC5:#E03F9A>Misc Items</gradient>'
+          lore:
+            - ''
+            - '&7Random stuff.'
+            - '&7Available: %available-times%'
+            - ''
+        potions:
+          name: '<gradient:#2C7CF8:#45CCF8>Potions</gradient>'
+          lore:
+            - ''
+            - '&7Buy magical potions.'
+            - '&7Available: %available-times%'
+            - ''
+        special:
+          name: '<gradient:#8B5AFF:#9BECFC>Special Items</gradient>'
+          lore:
+            - ''
+            - '&7Exclusive and unique items!'
+            - '&7Available: %available-times%'
+            - ''
+        weekend-market:
+          name: '<gradient:#FF21E7:#B09BFC>&lWeekend Market</gradient>'
+          lore:
+            - ''
+            - '&7Special items at discounted prices!'
+            - '&7Available: <gradient:#C8FF00:#9BFCA2>%available-times%</gradient>'
+            - ''
+        premium:
+          name: '<gradient:#FF0072:#FC9BF5>Premium Shop</gradient>'
+          lore:
+            - ''
+            - '&7Exclusive / premium items.'
+            - '&7Available: %available-times%'
+            - ''
+        wiki:
+          name: '<gradient:#54daf4:#5482B6>Wiki</gradient>'
+          lore:
+            - ''
+            - '&7Open documentation in chat.'
+            - ''
+        close:
+          name: '<gradient:#ff0000:#ff6666>Close</gradient>'
+          lore:
+            - ''
+            - '&7Close this menu.'
+            - ''
+    gui-settings:
+      back-button:
+        name: '&9BACK TO CATEGORIES'
+        lore:
+          - ''
+          - '&bClick to return to the main menu.'
+          - ''
+      prev-button:
+        name: '&e<- PREVIOUS PAGE'
+        lore:
+          - ''
+          - '&7See the previous page.'
+          - ''
+      next-button:
+        name: '&eNEXT PAGE ->'
+        lore:
+          - ''
+          - '&7See the next page.'
+          - ''
+      purchase:
+        title-prefix: '&8Buying '
+      sell:
+        title-prefix: '&8Selling '
+        selected-amount: '&eSelected amount: &7%amount%'
+        sell-price: '&eSell price: &7%price%'
+        you-own: '&eYou own: &7%owned%'
+      item-lore:
+        buy-price-line: '&6Buy Price: &a%price%'
+        sell-price-line: '&cSell Price: &a%sell-price%'
+        buy-hint-line: '&eLeft-click to buy'
+        sell-hint-line: '&aRight-click to sell'
+        amount-line: '&eAmount: &7%amount%'
+        total-line: '&eTotal: &7%total%'
+        spawner-type-line: '&7Spawner Type: &e%type%'
+        spawner-item-line: '&7Spawner Item: &e%item%'
+        potion-type-line: '&7Potion Type: &d%type%'
+        global-limit-value-format: '%current%/%limit%'
+        player-limit-value-format: '%current%/%limit%'
+        stock-reset-timer-value-format: 'Stock resets in %time%'
+        global-limit-line: '&7Stock: &e%global-limit%'
+        player-limit-line: '&7Your limit: &e%player-limit%'
+        stock-reset-timer-line: '&7%stock-reset-timer%'
+    purchase:
+      buttons:
+        confirm:
+          name: '&aCONFIRM PURCHASE'
+          lore:
+            - ''
+            - '&7Click to complete your purchase'
+            - ''
+        cancel:
+          name: '&cCancel'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        back:
+          name: '&9Back'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        add:
+          '1':
+            name: '&aAdd 1'
+          '10':
+            name: '&aAdd 10'
+        remove:
+          '1':
+            name: '&cRemove 1'
+          '10':
+            name: '&cRemove 10'
+        set:
+          '64':
+            name: '&aSet to 64'
+          '1':
+            name: '&cSet to 1'
+    sell:
+      buttons:
+        confirm:
+          name: '&aCONFIRM SELL'
+          lore:
+            - ''
+            - '&7Click to complete your sale'
+            - ''
+        sell-all:
+          name: '&6SELL ALL'
+          lore:
+            - ''
+            - '&7Sell all items in your inventory'
+            - '&7(Max: %max% items)'
+            - ''
+        cancel:
+          name: '&cCancel'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        back:
+          name: '&9Back'
+          lore:
+            - ''
+            - '&7Return to %shop%'
+            - '&7Page %page%'
+            - ''
+        add:
+          '1':
+            name: '&aAdd 1'
+          '10':
+            name: '&aAdd 10'
+        remove:
+          '1':
+            name: '&cRemove 1'
+          '10':
+            name: '&cRemove 10'
+        set:
+          '64':
+            name: '&aSet 64'
+          '1':
+            name: '&cSet to 1'
+    bulk-sell:
+      title: '&8Bulk Sell'
+      buttons:
+        confirm:
+          name: '&aConfirm Sell'
+          lore:
+            - '&7Click to sell all items'
+            - '&7in the GUI.'
 web-editor:
-  title: "Genius Shop - Yapılandırma Düzenleyici"
+  title: "Genius Shop - YapÄ±landÄ±rma DÃ¼zenleyici"
   hero-title: "GENIUS SHOP DUZENLEYICI"
-  hero-subtitle: "Canlı Minecraft önizlemesi ile mağazanızı yapılandırın"
+  hero-subtitle: "CanlÄ± Minecraft Ã¶nizlemesi ile maÄŸazanÄ±zÄ± yapÄ±landÄ±rÄ±n"
   beta-badge: "BETA - Bazi ozellikler calisiyor olabilir, bazilari eksik olabilir"
   bug-report: "Hatalari veya eksik ozellikleri bildirin"
   auto-save: "Otomatik kaydet"
   animations: "Animasyonlar"
-  history: "GEÇMİŞ"
-  reload: "YENİLE"
-  save-tab: "SEKMEYİ KAYDET"
-  publish-all: "TÜMÜNÜ YAYINLA"
-  logout: "ÇIKIŞ"
+  history: "GEÃ‡MÄ°Åž"
+  reload: "YENÄ°LE"
+  save-tab: "SEKMEYÄ° KAYDET"
+  publish-all: "TÃœMÃœNÃœ YAYINLA"
+  logout: "Ã‡IKIÅž"
   tabs:
-    main-menu: "ANA MENÜ"
-    shop: "MAĞAZA"
+    main-menu: "ANA MENÃœ"
+    shop: "MAÄžAZA"
     purchase: "SATIN ALMA"
-    sell: "SATIŞ"
+    sell: "SATIÅž"
     gui-settings: "GUI AYARLARI"
-  preview-loading: "Yükleniyor..."
-  prev: "GERİ"
-  next: "İLERİ"
+  preview-loading: "YÃ¼kleniyor..."
+  prev: "GERÄ°"
+  next: "Ä°LERÄ°"
   page-indicator: "Sayfa %page%/%total%"
   main-menu:
-    title: "ANA MENÜ DÜZENLEYİCİ"
+    title: "ANA MENÃœ DÃœZENLEYÄ°CÄ°"
     buttons-count: "%count% buton"
     settings: "AYARLAR"
     add-button: "BUTON EKLE"
   shop:
-    current-file: "MEVCUT MAĞAZA DOSYASI"
-    loading: "Mağazalar yükleniyor..."
-    create-new: "YENİ MAĞAZA OLUŞTUR"
-    title: "MAĞAZA İÇERİĞİ"
-    items-count: "%count% eşya"
-    sort-label: "Sıralama:"
+    current-file: "MEVCUT MAÄžAZA DOSYASI"
+    loading: "MaÄŸazalar yÃ¼kleniyor..."
+    create-new: "YENÄ° MAÄžAZA OLUÅžTUR"
+    title: "MAÄžAZA Ä°Ã‡ERÄ°ÄžÄ°"
+    items-count: "%count% eÅŸya"
+    sort-label: "SÄ±ralama:"
     sort:
       slot-asc: "Slot (Low to High)"
       slot-desc: "Slot (High to Low)"
-      name: "İsim"
+      name: "Ä°sim"
       material: "Materyal"
-      price: "Alış Fiyatı"
-      sell-price: "Satış Fiyatı"
+      price: "AlÄ±ÅŸ FiyatÄ±"
+      sell-price: "SatÄ±ÅŸ FiyatÄ±"
       id-asc: "ID (Low to High)"
       id-desc: "ID (High to Low)"
-    search-placeholder: "İsim veya materyale göre ara..."
-    add-item: "EŞYA EKLE"
-    delete-file: "Mağaza Dosyasını Sil"
+    search-placeholder: "Ä°sim veya materyale gÃ¶re ara..."
+    add-item: "EÅžYA EKLE"
+    delete-file: "MaÄŸaza DosyasÄ±nÄ± Sil"
   purchase:
     title: "SATIN ALMA YAPILANDIRMASI"
-    menu-settings: "MENÜ AYARLARI"
+    menu-settings: "MENÃœ AYARLARI"
   sell:
-    title: "SATIŞ YAPILANDIRMASI"
-    menu-settings: "MENÜ AYARLARI"
+    title: "SATIÅž YAPILANDIRMASI"
+    menu-settings: "MENÃœ AYARLARI"
   gui-settings:
     title: "GUI GENEL AYARLARI"
     lore-format-title: "Shop Item Lore Format"
     lore-format-label: "Lore Format"
     lore-format-hint: "Item lore sirasini ve icerigini tanimlayin. Her satir bir giris. Kullanilabilir: %price-line%, %buy-price-line%, %sell-price-line%, %custom-lore%, %spawner-type-line%, %spawner-item-line%, %potion-type-line%, %global-limit%, %player-limit%, %stock-reset-timer%, %hint-line%, %buy-hint-line%, %sell-hint-line%"
   tips:
-    title: "HIZLI İPUÇLARI"
+    title: "HIZLI Ä°PUÃ‡LARI"
     tip1: "Ozellikleri duzenlemek icin onizlemedeki esyalara tiklayin"
     tip2: "Gercek Minecraft dokulari gosterilir"
     tip3: "Otomatik kaydetme degisikliklerinizi guvende tutar"
     tip4: "Sunucudan yeniden yuklemek icin SYNC kullanin"
     tip5: "Birden fazla magaza dosyasi olusturun"
   modals:
-    edit-item: "Eşyayı Düzenle"
-    edit-button: "Menü Butonunu Düzenle"
+    edit-item: "EÅŸyayÄ± DÃ¼zenle"
+    edit-button: "MenÃ¼ Butonunu DÃ¼zenle"
     delete: "Sil"
-    cancel: "İptal"
+    cancel: "Ä°ptal"
     confirm-title: "Eylemi Onayla"
     confirm-button: "Onayla"
     alert-title: "Mesaj"
     error-title: "Hata"
-    success-title: "Başarı"
-    warning-title: "Uyarı"
-    prompt-title: "Değer Girin"
-    save-confirm-title: "Kaydı Onayla"
-    activity-detail-title: "Değişiklik Detayları"
-    rollback: "GERİ AL"
-    refresh: "YENİLE"
-    clear: "TÜMÜNÜ TEMİZLE"
-    history-log: "GEÇMİŞ GÜNLÜĞÜ"
-    about-history-title: "GEÇMİŞ GÜNLÜĞÜ HAKKINDA"
-    about-history-text: "Kullanıcılar tarafından yapılan tüm değişiklikleri takip edin. Detaylı karşılaştırma için herhangi bir girişe tıklayın."
-    no-activity: "Henüz Aktivite Yok"
-    session-expired: "Oturum süresi doldu. Lütfen tekrar giriş yapın."
-    item-updated: "Eşya güncellendi"
-    item-removed: "Eşya kaldırıldı"
-    remove-confirm: "Bu %item% eşyasını kaldırmak istediğinizden emin misiniz?"
-    remove-file-confirm: "%file% dosyasını sunucudan KALICI OLARAK SİLMEK istediğinizden emin misiniz? Bu işlem geri alınamaz!"
-    reload-confirm: "Tüm yapılandırmaları sunucudan yeniden yüklemek istediğinizden emin misiniz? Kaydedilmemiş tüm değişiklikler kaybolacaktır."
-    logout-confirm: "Çıkış yapmak istediğinizden emin misiniz?"
-    shop-created: "Yeni mağaza oluşturuldu"
-    shop-removed: "Mağaza dosyası kaldırıldı"
-    file-saved: "Dosya başarıyla kaydedildi"
+    success-title: "BaÅŸarÄ±"
+    warning-title: "UyarÄ±"
+    prompt-title: "DeÄŸer Girin"
+    save-confirm-title: "KaydÄ± Onayla"
+    activity-detail-title: "DeÄŸiÅŸiklik DetaylarÄ±"
+    rollback: "GERÄ° AL"
+    refresh: "YENÄ°LE"
+    clear: "TÃœMÃœNÃœ TEMÄ°ZLE"
+    history-log: "GEÃ‡MÄ°Åž GÃœNLÃœÄžÃœ"
+    about-history-title: "GEÃ‡MÄ°Åž GÃœNLÃœÄžÃœ HAKKINDA"
+    about-history-text: "KullanÄ±cÄ±lar tarafÄ±ndan yapÄ±lan tÃ¼m deÄŸiÅŸiklikleri takip edin. DetaylÄ± karÅŸÄ±laÅŸtÄ±rma iÃ§in herhangi bir giriÅŸe tÄ±klayÄ±n."
+    no-activity: "HenÃ¼z Aktivite Yok"
+    session-expired: "Oturum sÃ¼resi doldu. LÃ¼tfen tekrar giriÅŸ yapÄ±n."
+    item-updated: "EÅŸya gÃ¼ncellendi"
+    item-removed: "EÅŸya kaldÄ±rÄ±ldÄ±"
+    remove-confirm: "Bu %item% eÅŸyasÄ±nÄ± kaldÄ±rmak istediÄŸinizden emin misiniz?"
+    remove-file-confirm: "%file% dosyasÄ±nÄ± sunucudan KALICI OLARAK SÄ°LMEK istediÄŸinizden emin misiniz? Bu iÅŸlem geri alÄ±namaz!"
+    reload-confirm: "TÃ¼m yapÄ±landÄ±rmalarÄ± sunucudan yeniden yÃ¼klemek istediÄŸinizden emin misiniz? KaydedilmemiÅŸ tÃ¼m deÄŸiÅŸiklikler kaybolacaktÄ±r."
+    logout-confirm: "Ã‡Ä±kÄ±ÅŸ yapmak istediÄŸinizden emin misiniz?"
+    shop-created: "Yeni maÄŸaza oluÅŸturuldu"
+    shop-removed: "MaÄŸaza dosyasÄ± kaldÄ±rÄ±ldÄ±"
+    file-saved: "Dosya baÅŸarÄ±yla kaydedildi"
     save-error: "Dosya kaydedilemedi"
-    publish-success: "Tüm değişiklikler başarıyla yayınlandı"
-    publish-error: "Değişiklikler yayınlanamadı"
-    reload-success: "Yapılandırma sunucudan yeniden yüklendi"
-    reload-error: "Yapılandırma yeniden yüklenemedi"
+    publish-success: "TÃ¼m deÄŸiÅŸiklikler baÅŸarÄ±yla yayÄ±nlandÄ±"
+    publish-error: "DeÄŸiÅŸiklikler yayÄ±nlanamadÄ±"
+    reload-success: "YapÄ±landÄ±rma sunucudan yeniden yÃ¼klendi"
+    reload-error: "YapÄ±landÄ±rma yeniden yÃ¼klenemedi"
     loaded: "Loaded"
     load-failed: "Load failed"
     saving: "Saving..."
@@ -266,45 +549,45 @@ web-editor:
     rollback-failed: "Rollback failed"
     copied: "Copied to clipboard!"
     published: "Published"
-    delete-error: "Silme başarısız oldu"
-    shop-exists: "Bu isimde bir mağaza zaten var!"
-    enter-filename: "Yeni mağaza dosya adını girin (örn. tools.yml):"
-    publishing: "Yayınlanıyor..."
+    delete-error: "Silme baÅŸarÄ±sÄ±z oldu"
+    shop-exists: "Bu isimde bir maÄŸaza zaten var!"
+    enter-filename: "Yeni maÄŸaza dosya adÄ±nÄ± girin (Ã¶rn. tools.yml):"
+    publishing: "YayÄ±nlanÄ±yor..."
     fields:
       material: "Materyal"
-      material-hint: "Minecraft materyal adı (örn. DIAMOND_SWORD)"
-      display-name: "Görünen İsim"
-      display-name-hint: "& renk kodlarını destekler"
+      material-hint: "Minecraft materyal adÄ± (Ã¶rn. DIAMOND_SWORD)"
+      display-name: "GÃ¶rÃ¼nen Ä°sim"
+      display-name-hint: "& renk kodlarÄ±nÄ± destekler"
       slot-asc: "Slot (Low to High)"
       slot-desc: "Slot (High to Low)"
       slot-hint: "GUI'deki konumu (mutlak dizin)"
-      buy-price: "Satın Alma Fiyatı"
-      buy-price-hint: "0 = satın alınamaz"
-      sell-price: "Satış Fiyatı"
-      sell-price-hint: "0 = satılamaz"
+      buy-price: "SatÄ±n Alma FiyatÄ±"
+      buy-price-hint: "0 = satÄ±n alÄ±namaz"
+      sell-price: "SatÄ±ÅŸ FiyatÄ±"
+      sell-price-hint: "0 = satÄ±lamaz"
       amount: "Miktar"
-      lore: "Lore (her satıra bir tane)"
-      enchantments: "Büyüler"
-      enchantments-hint: "Format: BÜYÜ:SEVİYE (örn. SHARPNESS:5)"
-      spawner-type: "Spawner Türü"
-      spawner-type-hint: "Spawner için yaratık türü"
+      lore: "Lore (her satÄ±ra bir tane)"
+      enchantments: "BÃ¼yÃ¼ler"
+      enchantments-hint: "Format: BÃœYÃœ:SEVÄ°YE (Ã¶rn. SHARPNESS:5)"
+      spawner-type: "Spawner TÃ¼rÃ¼"
+      spawner-type-hint: "Spawner iÃ§in yaratÄ±k tÃ¼rÃ¼"
 
       spawner-item: "Spawner Item"
       spawner-item-hint: "Item to spawn (requires SmartSpawner and material to be SPAWNER)"
       spawner-mode: "Spawner Mode"
       spawner-mode-entity: "Entity Spawner"
       spawner-mode-item: "Item Spawner"
-      potion-type: "İksir Türü"
+      potion-type: "Ä°ksir TÃ¼rÃ¼"
       potion-type-hint: "Temel iksir etkisi"
-      potion-level: "İksir Seviyesi"
-      potion-level-hint: "0 = varsayılan, 1+ = özel güçlendirici"
+      potion-level: "Ä°ksir Seviyesi"
+      potion-level-hint: "0 = varsayÄ±lan, 1+ = Ã¶zel gÃ¼Ã§lendirici"
       hide-attributes: "Nitelikleri Gizle"
       hide-additional: "Ek Bilgileri Gizle"
-      require-name: "İsim Gereksin"
-      require-name-hint: "Satış için tam isim eşleşmesi gerekir"
+      require-name: "Ä°sim Gereksin"
+      require-name-hint: "SatÄ±ÅŸ iÃ§in tam isim eÅŸleÅŸmesi gerekir"
       require-lore: "Lore Gereksin"
-      require-lore-hint: "Satış için tam lore eşleşmesi gerekir"
-      unstable-tnt: "Kararsız TNT"
+      require-lore-hint: "SatÄ±ÅŸ iÃ§in tam lore eÅŸleÅŸmesi gerekir"
+      unstable-tnt: "KararsÄ±z TNT"
       limit-type: "Limit Type"
       limit-type-hint: "Choose between player-specific limit, global stock limit, or no limit"
       limit-none: "No Limit"
@@ -312,15 +595,15 @@ web-editor:
       limit-global: "Global Limit (Stock)"
       limit-value: "Limit Value"
       limit-value-hint: "The value for the selected limit type"
-      player-limit: "Oyuncu Sınırı"
-      player-limit-hint: "Bir oyuncunun alabileceği/satabileceği toplam miktar (0 = sınırsız)"
-      dynamic-pricing: "Dinamik Fiyatlandırma"
+      player-limit: "Oyuncu SÄ±nÄ±rÄ±"
+      player-limit-hint: "Bir oyuncunun alabileceÄŸi/satabileceÄŸi toplam miktar (0 = sÄ±nÄ±rsÄ±z)"
+      dynamic-pricing: "Dinamik FiyatlandÄ±rma"
       min-price: "Min Fiyat"
       min-price-hint: "Minimum dinamik fiyat"
       max-price: "Max Fiyat"
       max-price-hint: "Maksimum dinamik fiyat"
-      price-change: "Fiyat Değişimi"
-      price-change-hint: "Alınan/satılan eşya başına fiyat değişimi"
+      price-change: "Fiyat DeÄŸiÅŸimi"
+      price-change-hint: "AlÄ±nan/satÄ±lan eÅŸya baÅŸÄ±na fiyat deÄŸiÅŸimi"
 
       commands: "Commands"
       commands-hint: "Commands to run on purchase (%player%, %amount%, %item%, %price%)"
@@ -329,29 +612,29 @@ web-editor:
       permission: "Izin"
       permission-hint: "Optional permission required to buy/sell this item."
     item-location: "Sayfa %page%, Slot %slot%"
-    new-item-name: "&eYeni Eşya"
-    new-item-lore: "&7Web düzenleyici aracılığıyla eklendi"
-    new-shop-name: "&eYeni Mağaza"
-    click-to-open: "&7Açmak için tıkla"
-    buying-title: "&8Satın alınıyor: "
-    selling-title: "&8Satılıyor: "
+    new-item-name: "&eYeni EÅŸya"
+    new-item-lore: "&7Web dÃ¼zenleyici aracÄ±lÄ±ÄŸÄ±yla eklendi"
+    new-shop-name: "&eYeni MaÄŸaza"
+    click-to-open: "&7AÃ§mak iÃ§in tÄ±kla"
+    buying-title: "&8SatÄ±n alÄ±nÄ±yor: "
+    selling-title: "&8SatÄ±lÄ±yor: "
     confirm-purchase: "&aALIMI ONAYLA"
-    confirm-sell: "&aSATIŞI ONAYLA"
-    sell-all: "&6TÜMÜNÜ SAT"
+    confirm-sell: "&aSATIÅžI ONAYLA"
+    sell-all: "&6TÃœMÃœNÃœ SAT"
   login:
-    title: "Giriş - Genius Shop Düzenleyici"
+    title: "GiriÅŸ - Genius Shop DÃ¼zenleyici"
     heading: "GENIUS SHOP"
-    subtitle: "Yapılandırma Düzenleyici"
+    subtitle: "YapÄ±landÄ±rma DÃ¼zenleyici"
     requirements-title: "Gereksinimler"
-    req1: "Minecraft sunucusuna bağlı olmalısınız"
-    req2: "Yönetici izinlerine sahip olmalısınız (geniusshop.admin veya OP)"
-    req3: "Şifreniz oyuncu UUID'nizdir (veya bir giriş kodu)"
-    username-label: "Minecraft Kullanıcı Adı"
-    username-placeholder: "Oyun içi adınız"
-    password-label: "Şifre (UUID'niz)"
+    req1: "Minecraft sunucusuna baÄŸlÄ± olmalÄ±sÄ±nÄ±z"
+    req2: "YÃ¶netici izinlerine sahip olmalÄ±sÄ±nÄ±z (geniusshop.admin veya OP)"
+    req3: "Åžifreniz oyuncu UUID'nizdir (veya bir giriÅŸ kodu)"
+    username-label: "Minecraft KullanÄ±cÄ± AdÄ±"
+    username-placeholder: "Oyun iÃ§i adÄ±nÄ±z"
+    password-label: "Åžifre (UUID'niz)"
     password-placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    password-hint: "UUID'nizi https://mcuuid.net/ adresinden alın veya Kod Girişi sekmesini kullanın"
-    login-button: "Giriş Yap"
+    password-hint: "UUID'nizi https://mcuuid.net/ adresinden alÄ±n veya Kod GiriÅŸi sekmesini kullanÄ±n"
+    login-button: "GiriÅŸ Yap"
     security-title: "Security Confirmation Required"
     security-text: "You are logging in from a different IP address.<br>Please check your Minecraft game and confirm the login request."
     waiting: "Waiting for confirmation..."
@@ -362,11 +645,14 @@ web-editor:
     timeout: "Confirmation timeout. Please try logging in again."
     failed: "Login failed"
   footer:
-    description: "Canlı önizleme ile Minecraft mağaza eklentileri için güçlü bir yapılandırma düzenleyici"
-    github: "GitHub'da Yıldızla"
-    issues: "Sorunları Bildir"
+    description: "CanlÄ± Ã¶nizleme ile Minecraft maÄŸaza eklentileri iÃ§in gÃ¼Ã§lÃ¼ bir yapÄ±landÄ±rma dÃ¼zenleyici"
+    github: "GitHub'da YÄ±ldÄ±zla"
+    issues: "SorunlarÄ± Bildir"
     made-with: "Minecraft toplulugu icin Dralle tarafindan sevgiyle yapildi"
-    copyright: "© 2025 Genius Shop - Açık Kaynak Projesi"
+    copyright: "Â© 2025 Genius Shop - AÃ§Ä±k Kaynak Projesi"
+
+
+
 
 
 

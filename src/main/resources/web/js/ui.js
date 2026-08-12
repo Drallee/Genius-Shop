@@ -342,7 +342,7 @@ function switchTab(tabName) {
     // Toggle preview section visibility
     const previewSection = document.querySelector('.minecraft-preview-section');
     if (previewSection) {
-        previewSection.style.display = (tabName === 'guisettings' || tabName === 'campaigns' || tabName === 'stockanalytics' || tabName === 'dataeditor') ? 'none' : 'block';
+        previewSection.style.display = (tabName === 'guisettings' || tabName === 'campaigns' || tabName === 'commands' || tabName === 'stockanalytics' || tabName === 'dataeditor') ? 'none' : 'block';
     }
 
     // Toggle preview settings bar content
@@ -374,6 +374,8 @@ function switchTab(tabName) {
         updatePreview();
     } else if (tabName === 'campaigns') {
         renderCampaignsTab();
+    } else if (tabName === 'commands' && typeof renderCommandsTab === 'function') {
+        renderCommandsTab();
     } else if (tabName === 'stockanalytics') {
         loadStockAnalyticsData(true);
     } else if (tabName === 'dataeditor') {
@@ -1438,7 +1440,7 @@ function renderCampaignHubItemAssignments() {
             <div class="campaign-assignment-main">
                 <input type="checkbox" id="campaign-item-check-${item.id}" class="campaign-item-check" value="${item.id}">
                 <div>
-                    <div class="campaign-assignment-name">${escapeHtml((item.name || item.material || `Item ${item.id}`))}</div>
+                    <div class="campaign-assignment-name">${item.name ? parseMinecraftColors(item.name) : escapeHtml(item.material || `Item ${item.id}`)}</div>
                     <div class="campaign-assignment-sub">${escapeHtml(item.material || 'UNKNOWN')} x${Number(item.amount) || 1} | Slot ${Number(item.slot) || 0} | Assigned: ${escapeHtml(item.campaign || 'None')}</div>
                 </div>
             </div>
@@ -1746,7 +1748,8 @@ function renderCampaignsTab() {
             if (!c || !c.key) return;
             const opt = document.createElement('option');
             opt.value = c.key;
-            opt.textContent = c.name ? `${c.name} (${c.key})` : c.key;
+            opt.textContent = c.name ? `${stripMinecraftDisplayCodes(c.name)} (${c.key})` : c.key;
+            if (c.name) opt.dataset.minecraftColors = `${c.name} (${c.key})`;
             campaignSelect.appendChild(opt);
         });
         campaignSelect.value = campaignHubSelectedKey || '';
@@ -1802,7 +1805,7 @@ function renderCampaignsTab() {
         card.innerHTML = `
             <div class="item-header">
                 <div class="flex-1">
-                    <div class="item-title">${escapeHtml(campaign.name || campaign.key)}</div>
+                    <div class="item-title">${campaign.name ? parseMinecraftColors(campaign.name) : escapeHtml(campaign.key)}</div>
                     <div class="item-subtitle">${escapeHtml(campaign.key)}</div>
                     <div class="item-tags">
                         <span class="item-tag active">${active ? 'Active' : 'Inactive'}</span>
@@ -1865,8 +1868,24 @@ function createCustomDropdown(select) {
         return text;
     }
 
+    function getDisplayHtml(option) {
+        if (!option || !option.dataset || !option.dataset.minecraftColors || typeof parseMinecraftColors !== 'function') {
+            return null;
+        }
+        return parseMinecraftColors(option.dataset.minecraftColors);
+    }
+
+    function setDropdownLabel(element, option) {
+        const html = getDisplayHtml(option);
+        if (html) {
+            element.innerHTML = html;
+        } else {
+            element.textContent = getDisplayText(option);
+        }
+    }
+
     const triggerText = document.createElement('span');
-    triggerText.textContent = getDisplayText(select.options[select.selectedIndex]);
+    setDropdownLabel(triggerText, select.options[select.selectedIndex]);
     trigger.appendChild(triggerText);
     
     const optionsContainer = document.createElement('div');
@@ -1880,12 +1899,15 @@ function createCustomDropdown(select) {
             if (index === select.selectedIndex) opt.classList.add('selected');
             
             const displayText = getDisplayText(option);
-            opt.textContent = displayText;
+            const displayHtml = getDisplayHtml(option);
+            if (displayHtml) opt.innerHTML = displayHtml;
+            else opt.textContent = displayText;
             opt.onclick = (e) => {
                 e.stopPropagation();
                 select.selectedIndex = index;
                 select.dispatchEvent(new Event('change'));
-                triggerText.textContent = displayText;
+                if (displayHtml) triggerText.innerHTML = displayHtml;
+                else triggerText.textContent = displayText;
                 container.classList.remove('open');
                 updateOptions();
             };
@@ -1911,7 +1933,7 @@ function createCustomDropdown(select) {
     
     // Listen for external changes to the original select
     const updateDropdown = () => {
-        triggerText.textContent = getDisplayText(select.options[select.selectedIndex]);
+        setDropdownLabel(triggerText, select.options[select.selectedIndex]);
         updateOptions();
     };
     select.addEventListener('change', updateDropdown);

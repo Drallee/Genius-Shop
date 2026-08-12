@@ -1,33 +1,38 @@
 # Common GUI settings shared across all menus
 # This file contains buttons and settings used in shop pages
 
-config-version: 3
+config-version: 4
 
 gui:
   # Navigation buttons for shop pages
   back-button:
     material: "ENDER_CHEST"
-    name: '&9BACK TO CATEGORIES'
+    name: menus.gui-settings.back-button.name
     lore:
-      - ''
-      - '&bClick to return to the main menu.'
-      - ''
+      - menus.gui-settings.back-button.lore
 
   prev-button:
     material: "GRAY_DYE"
-    name: '&e<- PREVIOUS PAGE'
+    name: menus.gui-settings.prev-button.name
     lore:
-      - ''
-      - '&7See the previous page.'
-      - ''
+      - menus.gui-settings.prev-button.lore
 
   next-button:
     material: "LIME_DYE"
-    name: '&eNEXT PAGE ->'
+    name: menus.gui-settings.next-button.name
     lore:
-      - ''
-      - '&7See the next page.'
-      - ''
+      - menus.gui-settings.next-button.lore
+
+  # Text shown in the purchase menu
+  purchase:
+    title-prefix: menus.gui-settings.purchase.title-prefix
+
+  # Text shown in the sell menu
+  sell:
+    title-prefix: menus.gui-settings.sell.title-prefix
+    selected-amount: menus.gui-settings.sell.selected-amount
+    sell-price: menus.gui-settings.sell.sell-price
+    you-own: menus.gui-settings.sell.you-own
 
   # Controls lore lines on shop items
   item-lore:
@@ -53,37 +58,37 @@ gui:
 
     # Price display lines (shown at top of item lore)
     show-buy-price: true
-    buy-price-line: '&6Buy Price: &a%price%'
+    buy-price-line: menus.gui-settings.item-lore.buy-price-line
     show-sell-price: true
-    sell-price-line: '&cSell Price: &a%sell-price%'
+    sell-price-line: menus.gui-settings.item-lore.sell-price-line
 
     # Hint lines (shown at bottom of item lore)
     show-buy-hint: true
-    buy-hint-line: '&eLeft-click to buy'
+    buy-hint-line: menus.gui-settings.item-lore.buy-hint-line
     show-sell-hint: true
-    sell-hint-line: '&aRight-click to sell'
+    sell-hint-line: menus.gui-settings.item-lore.sell-hint-line
 
     # Purchase menu amount and total lines
-    amount-line: '&eAmount: &7%amount%'
-    total-line: '&eTotal: &7%total%'
+    amount-line: menus.gui-settings.item-lore.amount-line
+    total-line: menus.gui-settings.item-lore.total-line
 
     # Spawner lore lines
-    spawner-type-line: '&7Spawner Type: &e%type%'
-    spawner-item-line: '&7Spawner Item: &e%item%'
+    spawner-type-line: menus.gui-settings.item-lore.spawner-type-line
+    spawner-item-line: menus.gui-settings.item-lore.spawner-item-line
 
     # Potion lore lines
-    potion-type-line: '&7Potion Type: &d%type%'
+    potion-type-line: menus.gui-settings.item-lore.potion-type-line
 
     # Value format templates for placeholders.
     # Available: %current%, %limit%
-    global-limit-value-format: '%current%/%limit%'
-    player-limit-value-format: '%current%/%limit%'
+    global-limit-value-format: menus.gui-settings.item-lore.global-limit-value-format
+    player-limit-value-format: menus.gui-settings.item-lore.player-limit-value-format
 
     # Countdown value format for %stock-reset-timer%
     # Available: %time% (example: 10 minutes, 5 hours)
-    stock-reset-timer-value-format: 'Stock resets in %time%'
+    stock-reset-timer-value-format: menus.gui-settings.item-lore.stock-reset-timer-value-format
 
     # Display lines for lore-format placeholders
-    global-limit-line: '&7Stock: &e%global-limit%'
-    player-limit-line: '&7Your limit: &e%player-limit%'
-    stock-reset-timer-line: '&7%stock-reset-timer%'
+    global-limit-line: menus.gui-settings.item-lore.global-limit-line
+    player-limit-line: menus.gui-settings.item-lore.player-limit-line
+    stock-reset-timer-line: menus.gui-settings.item-lore.stock-reset-timer-line

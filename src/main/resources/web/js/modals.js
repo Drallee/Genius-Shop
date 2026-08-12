@@ -260,6 +260,9 @@ function openSaveConfirmationModal(mode = 'tab') {
                 )) ||
                 (change.target === 'shop-item' && change.details && change.details.campaignHub === true);
         }
+        if (currentTab === 'commands') {
+            return change.target === 'custom-command';
+        }
         if (currentTab === 'guisettings') {
             return change.target === 'gui-settings' || change.target === 'config-settings';
         }

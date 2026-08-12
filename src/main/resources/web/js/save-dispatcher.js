@@ -16,6 +16,8 @@ async function saveCurrentTabChanges(isSilent = false) {
             await saveCampaignsYaml(isSilent);
             await saveCurrentShop(true);
             await saveCampaignHubDirtyShops(true);
+        } else if (tab === 'commands') {
+            await saveCommandsYaml(isSilent);
         } else if (tab === 'guisettings') {
             await saveGuiSettingsYaml(isSilent);
             await saveEconomySafetySettings(true);
@@ -34,12 +36,18 @@ async function publishAllChanges() {
     const start = Date.now();
     showToast(t('web-editor.modals.publishing', 'Publishing...'), 'info');
     try {
+        if (getEditorState('currentTab') === 'commands') {
+            await saveCommandsYaml(true);
+        }
         await saveCurrentShop(true);
         await saveCampaignHubDirtyShops(true);
         await saveMainMenuYaml(true);
         await savePurchaseMenuYaml(true);
         await saveSellMenuYaml(true);
         await saveCampaignsYaml(true);
+        if (getEditorState('currentTab') !== 'commands') {
+            await saveCommandsYaml(true);
+        }
         await saveGuiSettingsYaml(true);
         await saveEconomySafetySettings(true);
         await loadDatabaseEditorData(true);

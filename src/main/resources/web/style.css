@@ -4,6 +4,7 @@
     --primary-light: #a78bfa;
     --primary-dark: #5b21b6;
     --accent: #ec4899;
+    --accent-rgb: 236, 72, 153;
     --success: #10b981;
     --success-dark: #059669;
     --danger: #ef4444;
@@ -317,7 +318,7 @@ body::before {
             animation: none !important;
         }
 
-        body.no-animations body::before {
+        body.no-animations::before {
             animation: none !important;
         }
 
@@ -327,7 +328,7 @@ body::before {
 
         body.no-animations header h1 {
             animation: none !important;
-            background-position: 0% 50% !important;
+            background-position: 0 50% !important;
         }
 
         .info-card {
@@ -1996,10 +1997,6 @@ body::before {
         .item-count {
             position: absolute;
             z-index:1;
-            color: white;
-            font-size: 0.8em;
-            font-weight: 600;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
             bottom: 2px;
             right: 2px;
             font-size: 0.7em;
@@ -2158,7 +2155,7 @@ body::before {
 
         body.no-animations .gui-slot.enchanted .item-icon::before {
             animation: none;
-            background-position: 0% center;
+            background-position: 0 center;
             opacity: 0.4;
         }
 
@@ -3432,9 +3429,9 @@ body::before {
 }
 
 @keyframes login-gradientShift {
-    0% { background-position: 0% 50%; }
+    0% { background-position: 0 50%; }
     50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    100% { background-position: 0 50%; }
 }
 
 @keyframes login-slideUp {
@@ -4090,6 +4087,119 @@ body.login-page::after {
     gap: 8px;
 }
 
+.commands-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.command-card {
+    padding: 16px;
+}
+
+.command-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.command-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.command-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: rgba(220, 228, 242, 0.92);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.command-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.command-typeahead-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.command-typeahead-field input {
+    min-width: 0;
+}
+
+.command-selected-preview {
+    min-height: 18px;
+    color: rgba(205, 215, 235, 0.86);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.command-selected-preview.muted {
+    color: rgba(170, 180, 200, 0.62);
+}
+
+.commands-validation {
+    margin-bottom: 14px;
+}
+
+.commands-valid,
+.commands-error,
+.commands-warning,
+.commands-empty {
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.commands-valid {
+    background: rgba(46, 204, 113, 0.12);
+    border: 1px solid rgba(46, 204, 113, 0.28);
+    color: #91f0bd;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.commands-error {
+    background: rgba(231, 76, 60, 0.12);
+    border: 1px solid rgba(231, 76, 60, 0.28);
+    color: #ffb4ad;
+    font-size: 0.82rem;
+}
+
+.commands-warning {
+    background: rgba(241, 196, 15, 0.12);
+    border: 1px solid rgba(241, 196, 15, 0.28);
+    color: #ffe080;
+    font-size: 0.82rem;
+}
+
+.commands-error ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+}
+
+.commands-warning ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+}
+
 @media (max-width: 1200px) {
     .stock-analytics-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4107,5 +4217,17 @@ body.login-page::after {
     .data-editor-global,
     .data-editor-stock {
         grid-template-columns: 1fr;
+    }
+
+    .command-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .command-card-header {
+        flex-direction: column;
+    }
+
+    .command-card-actions {
+        justify-content: flex-start;
     }
 }
