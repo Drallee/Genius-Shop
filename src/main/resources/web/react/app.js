@@ -32,6 +32,7 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState({ type: "ok", text: "Loading..." });
     const [activeTab, setActiveTab] = useState("shop");
+    const [pendingConfirmation, setPendingConfirmation] = useState(null);
 
     const [files, setFiles] = useState({
         shops: {},
@@ -57,7 +58,12 @@ function App() {
                     const result = await autoLogin(token);
                     if (!result.ok) {
                         if (!cancelled) {
-                            setStatus({ type: "err", text: result.data?.message || "Auto-login failed." });
+                            if (result.status === 403 && result.data?.status === "pending_confirmation") {
+                                setPendingConfirmation(result.data);
+                                setStatus({ type: "warn", text: "Confirm this login in Minecraft chat." });
+                            } else {
+                                setStatus({ type: "err", text: result.data?.message || "Auto-login failed." });
+                            }
                             setLoading(false);
                         }
                         return;
@@ -129,6 +135,27 @@ function App() {
         localStorage.removeItem("sessionToken");
         localStorage.removeItem("username");
         window.location.href = "login.html";
+    };
+
+    const copyConfirmationCommand = async () => {
+        const command = `/shop confirmlogin ${pendingConfirmation?.confirmToken || "<token>"}`;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(command);
+            } else {
+                const textarea = document.createElement("textarea");
+                textarea.value = command;
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand("copy");
+                textarea.remove();
+            }
+            setStatus({ type: "ok", text: "Confirmation command copied." });
+        } catch (error) {
+            setStatus({ type: "err", text: "Could not copy the command. Select it manually." });
+        }
     };
 
     const onPickShop = (name) => {
@@ -223,6 +250,29 @@ function App() {
         }
         return null;
     };
+
+    if (pendingConfirmation) {
+        const command = `/shop confirmlogin ${pendingConfirmation.confirmToken || "<token>"}`;
+        return React.createElement(
+            "div",
+            { className: "wrap" },
+            React.createElement("h1", { className: "title" }, "Confirmation Required"),
+            React.createElement(StatusBanner, { status }),
+            React.createElement(
+                "div",
+                { className: "card" },
+                React.createElement("div", { className: "card-head" }, "Paste this command in Minecraft chat"),
+                React.createElement("pre", { className: "yaml", style: { minHeight: "auto", whiteSpace: "pre-wrap" } }, command),
+                React.createElement(
+                    "div",
+                    { style: { display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "12px" } },
+                    React.createElement(Button, { onClick: copyConfirmationCommand }, "Copy"),
+                    React.createElement(Button, { onClick: () => window.location.reload() }, "Retry"),
+                    React.createElement(Button, { onClick: () => (window.location.href = "login.html") }, "Go to Login Page")
+                )
+            )
+        );
+    }
 
     return React.createElement(
         "div",

@@ -9,7 +9,7 @@ softdepend: [SmartSpawner]
 commands:
   shop:
     description: Open the shop menu or reload the plugin
-    usage: /shop [reload|editor|sell|wiki|resetstock|validate-prices|exportitem]
+    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem]
 
 permissions:
   geniusshop.use:
@@ -53,6 +53,9 @@ permissions:
   geniusshop.exportitem:
     description: Allows exporting the held item to a web-editor JSON file
     default: op
+  geniusshop.login.ip.bypass:
+    description: Allows confirming and trusting web-editor logins from a different IP
+    default: op
   geniusshop.admin:
     description: Allows access to advanced commands and configuration
     default: op
@@ -64,3 +67,4 @@ permissions:
       geniusshop.wiki: true
       geniusshop.validateprices: true
       geniusshop.exportitem: true
+      geniusshop.login.ip.bypass: true

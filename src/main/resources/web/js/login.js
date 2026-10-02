@@ -198,6 +198,67 @@
     // Default to the simpler flow: in-game generated 6-digit code login.
     document.getElementById('tab-code').click();
 
+    function escapeConfirmationHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
+    function renderLoginConfirmationRequired(data) {
+        const confirmToken = data && data.confirmToken ? String(data.confirmToken) : '';
+        const command = confirmToken ? `/shop confirmlogin ${confirmToken}` : '/shop confirmlogin <token>';
+        const escapedCommand = escapeConfirmationHtml(command);
+        const escapedMessage = escapeConfirmationHtml((data && data.message) || 'This login request is coming from a different IP address.');
+
+        document.body.innerHTML = `
+            <div style="min-height: 100vh; background: #050505; color: #fff; font-family: Inter, sans-serif; display: grid; place-items: center; padding: 24px;">
+                <div style="width: min(720px, 100%); display: flex; flex-direction: column; gap: 18px; text-align: left;">
+                    <div style="font-size: 28px; font-weight: 800; color: #facc15;">${t('web-editor.login.security-title', 'Security Confirmation Required')}</div>
+                    <div style="font-size: 15px; color: #d4d4d8; line-height: 1.6;">${escapedMessage}</div>
+                    <div style="padding: 18px; background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.35); border-radius: 8px;">
+                        <div style="font-size: 13px; color: #a1a1aa; margin-bottom: 10px;">Paste this command in Minecraft chat:</div>
+                        <div style="display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap;">
+                            <code id="confirm-login-command" style="flex: 1 1 360px; min-width: 0; padding: 12px 14px; background: #111; border: 1px solid #333; border-radius: 6px; color: #fff; overflow-wrap: anywhere;">${escapedCommand}</code>
+                            <button id="copy-confirm-login-command" type="button" style="padding: 10px 16px; background: #2563eb; border: 1px solid #3b82f6; color: #fff; border-radius: 6px; cursor: pointer; font-weight: 700;">Copy</button>
+                        </div>
+                    </div>
+                    <div style="padding: 14px 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                        <div style="font-size: 14px; color: #d4d4d8;">${t('web-editor.login.waiting', 'Waiting for confirmation...')}</div>
+                        <div style="font-size: 12px; color: #71717a; margin-top: 6px;">${t('web-editor.login.retry-auto', 'This will retry automatically')}</div>
+                    </div>
+                    <div id="countdown" style="font-size: 14px; color: #71717a;">${t('web-editor.login.retry-in', 'Retrying in')} <span id="timer">10</span>s</div>
+                    <button onclick="window.location.href='login.html'" style="align-self: flex-start; padding: 10px 20px; background: #222; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer;">Go to Login Page</button>
+                </div>
+            </div>`;
+
+        const copyButton = document.getElementById('copy-confirm-login-command');
+        if (copyButton) {
+            copyButton.addEventListener('click', async () => {
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(command);
+                    } else {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = command;
+                        textarea.style.position = 'fixed';
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        textarea.remove();
+                    }
+                    copyButton.textContent = 'Copied';
+                } catch (error) {
+                    copyButton.textContent = 'Copy failed';
+                }
+            });
+        }
+    }
+
     document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -236,27 +297,7 @@
             if (!response.ok) {
                 // Check if this is a pending confirmation (IP bypass)
                 if (response.status === 403 && data.status === 'pending_confirmation') {
-                    // Show waiting for confirmation screen
-                    document.body.innerHTML = `
-                        <div style="display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 80px); background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 25px; padding: 20px; text-align: center; margin: auto; max-width: 600px;">
-                            <div style="font-size: 48px; animation: pulse 2s ease-in-out infinite;">&#9888;</div>
-                            <div style="font-size: 28px; font-weight: 700;">${t('web-editor.login.security-title', 'Security Confirmation Required')}</div>
-                            <div style="font-size: 16px; color: #aaa; max-width: 500px; line-height: 1.6;">
-                                ${t('web-editor.login.security-text', 'You are logging in from a different IP address.<br>Please check your Minecraft game and confirm the login request.')}
-                            </div>
-                            <div style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-                                <div style="font-size: 14px; color: #888; margin-bottom: 8px;">${t('web-editor.login.waiting', 'Waiting for confirmation...')}</div>
-                                <div style="font-size: 12px; color: #666;">${t('web-editor.login.retry-auto', 'This will retry automatically')}</div>
-                            </div>
-                            <div id="countdown" style="font-size: 14px; color: #666; margin-top: 10px;">${t('web-editor.login.retry-in', 'Retrying in')} <span id="timer">10</span>s</div>
-                            <style>
-                                @keyframes pulse {
-                                    0%, 100% { transform: scale(1); opacity: 1; }
-                                    50% { transform: scale(1.1); opacity: 0.8; }
-                                }
-                            </style>
-                        </div>
-                    `;
+                    renderLoginConfirmationRequired(data);
 
                     // Poll for confirmation
                     let attempts = 0;

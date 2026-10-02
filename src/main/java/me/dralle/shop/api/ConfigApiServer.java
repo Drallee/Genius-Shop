@@ -15,7 +15,6 @@ import me.dralle.shop.model.ShopItem;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.YamlUtil;
 import org.bukkit.entity.Player;
 
@@ -508,13 +507,9 @@ public class ConfigApiServer {
                             username, playerIp, requestIp, confirmToken, confirmExpiry
                     ));
 
-                    // Send message to player with confirmation command
-                    Bukkit.getScheduler().runTask(plugin, () ->
-                            sendSecurityConfirmationPrompt(player, requestIp, playerIp, confirmToken));
-
                     Map<String, String> response = new HashMap<>();
                     response.put("status", "pending_confirmation");
-                    response.put("message", "Please confirm this login in-game");
+                    response.put("message", "Please confirm this login in-game using the command shown in the web editor");
                     response.put("confirmToken", confirmToken);
                     response.put("username", username);
                     sendJsonResponse(exchange, 403, response);
@@ -669,13 +664,9 @@ public class ConfigApiServer {
                             tokenData.username, tokenData.ipAddress, requestIp, token, confirmExpiry
                     ));
 
-                    // Send message to player with confirmation command
-                    Bukkit.getScheduler().runTask(plugin, () ->
-                            sendSecurityConfirmationPrompt(player, requestIp, tokenData.ipAddress, confirmToken));
-
                     Map<String, String> response = new HashMap<>();
                     response.put("status", "pending_confirmation");
-                    response.put("message", "Please confirm this login in-game");
+                    response.put("message", "Please confirm this login in-game using the command shown in the web editor");
                     response.put("confirmToken", confirmToken);
                     sendJsonResponse(exchange, 403, response);
                     me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Auto-login blocked for '" + tokenData.username + "': IP mismatch requires in-game confirmation");
@@ -784,7 +775,10 @@ public class ConfigApiServer {
         String playerIp = player.getAddress().getAddress().getHostAddress();
         boolean playerIsLocalhost = isLoopbackIp(playerIp);
 
-        if (!playerIsLocalhost && !playerIp.equals(session.ipAddress) && !(sessionIsLocal && requestIsLocal)) {
+        if (!playerIsLocalhost
+                && !playerIp.equals(session.ipAddress)
+                && !(sessionIsLocal && requestIsLocal)
+                && !canUseTrustedSessionIp(player, session.ipAddress)) {
             me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Session invalidated for '" + session.username + "': in-game IP changed");
             sessions.remove(sessionToken);
             return false;
@@ -796,6 +790,14 @@ public class ConfigApiServer {
         }
 
         return true;
+    }
+
+    private boolean canUseTrustedSessionIp(Player player, String sessionIp) {
+        if (player == null || sessionIp == null) return false;
+        boolean allowBypass = plugin.getConfig().getBoolean("api.allow-ip-bypass", true);
+        return allowBypass
+                && player.hasPermission("geniusshop.login.ip.bypass")
+                && isIpTrusted(player.getName(), sessionIp);
     }
 
     private boolean isLoopbackIp(String ip) {
@@ -2089,22 +2091,6 @@ public class ConfigApiServer {
             errorData.put("exception", e.getClass().getSimpleName());
             sendError(exchange, 500, "Internal Server Error", "An error occurred while serving the requested file", errorData);
         }
-    }
-
-    private void sendSecurityConfirmationPrompt(Player player, String requestIp, String currentIp, String confirmToken) {
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-border"));
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-title"));
-        player.sendMessage("");
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-request-ip"));
-        player.sendMessage(ShopItemUtil.color("&e" + requestIp));
-        player.sendMessage("");
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-current-ip").replace("%ip%", currentIp));
-        player.sendMessage("");
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-confirm-instruction"));
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-confirm-command").replace("%token%", confirmToken));
-        player.sendMessage("");
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-expires"));
-        player.sendMessage(plugin.getMessages().getMessage("security-alert-border"));
     }
 
     private Player getPlayerByName(String username) {

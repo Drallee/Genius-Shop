@@ -129,7 +129,8 @@ public class ConfigUpdater {
                 return;
             }
 
-            if (userVersion < maxDefaultVersion) {
+            boolean isLanguageFile = fileName.startsWith("languages/");
+            if (userVersion < maxDefaultVersion || isLanguageFile) {
                 // Perform merges
                 // First, merge from the specific default file (e.g. fr_FR.yml in JAR)
                 if (defCfg != null) {

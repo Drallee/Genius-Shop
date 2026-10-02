@@ -872,6 +872,69 @@ async function removeShopFile() {
     }
 }
 
+function escapeConfirmationHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+}
+
+function renderLoginConfirmationRequired(data, options = {}) {
+    const confirmToken = data && data.confirmToken ? String(data.confirmToken) : '';
+    const command = confirmToken ? `/shop confirmlogin ${confirmToken}` : '/shop confirmlogin <token>';
+    const escapedCommand = escapeConfirmationHtml(command);
+    const escapedMessage = escapeConfirmationHtml((data && data.message) || 'This login request is coming from a different IP address.');
+    const retryButton = options.retryButton !== false
+        ? `<button onclick="window.location.reload()" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer;">Retry</button>`
+        : '';
+
+    document.body.innerHTML = `
+        <div style="min-height: 100vh; background: #050505; color: #fff; font-family: Inter, sans-serif; display: grid; place-items: center; padding: 24px;">
+            <div style="width: min(720px, 100%); display: flex; flex-direction: column; gap: 18px; text-align: left;">
+                <div style="font-size: 28px; font-weight: 800; color: #facc15;">Confirmation Required</div>
+                <div style="font-size: 15px; color: #d4d4d8; line-height: 1.6;">${escapedMessage}</div>
+                <div style="padding: 18px; background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.35); border-radius: 8px;">
+                    <div style="font-size: 13px; color: #a1a1aa; margin-bottom: 10px;">Paste this command in Minecraft chat:</div>
+                    <div style="display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap;">
+                        <code id="confirm-login-command" style="flex: 1 1 360px; min-width: 0; padding: 12px 14px; background: #111; border: 1px solid #333; border-radius: 6px; color: #fff; overflow-wrap: anywhere;">${escapedCommand}</code>
+                        <button id="copy-confirm-login-command" type="button" style="padding: 10px 16px; background: #2563eb; border: 1px solid #3b82f6; color: #fff; border-radius: 6px; cursor: pointer; font-weight: 700;">Copy</button>
+                    </div>
+                </div>
+                <div style="font-size: 13px; color: #a1a1aa; line-height: 1.6;">After you run the command in-game, retry this page. The trusted IP is saved for your user.</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    ${retryButton}
+                    <button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #222; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer;">Go to Login Page</button>
+                </div>
+            </div>
+        </div>`;
+
+    const copyButton = document.getElementById('copy-confirm-login-command');
+    if (copyButton) {
+        copyButton.addEventListener('click', async () => {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(command);
+                } else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = command;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    textarea.remove();
+                }
+                copyButton.textContent = 'Copied';
+            } catch (error) {
+                copyButton.textContent = 'Copy failed';
+            }
+        });
+    }
+}
+
 async function handleAutoLogin(token) {
     try {
         const response = await fetch(`api/autologin`, {
@@ -894,7 +957,7 @@ async function handleAutoLogin(token) {
             window.history.replaceState({}, document.title, window.location.pathname);
             window.location.reload();
         } else if (response.status === 403 && data && data.status === 'pending_confirmation') {
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #facc15;">Confirmation Required</div><div style="font-size: 14px; color: #d4d4d8; max-width: 720px; text-align: center;">${data.message || 'Please confirm this login in-game using /shop confirmlogin <token>, then retry /shop editor.'}</div><button onclick="window.location.reload()" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer; margin-top: 10px;">Retry</button><button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #222; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer;">Go to Login Page</button></div>`;
+            renderLoginConfirmationRequired(data);
         } else {
             document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Login Failed</div><div style="font-size: 14px; color: #888;">${data.message || data.error || 'Invalid or expired token'}</div><button onclick="window.location.href='login.html'" style="padding: 10px 20px; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; cursor: pointer; margin-top: 10px;">Go to Login Page</button></div>`;
         }

@@ -240,7 +240,7 @@ function renderCommandCard(command, index) {
     const aliases = Array.isArray(command.aliases) ? command.aliases.join(', ') : '';
 
     return `
-        <section class="command-card card-base" data-command-card="${index}">
+        <section class="command-card card-base" data-command-card="${index}" data-command-name="${escapeHtml(command.name || '')}">
             <div class="command-card-header">
                 <div>
                     <div class="campaign-hub-title">${escapeHtml(command.name || 'new-command')}</div>
@@ -534,17 +534,17 @@ function validateCustomCommandsDetailed(options = {}) {
         const label = command.name || `command ${index + 1}`;
         const name = String(command.name || '').trim().toLowerCase();
         validateCommandToken(name, `Command ${index + 1}`, errors);
+        recordCommandToken(name, label, seen, errors);
         if (runtime && command.enabled) {
             if (PROTECTED_CUSTOM_COMMANDS.has(name)) warnings.push(`Command '${name}' conflicts with a protected command and will not register.`);
-            recordCommandToken(name, label, seen, errors);
         }
 
         (command.aliases || []).forEach(aliasRaw => {
             const alias = String(aliasRaw || '').trim().toLowerCase();
             validateCommandToken(alias, `Alias for ${label}`, errors);
+            recordCommandToken(alias, `alias for ${label}`, seen, errors);
             if (runtime && command.enabled) {
                 if (PROTECTED_CUSTOM_COMMANDS.has(alias)) warnings.push(`Alias '${alias}' for '${label}' conflicts with a protected command and will not register.`);
-                recordCommandToken(alias, `alias for ${label}`, seen, errors);
             }
         });
 
@@ -672,6 +672,9 @@ function collectCustomCommandsFromDom() {
         const command = JSON.parse(JSON.stringify(fallback));
         command.action = command.action || {};
 
+        const nameField = card.querySelector('input[data-command-field="name"]');
+        command.name = normalizeCommandToken(nameField ? nameField.value : (card.dataset.commandName || command.name));
+
         card.querySelectorAll('[data-command-field]').forEach(field => {
             const key = field.dataset.commandField;
             if (!key) return;
@@ -680,7 +683,7 @@ function collectCustomCommandsFromDom() {
             } else if (key === 'aliases') {
                 command.aliases = String(field.value || '').split(',').map(v => normalizeCommandToken(v)).filter(Boolean);
             } else if (key === 'name') {
-                command.name = normalizeCommandToken(field.value);
+                return;
             } else {
                 command[key] = String(field.value || '').trim();
             }
