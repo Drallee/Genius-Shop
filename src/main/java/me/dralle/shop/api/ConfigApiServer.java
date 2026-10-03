@@ -23,7 +23,6 @@ import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -36,7 +35,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
 import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -201,7 +199,10 @@ public class ConfigApiServer {
      */
     public String createAutoLoginToken(Player player) {
         String token = UUID.randomUUID().toString();
-        String ipAddress = player.getAddress().getAddress().getHostAddress();
+        String ipAddress = getPlayerIp(player);
+        if (ipAddress == null) {
+            throw new IllegalStateException("Player has no resolved network address");
+        }
         long expiry = System.currentTimeMillis() + AUTO_LOGIN_TOKEN_DURATION;
 
         autoLoginTokens.put(token, new AutoLoginToken(player.getName(), ipAddress, expiry));
@@ -487,7 +488,11 @@ public class ConfigApiServer {
         }
 
         // Get player's IP address
-        String playerIp = player.getAddress().getAddress().getHostAddress();
+        String playerIp = getPlayerIp(player);
+        if (playerIp == null) {
+            sendError(exchange, 403, "Forbidden", "Player has no resolved network address", null);
+            return;
+        }
 
         // Get request IP address
         String requestIp = exchange.getRemoteAddress().getAddress().getHostAddress();
@@ -772,7 +777,11 @@ public class ConfigApiServer {
 
         // Don't check player IP changes if both are local network
         // (player might be IPv6 localhost while browser uses IPv4 LAN address)
-        String playerIp = player.getAddress().getAddress().getHostAddress();
+        String playerIp = getPlayerIp(player);
+        if (playerIp == null) {
+            sessions.remove(sessionToken);
+            return false;
+        }
         boolean playerIsLocalhost = isLoopbackIp(playerIp);
 
         if (!playerIsLocalhost
@@ -790,6 +799,12 @@ public class ConfigApiServer {
         }
 
         return true;
+    }
+
+    static String getPlayerIp(Player player) {
+        InetSocketAddress address = player.getAddress();
+        return address == null || address.getAddress() == null
+                ? null : address.getAddress().getHostAddress();
     }
 
     private boolean canUseTrustedSessionIp(Player player, String sessionIp) {
@@ -1195,7 +1210,7 @@ public class ConfigApiServer {
                 row.put("globalLimit", limit);
                 row.put("current", current);
                 row.put("remaining", remaining);
-                row.put("utilizationPct", limit > 0 ? Math.min(100D, (current * 100D) / limit) : 0D);
+                row.put("utilizationPct", Math.min(100D, (current * 100D) / limit));
                 row.put("showStock", item.isShowStock());
                 row.put("showStockResetTimer", item.isShowStockResetTimer());
                 row.put("dynamicPricing", item.isDynamicPricing());

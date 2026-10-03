@@ -6,7 +6,6 @@ import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.ConsoleLog;
 import me.dralle.shop.util.ItemConditionUtil;
 import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
@@ -19,7 +18,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -31,11 +29,7 @@ import java.util.Map;
 
 public class SellMenu implements Listener {
 
-    public static class SellHolder implements InventoryHolder {
-        @Override
-        public Inventory getInventory() {
-            return null;
-        }
+    public static class SellHolder extends MenuInventoryHolder {
     }
 
     private final ShopPlugin plugin;
@@ -197,7 +191,7 @@ public class SellMenu implements Listener {
                 guiCfg.getString("title-prefix", "&8Selling "));
         String titleText = titlePrefix + (customName != null ? customName : material.name());
         String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color(titleText));
-        Inventory inv = Bukkit.createInventory(new SellHolder(), 54, title);
+Inventory inv = new SellHolder().createInventory(54, title);
 
         int owned = countPlayerItems(player, material, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, requireName, requireLore);
         if (amount > owned) amount = owned;
@@ -366,7 +360,7 @@ public class SellMenu implements Listener {
                         String name = plugin.getMessages().resolveConfigString(guiCfg, "buttons.remove." + key + ".name", "&cRemove " + value);
                         int slot = guiCfg.getInt("buttons.remove." + key + ".slot", -1);
                         if (slot >= 0 && slot < 54) {
-                            if (amount > value || value == 1) {
+                            if (amount > value) {
                                 inv.setItem(slot, ShopItemUtil.create(remMaterial, 1, name, null));
                             }
                         }
@@ -502,8 +496,7 @@ public class SellMenu implements Listener {
     @EventHandler
     public void onClick(InventoryClickEvent e) {
 
-        if (!(e.getWhoClicked() instanceof Player)) return;
-        Player player = (Player) e.getWhoClicked();
+        if (!(e.getWhoClicked() instanceof Player player)) return;
 
         if (!(e.getInventory().getHolder() instanceof SellHolder)) return;
 
@@ -513,7 +506,6 @@ public class SellMenu implements Listener {
         if (clicked == null) return;
 
         ShopPlugin plugin = ShopPlugin.getInstance();
-        String currency = plugin.getCurrencySymbol();
 
         String materialName = getMeta(player, "sell.material", "DIRT");
         double sellPrice = getMetaDouble(player, "sell.price", 0.0);
@@ -524,7 +516,7 @@ public class SellMenu implements Listener {
         String potionType = getMeta(player, "sell.potionType", null);
         Map<String, Integer> enchantments = null;
         if (player.hasMetadata("sell.enchantments")) {
-            enchantments = (Map<String, Integer>) player.getMetadata("sell.enchantments").get(0).value();
+            enchantments = ShopItemUtil.readEnchantmentMetadata(player.getMetadata("sell.enchantments").getFirst().value());
         }
         String customName = getMeta(player, "sell.customName", null);
         boolean hideAttr = getMetaBool(player, "sell.hide_attr");
@@ -700,13 +692,6 @@ public class SellMenu implements Listener {
         }
     }
 
-    private static Material getMaterial(String path, Material def) {
-        String name = ShopPlugin.getInstance().getGuiConfig().getString(path);
-        if (name == null) return def;
-        Material mat = Material.matchMaterial(name);
-        return mat != null ? mat : def;
-    }
-
     /* ============================================================
      *  SELL LOGIC
      * ============================================================ */
@@ -763,19 +748,6 @@ public class SellMenu implements Listener {
                         .replace("%limit%", String.valueOf(limit)));
                 return;
             }
-        }
-
-        // Check global limit
-        if (globalLimit > 0 && itemKey != null) {
-            int current = plugin.getDataManager().getGlobalCount(itemKey);
-            // Selling decreases globalCount (adds to stock)
-            // But we might want to prevent selling if it exceeds globalLimit? 
-            // Usually globalLimit is a BUY limit (stock).
-            // If it's a "total transactions" limit, then we check current + amount > globalLimit.
-            // If it's "stock", then selling is always fine as long as we don't care about "max stock".
-            // The issue description says "global limit per item, for limited items".
-            // If it's a hard limit of 1000 items ever sold/bought, then we check:
-            // if (current + amount > globalLimit) ...
         }
 
         plugin.debug("Sell attempt: " + player.getName() + " selling " + amount + "x " + material + " (owns: " + owned + ")");
@@ -1006,26 +978,6 @@ public class SellMenu implements Listener {
             count += it.getAmount();
         }
         return count;
-    }
-
-    private static boolean spawnerMatches(ItemStack it, String type) {
-        return ShopItemUtil.spawnerMatches(it, type);
-    }
-
-    private static boolean potionMatches(ItemStack it, String type) {
-        return ShopItemUtil.potionMatches(it, type);
-    }
-
-    private static boolean enchantmentsMatch(ItemStack it, Map<String, Integer> requiredEnchants) {
-        return ShopItemUtil.enchantmentsMatch(it, requiredEnchants);
-    }
-
-    private static boolean nameMatches(ItemStack it, String requiredName) {
-        return ShopItemUtil.nameMatches(it, requiredName);
-    }
-
-    private static boolean loreMatches(ItemStack it, List<String> requiredLore) {
-        return ShopItemUtil.loreMatches(it, requiredLore);
     }
 
     private static void removeItems(Player player, Material material, String spawnerType, String spawnerItem, String potionType, Map<String, Integer> enchantments, int amount, String customName, List<String> customLore, boolean requireName, boolean requireLore) {

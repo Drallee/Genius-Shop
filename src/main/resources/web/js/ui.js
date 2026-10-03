@@ -930,7 +930,7 @@ function renderButtonGroup(container, type, group, title, namePrefix) {
                         <div class="stealth-display-wrapper">
                             <span class="stealth-label" data-i18n="web-editor.display-material">${t('web-editor.display-material', 'Material:')}</span>
                             <div class="item-icon" style="width: 24px; height: 24px; margin: 0 4px;" title="${groupData.material}">
-                                <img src="${getItemTexture(groupData.material)}" onerror="this.src='${TEXTURE_API}stone.png'">
+                                <img alt="" src="${getItemTexture(groupData.material)}" onerror="this.src='${TEXTURE_API}stone.png'">
                             </div>
                             <span class="edit-icon-small">\u270E</span>
                         </div>
@@ -1177,7 +1177,7 @@ function renderItems() {
         itemEl.innerHTML = `
             <div class="item-header">
                 <div class="item-icon">
-                    <img src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'">
+                    <img alt="" src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'">
                 </div>
                 <div class="flex-1">
                     <div class="item-title">${parseMinecraftColors(item.name)}</div>
@@ -2003,7 +2003,7 @@ function updatePreview() {
             slot.ondragstart = (e) => handleDragStart(e, i, 'shop');
             slot.classList.add('filled');
             
-            slot.innerHTML = `<div class="item-icon"><img src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'"></div>`;
+            slot.innerHTML = `<div class="item-icon"><img alt="" src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'"></div>`;
             if (item.amount > 1) {
                 slot.innerHTML += `<div class="slot-amount">${item.amount}</div>`;
             }
@@ -2786,7 +2786,7 @@ function renderMainMenuShops() {
         el.innerHTML = `
             <div class="item-header">
                 <div class="item-icon">
-                    <img src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'">
+                    <img alt="" src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'">
                 </div>
                 <div class="flex-1">
                     <div class="item-title">${parseMinecraftColors(shop.name)}</div>
@@ -2860,7 +2860,7 @@ function updateGuiPreview() {
             slot.ondragstart = (e) => handleDragStart(e, i, 'mainmenu');
             slot.classList.add('filled');
             
-            slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'"></div>`;
+            slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'"></div>`;
             
             slot.onclick = () => openMainMenuShopModal(loadedGuiShops.indexOf(shop));
 
@@ -2914,7 +2914,7 @@ function updatePurchasePreview() {
                 slot.ondragstart = (e) => handleDragStart(e, i, 'purchase');
                 slot.classList.add('filled');
 
-                slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${btn.material.toLowerCase()}.png"></div>`;
+                slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${btn.material.toLowerCase()}.png"></div>`;
                 slot.onclick = () => openTransactionButtonModal('purchase', 'main', key);
                 if (previewParityMode) {
                     setupTooltip(slot, btn.name, (btn.lore && btn.lore.length > 0) ? btn.lore : [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
@@ -2932,7 +2932,7 @@ function updatePurchasePreview() {
                     slot.ondragstart = (e) => handleDragStart(e, i, 'purchase');
                     slot.classList.add('filled');
 
-                    slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings[group].material.toLowerCase()}.png"></div>`;
+                    slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${settings[group].material.toLowerCase()}.png"></div>`;
                     slot.innerHTML += `<div class="slot-amount">${amount}</div>`;
                     slot.onclick = () => openTransactionButtonModal('purchase', group, amount);
                     if (previewParityMode) {
@@ -2951,7 +2951,7 @@ function updatePurchasePreview() {
             slot.classList.add('filled');
             slot.style.backgroundColor = 'rgba(255, 165, 0, 0.15)'; // Special color for display slot
 
-            slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings.displayMaterial.toLowerCase()}.png"></div>`;
+            slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${settings.displayMaterial.toLowerCase()}.png"></div>`;
             slot.onclick = () => openMainTransactionItemModal('purchase');
             if (previewParityMode) {
                 setupTooltip(slot, "&eItem Preview", [
@@ -3002,7 +3002,7 @@ function updateSellPreview() {
                 slot.ondragstart = (e) => handleDragStart(e, i, 'sell');
                 slot.classList.add('filled');
 
-                slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${btn.material.toLowerCase()}.png"></div>`;
+                slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${btn.material.toLowerCase()}.png"></div>`;
                 slot.onclick = () => openTransactionButtonModal('sell', 'main', key);
                 if (previewParityMode) {
                     setupTooltip(slot, btn.name, (btn.lore && btn.lore.length > 0) ? btn.lore : [`Slot: ${btn.slot}`, `Material: ${btn.material}`]);
@@ -3019,7 +3019,7 @@ function updateSellPreview() {
                     slot.ondragstart = (e) => handleDragStart(e, i, 'sell');
                     slot.classList.add('filled');
 
-                    slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings[group].material.toLowerCase()}.png"></div>`;
+                    slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${settings[group].material.toLowerCase()}.png"></div>`;
                     slot.innerHTML += `<div class="slot-amount">${amount}</div>`;
                     slot.onclick = () => openTransactionButtonModal('sell', group, amount);
                     if (previewParityMode) {
@@ -3037,7 +3037,7 @@ function updateSellPreview() {
             slot.classList.add('filled');
             slot.style.backgroundColor = 'rgba(255, 165, 0, 0.15)'; // Special color for display slot
 
-            slot.innerHTML = `<div class="item-icon"><img src="${TEXTURE_API}${settings.displayMaterial.toLowerCase()}.png"></div>`;
+            slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${settings.displayMaterial.toLowerCase()}.png"></div>`;
             slot.onclick = () => openMainTransactionItemModal('sell');
             if (previewParityMode) {
                 setupTooltip(slot, "&eItem Preview", [
@@ -3085,7 +3085,7 @@ function renderPurchaseButtons() {
         </div>
         <div class="flex items-center gap-12 mb-8">
             <div class="item-icon" style="width: 24px; height: 24px;">
-                <img src="${TEXTURE_API}${(transactionSettings.purchase.displayMaterial || 'BARRIER').toLowerCase()}.png">
+                <img alt="" src="${TEXTURE_API}${(transactionSettings.purchase.displayMaterial || 'BARRIER').toLowerCase()}.png">
             </div>
             <div class="item-subtitle" style="overflow: hidden; text-overflow: ellipsis; font-weight: 600;">${transactionSettings.purchase.displayMaterial || 'BARRIER'}</div>
         </div>
@@ -3113,7 +3113,7 @@ function renderPurchaseButtons() {
             </div>
             <div class="flex items-center gap-12 mb-4">
                 <div class="item-icon" style="width: 24px; height: 24px;">
-                    <img src="${TEXTURE_API}${btn.material.toLowerCase()}.png">
+                    <img alt="" src="${TEXTURE_API}${btn.material.toLowerCase()}.png">
                 </div>
                 <div class="item-subtitle" style="overflow: hidden; text-overflow: ellipsis; font-weight: 600;">${parseMinecraftColors(btn.name) || 'Default'}</div>
             </div>
@@ -3168,7 +3168,7 @@ function renderSellButtons() {
         </div>
         <div class="flex items-center gap-12 mb-8">
             <div class="item-icon" style="width: 24px; height: 24px;">
-                <img src="${TEXTURE_API}${(transactionSettings.sell.displayMaterial || 'BARRIER').toLowerCase()}.png">
+                <img alt="" src="${TEXTURE_API}${(transactionSettings.sell.displayMaterial || 'BARRIER').toLowerCase()}.png">
             </div>
             <div class="item-subtitle" style="overflow: hidden; text-overflow: ellipsis; font-weight: 600;">${transactionSettings.sell.displayMaterial || 'BARRIER'}</div>
         </div>
@@ -3196,7 +3196,7 @@ function renderSellButtons() {
             </div>
             <div class="flex items-center gap-12 mb-4">
                 <div class="item-icon" style="width: 24px; height: 24px;">
-                    <img src="${TEXTURE_API}${btn.material.toLowerCase()}.png">
+                    <img alt="" src="${TEXTURE_API}${btn.material.toLowerCase()}.png">
                 </div>
                 <div class="item-subtitle" style="overflow: hidden; text-overflow: ellipsis; font-weight: 600;">${parseMinecraftColors(btn.name) || 'Default'}</div>
             </div>

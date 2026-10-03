@@ -297,7 +297,7 @@ function openSaveConfirmationModal(mode = 'tab') {
                         <span style="font-size: 1.1em;">🚀</span>
                         <span style="font-size: 0.85em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Publishing All Changes (${unsavedChanges.length})</span>
                     </div>
-                    <div style="max-height: 350px; overflow-y: auto; padding-right: 6px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 14px; border: 1px solid rgba(0, 230, 118, 0.2);">
+                    <div style="max-height: 350px; overflow-y: auto; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 14px; border: 1px solid rgba(0, 230, 118, 0.2);">
                         ${unsavedChanges.map(change => renderChangeItem(change)).join('')}
                     </div>
                 </div>
@@ -332,7 +332,7 @@ function openSaveConfirmationModal(mode = 'tab') {
                             <span style="font-size: 1.1em;">💾</span>
                             <span style="font-size: 0.85em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Saving to this tab (${savingNow.length})</span>
                         </div>
-                        <div style="max-height: 240px; overflow-y: auto; padding-right: 6px; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="max-height: 240px; overflow-y: auto; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05);">
                             ${savingNow.map(change => renderChangeItem(change)).join('')}
                         </div>
                     </div>
@@ -347,7 +347,7 @@ function openSaveConfirmationModal(mode = 'tab') {
                             <span style="font-size: 1.1em;">⏳</span>
                             <span style="font-size: 0.85em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Not saving yet (other tabs: ${savingLater.length})</span>
                         </div>
-                        <div style="max-height: 180px; overflow-y: auto; padding-right: 6px; background: rgba(0,0,0,0.1); padding: 12px; border-radius: 14px; border: 1px dashed rgba(255,255,255,0.1);">
+                        <div style="max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 12px; border-radius: 14px; border: 1px dashed rgba(255,255,255,0.1);">
                             ${savingLater.map(change => renderChangeItem(change, true)).join('')}
                         </div>
                     </div>
@@ -1034,7 +1034,7 @@ function buildShopItemPreviewHtml(baseItem, formData) {
         <div class="modal-preview-item">
             <div class="modal-preview-top">
                 <div class="modal-preview-icon">
-                    <img src="${getModalPreviewItemIcon({ ...baseItem, material })}" onerror="this.src='${TEXTURE_API}stone.png'">
+                    <img alt="" src="${getModalPreviewItemIcon({ ...baseItem, material })}" onerror="this.src='${TEXTURE_API}stone.png'">
                 </div>
                 <div class="modal-preview-meta">
                     <div class="modal-preview-name">${typeof parseMinecraftColors === 'function' ? parseMinecraftColors(name) : escapeHtml(name)}</div>

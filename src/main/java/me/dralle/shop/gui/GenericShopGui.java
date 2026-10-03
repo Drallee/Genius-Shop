@@ -33,7 +33,7 @@ import java.time.Duration;
 
 public class GenericShopGui implements Listener {
 
-    public static class GenericShopHolder implements InventoryHolder {
+    public static class GenericShopHolder extends MenuInventoryHolder {
         private final String shopKey;
         private final int page;
 
@@ -45,11 +45,9 @@ public class GenericShopGui implements Listener {
         public String getShopKey() { return shopKey; }
         public int getPage() { return page; }
 
-        @Override
-        public Inventory getInventory() { return null; }
     }
 
-    public static class VariantHolder implements InventoryHolder {
+    public static class VariantHolder extends MenuInventoryHolder {
         private final String shopKey;
         private final int returnPage;
         private final List<ShopItem> variants;
@@ -64,8 +62,6 @@ public class GenericShopGui implements Listener {
         public int getReturnPage() { return returnPage; }
         public List<ShopItem> getVariants() { return variants; }
 
-        @Override
-        public Inventory getInventory() { return null; }
     }
 
     private final ShopPlugin plugin;
@@ -278,7 +274,7 @@ public class GenericShopGui implements Listener {
         int backSlot = nav + 4;
 
         String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color("&8Choose Variant"));
-        Inventory inv = Bukkit.createInventory(new VariantHolder(shopKey, returnPage, new ArrayList<>(group.options)), totalSlots, title);
+        Inventory inv = new VariantHolder(shopKey, returnPage, new ArrayList<>(group.options)).createInventory(totalSlots, title);
         String currency = plugin.getCurrencySymbol();
         String availableTimesStr = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
 
@@ -411,7 +407,7 @@ public class GenericShopGui implements Listener {
         if (page > totalPages) page = totalPages;
 
         String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color(shop.getGuiName() + " &7(" + page + "/" + totalPages + ")"));
-        Inventory inv = Bukkit.createInventory(new GenericShopHolder(shopKey, page), totalSlots, title);
+        Inventory inv = new GenericShopHolder(shopKey, page).createInventory(totalSlots, title);
 
         String currency = plugin.getCurrencySymbol();
         String availableTimesStr = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);

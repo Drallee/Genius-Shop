@@ -286,9 +286,6 @@ function parseTransactionSettings(yamlContent) {
             // Handle sell lore placeholders
         } else if (currentButtonType && indent === 8) {
             // Handle amount button properties
-            const type = inPurchase ? 'purchase' : 'sell';
-            const group = ['add', 'remove', 'set'].includes(currentButtonType) ? currentButtonType : 'main';
-            const buttonKey = group === 'main' ? currentButtonType : trimmed.split(':')[0].trim();
             // This needs more detailed logic to match the complex parser in script.js
         }
     }

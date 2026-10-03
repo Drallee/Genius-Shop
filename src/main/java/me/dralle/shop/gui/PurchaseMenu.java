@@ -22,7 +22,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BlockStateMeta;
@@ -36,11 +35,7 @@ import java.util.List;
 
 public class PurchaseMenu implements Listener {
 
-    public static class PurchaseHolder implements InventoryHolder {
-        @Override
-        public Inventory getInventory() {
-            return null;
-        }
+    public static class PurchaseHolder extends MenuInventoryHolder {
     }
 
     public PurchaseMenu(ShopPlugin plugin) {
@@ -51,7 +46,6 @@ public class PurchaseMenu implements Listener {
      * ============================================================ */
     public static void open(Player player, ShopItem item, String shopKey, int shopPage) {
         ShopPlugin plugin = ShopPlugin.getInstance();
-        FileConfiguration purchaseCfg = plugin.getMenuManager().getPurchaseMenuConfig();
         ShopData shop = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
 
         if (item.getHeadTexture() != null && !item.getHeadTexture().isEmpty()) {
@@ -191,7 +185,6 @@ public class PurchaseMenu implements Listener {
 
         ShopPlugin plugin = ShopPlugin.getInstance();
         FileConfiguration purchaseCfg = plugin.getMenuManager().getPurchaseMenuConfig();
-        String currency = plugin.getCurrencySymbol();
 
         if (price == null || price <= 0) {
             player.sendMessage(plugin.getMessages().getMessage("cannot-buy"));
@@ -203,7 +196,7 @@ public class PurchaseMenu implements Listener {
                 "gui.purchase.title-prefix",
                 purchaseCfg.getString("title-prefix", "&8Buying "));
         String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color(prefix + customName));
-        Inventory inv = Bukkit.createInventory(new PurchaseHolder(), 54, title);
+Inventory inv = new PurchaseHolder().createInventory(54, title);
 
         // Lore
         List<String> lore = new ArrayList<>();
@@ -537,7 +530,7 @@ public class PurchaseMenu implements Listener {
                 Arrays.asList(player.getMetadata("buy.commands").getFirst().asString().split("\\|\\|")) : null;
 
         final Map<String, Integer> enchantments = player.hasMetadata("buy.enchantments") ?
-                (Map<String, Integer>) player.getMetadata("buy.enchantments").getFirst().value() : null;
+                ShopItemUtil.readEnchantmentMetadata(player.getMetadata("buy.enchantments").getFirst().value()) : null;
 
         Material tempMaterial = Material.matchMaterial(matName);
         if (tempMaterial == null) tempMaterial = Material.DIRT;
@@ -1100,8 +1093,10 @@ public class PurchaseMenu implements Listener {
                 if (spawnerPlugin == null || !spawnerPlugin.isEnabled()) {
                     spawnerPlugin = Bukkit.getPluginManager().getPlugin("SmartSpawners");
                 }
-                ItemStack template = SmartSpawnerHook.createSpawnerItem(spawnerPlugin, spawnerType, spawnerItem);
-                return template;
+                if (spawnerPlugin == null || !spawnerPlugin.isEnabled()) {
+                    throw new IllegalStateException("SmartSpawner is no longer enabled");
+                }
+                return SmartSpawnerHook.createSpawnerItem(spawnerPlugin, spawnerType, spawnerItem);
             }
         }
 

@@ -2,7 +2,6 @@ package me.dralle.shop.util;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
-import me.dralle.shop.util.YamlUtil;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -16,7 +15,7 @@ import java.util.Set;
 
 /**
  * Smart configuration updater with version checking.
- *
+ * <p>
  * Features:
  *  - Never overwrites user edits
  *  - Merges missing defaults if version is older or missing
@@ -158,7 +157,7 @@ public class ConfigUpdater {
                     me.dralle.shop.util.ConsoleLog.info(plugin, "Updated " + fileName + " with missing features (version " + maxDefaultVersion + ").");
                 } else if (changed) {
                     me.dralle.shop.util.ConsoleLog.info(plugin, "Migrated legacy keys in " + fileName + ".");
-                } else if (userVersion < maxDefaultVersion) {
+                } else {
                     me.dralle.shop.util.ConsoleLog.info(plugin, fileName + " version bumped to " + maxDefaultVersion);
                 }
             }

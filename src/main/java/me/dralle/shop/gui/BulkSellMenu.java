@@ -7,7 +7,6 @@ import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.ConsoleLog;
 import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.api.events.ShopSellEvent;
@@ -19,7 +18,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
@@ -28,11 +26,7 @@ import java.util.List;
 
 public class BulkSellMenu implements Listener {
 
-    public static class BulkSellHolder implements InventoryHolder {
-        @Override
-        public Inventory getInventory() {
-            return null;
-        }
+    public static class BulkSellHolder extends MenuInventoryHolder {
     }
 
     private final ShopPlugin plugin;
@@ -44,7 +38,7 @@ public class BulkSellMenu implements Listener {
     public void open(Player player) {
         String title = plugin.getMessages().resolveConfigString(plugin.getMenuManager().getBulkSellMenuConfig(), "title", "&8Bulk Sell");
         int rows = plugin.getMenuManager().getBulkSellMenuConfig().getInt("rows", 6);
-        Inventory inv = Bukkit.createInventory(new BulkSellHolder(), rows * 9, me.dralle.shop.util.BedrockUtil.formatTitle(player, title));
+Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.util.BedrockUtil.formatTitle(player, title));
 
         // Add confirm button
         Material confirmMat = ShopItemUtil.getMaterial(plugin.getMenuManager().getBulkSellMenuConfig().getString("buttons.confirm.material"), Material.LIME_STAINED_GLASS);

@@ -1139,7 +1139,7 @@ function isSlotOccupied(type, slot, excludeGroup = null, excludeAmount = null) {
     const settings = transactionSettings[type];
     
     // Check static buttons
-    for (const [key, btn] of Object.entries(settings.buttons)) {
+    for (const btn of Object.values(settings.buttons)) {
         if (btn.slot === slot) return true;
     }
 

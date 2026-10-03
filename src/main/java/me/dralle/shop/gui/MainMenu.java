@@ -12,7 +12,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -25,11 +24,7 @@ import java.util.Map;
 
 public class MainMenu implements Listener {
 
-    public static class MainMenuHolder implements InventoryHolder {
-        @Override
-        public Inventory getInventory() {
-            return null;
-        }
+    public static class MainMenuHolder extends MenuInventoryHolder {
     }
 
     private final ShopPlugin plugin;
@@ -69,7 +64,7 @@ public class MainMenu implements Listener {
             if (size % 9 != 0) size = 27;
         }
 
-        Inventory inv = Bukkit.createInventory(new MainMenuHolder(), size, title);
+Inventory inv = new MainMenuHolder().createInventory(size, title);
 
         ConfigurationSection itemsSec = mainConfig.getConfigurationSection("items");
         if (itemsSec != null) {
@@ -90,7 +85,6 @@ public class MainMenu implements Listener {
                 List<String> latestHighlights = plugin.getUpdateChecker() != null
                         ? plugin.getUpdateChecker().getLatestReleaseHighlights()
                         : java.util.Collections.emptyList();
-                boolean hasHighlightsPlaceholder = false;
                 
 // Get shop key to check for available times
                 String shopKey = itemSec.getString("shop-key", null);
@@ -124,7 +118,6 @@ public class MainMenu implements Listener {
 
                     // Expand latest-update-highlights placeholder into multiple lore lines.
                     if (processed.contains("%latest-update-highlights%")) {
-                        hasHighlightsPlaceholder = true;
                         boolean updateAvailable = plugin.getUpdateChecker() != null
                                 && plugin.getUpdateChecker().isUpdateAvailable();
                         if (!updateAvailable || latestHighlights.isEmpty()) {

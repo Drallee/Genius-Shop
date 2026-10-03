@@ -39,6 +39,18 @@ import java.util.regex.Pattern;
 
 public class ShopItemUtil {
 
+    public static Map<String, Integer> readEnchantmentMetadata(Object value) {
+        if (!(value instanceof Map<?, ?> entries)) return null;
+        Map<String, Integer> enchantments = new java.util.LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : entries.entrySet()) {
+            if (!(entry.getKey() instanceof String key) || !(entry.getValue() instanceof Integer level)) {
+                return null;
+            }
+            enchantments.put(key, level);
+        }
+        return enchantments;
+    }
+
     private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Pattern HEX_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("(?is)<gradient:((?:#?[A-F0-9]{6}:)*#?[A-F0-9]{6})>(.*?)</gradient>");

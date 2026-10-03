@@ -9,7 +9,6 @@ import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.util.CampaignUtil;
 import me.dralle.shop.util.PriceFormulaUtil;
-import me.dralle.shop.util.ShopItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
