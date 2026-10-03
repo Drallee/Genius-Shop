@@ -5,7 +5,7 @@
 # smart updates, debugging, and more.
 # ==========================================================
 
-config-version: 14
+config-version: 15
 
 # When true, missing/outdated config files will automatically be updated
 # by merging new keys from defaults (your custom changes are kept).
@@ -96,7 +96,9 @@ economy-safety:
   # Anti-spike checks for suspicious dynamic values.
   anti-spike:
     enabled: true
-    # Reject if current unit price > (base unit price * this value)
+    # Base is the configured buy/sell price, before dynamic pricing, formulas, or campaigns.
+    # Reject if current unit price > (base unit price * this value); 0 disables this upper bound.
+    # Values below 1 can block even the starting price.
     max-base-multiplier: 10.0
     # Reject if current unit price < (base unit price * this value), 0 disables this lower-bound check
     min-base-multiplier: 0.0
@@ -166,8 +168,11 @@ create-default-shops: true
 # Integrations
 # ==========================================================
 # Enable or disable support for the SmartSpawner plugin
-# If enabled, the shop will use SmartSpawner's /ss give command for delivering spawners.
+# Exported item-stack data is always preferred when present.
+# If enabled, the shop uses SmartSpawner's creation API when no item-stack is configured.
 smart-spawner-support: true
+# Legacy option name: this now controls API delivery, not command execution.
+smart-spawner-command-fallback: true
 
 # ==========================================================
 # Wiki Link
@@ -187,6 +192,11 @@ api:
   # Replace this with an available port provided by your host
   # or a port you have opened yourself.
   # Examples: 8080, 25590, or another unused port.
+  # 8080 is only the default. If the API cannot start, check whether another
+  # service already uses the port. If it starts but cannot be reached remotely,
+  # check TCP firewall/forwarding rules and your hosting provider's allocations.
+  # On managed hosting, ask the provider which additional TCP port is available
+  # and which public address/port to use. Changing this value requires a restart.
   port: 8080
   # Generate a secure random key: https://www.uuidgenerator.net/
   # Change this to a unique value for your server

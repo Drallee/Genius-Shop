@@ -1365,6 +1365,7 @@ public class ConfigApiServer {
             }
             Map<String, Object> shopRow = new LinkedHashMap<>();
             shopRow.put("name", shop.getGuiName());
+            shopRow.put("availableTimes", shop.getAvailableTimes());
             shopRow.put("items", items);
             catalog.put(shopKey, shopRow);
         }
@@ -1412,7 +1413,7 @@ public class ConfigApiServer {
 
         // Validate YAML
         try {
-            YamlConfiguration.loadConfiguration(new StringReader(fileContent));
+            new YamlConfiguration().loadFromString(fileContent);
         } catch (Exception e) {
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("fileName", fileName);
@@ -1570,6 +1571,9 @@ public class ConfigApiServer {
                     response.put("web-editor", recursiveSectionToMap(enConfig.getConfigurationSection("web-editor")));
                 }
             }
+        }
+        if (config.contains("messages")) {
+            response.put("messages", recursiveSectionToMap(config.getConfigurationSection("messages")));
         }
 
         response.put("language", lang);

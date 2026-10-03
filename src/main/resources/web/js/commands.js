@@ -31,82 +31,8 @@ function nextCustomCommandName() {
     return `command${index}`;
 }
 
-function parseCommandsYaml(yamlContent) {
-    commandsFileRaw = typeof yamlContent === 'string' ? yamlContent : '';
-    customCommands = [];
-    const lines = commandsFileRaw.split(/\r?\n/);
-    let inCommands = false;
-    let current = null;
-    let currentList = '';
-    let inAction = false;
-
-    lines.forEach(line => {
-        const raw = line.replace(/\r$/, '');
-        const trimmed = raw.trim();
-        if (!trimmed || trimmed.startsWith('#')) return;
-        const indent = raw.search(/\S/);
-
-        if (indent === 0) {
-            inCommands = trimmed === 'commands:';
-            current = null;
-            currentList = '';
-            inAction = false;
-            return;
-        }
-        if (!inCommands) return;
-
-        if (indent === 2 && trimmed.endsWith(':') && !trimmed.startsWith('-')) {
-            const name = unquoteYaml(trimmed.slice(0, -1).trim());
-            current = createDefaultCustomCommand(name);
-            current.usage = `/${name}`;
-            customCommands.push(current);
-            currentList = '';
-            inAction = false;
-            return;
-        }
-        if (!current) return;
-
-        if (indent === 4) {
-            inAction = false;
-            currentList = '';
-            const pair = splitYamlPair(trimmed);
-            if (!pair) return;
-            const key = pair.key;
-            const value = pair.value;
-            if (key === 'aliases') {
-                current.aliases = [];
-                currentList = 'aliases';
-            } else if (key === 'action') {
-                inAction = true;
-            } else if (key === 'enabled') {
-                current.enabled = parseYamlBoolean(value, true);
-            } else if (key === 'description') {
-                current.description = unquoteYaml(value);
-            } else if (key === 'usage') {
-                current.usage = unquoteYaml(value);
-            } else if (key === 'permission') {
-                current.permission = unquoteYaml(value);
-            } else if (key === 'no-permission-message') {
-                current.noPermissionMessage = unquoteYaml(value);
-            } else if (key === 'shop-bypass-permission') {
-                current.shopBypassPermission = unquoteYaml(value);
-            }
-            return;
-        }
-
-        if (indent === 6 && currentList === 'aliases' && trimmed.startsWith('-')) {
-            current.aliases.push(unquoteYaml(trimmed.substring(1).trim()));
-            return;
-        }
-        if (indent === 6 && inAction) {
-            const pair = splitYamlPair(trimmed);
-            if (!pair) return;
-            if (pair.key === 'type') current.action.type = normalizeActionType(pair.value);
-            else if (pair.key === 'shop') current.action.shop = unquoteYaml(pair.value);
-            else if (pair.key === 'item') current.action.item = unquoteYaml(pair.value);
-            else if (pair.key === 'menu') current.action.menu = normalizeMenuMode(pair.value);
-        }
-    });
+function parseCommandsYaml(yamlContent, retain = true) {
+    EditorYaml.readCommands(yamlContent, retain);
 }
 
 function splitYamlPair(trimmed) {
@@ -279,7 +205,7 @@ function renderCommandCard(command, index) {
                     options: shops.map(shop => ({
                         value: shop.key,
                         label: `${shop.key}${shop.name && shop.name !== shop.key ? ` - ${stripMinecraftColorCodes(shop.name)}` : ''}`,
-                        colorLabel: `${shop.key}${shop.name && shop.name !== shop.key ? ` - ${shop.name}` : ''}`
+                        colorLabel: `${shop.key}${shop.name && shop.name !== shop.key ? ` - ${resolveMessageText(shop.name)}` : ''}`
                     })),
                     includeBlank: type === 'SELL_ALL',
                     blankLabel: 'All shops'
@@ -293,7 +219,7 @@ function renderCommandCard(command, index) {
                     options: itemOptions.map(item => ({
                         value: item.key || '',
                         label: `${item.key || ''}${item.material ? ` - ${item.material}` : ''}${item.name ? ` - ${stripMinecraftColorCodes(item.name)}` : ''}`,
-                        colorLabel: `${item.key || ''}${item.material ? ` - ${item.material}` : ''}${item.name ? ` - ${item.name}` : ''}`
+                        colorLabel: `${item.key || ''}${item.material ? ` - ${item.material}` : ''}${item.name ? ` - ${resolveMessageText(item.name)}` : ''}`
                     })),
                     disabled: !action.shop,
                     includeBlank: true,
@@ -314,6 +240,7 @@ function renderCommandCard(command, index) {
 
 function commandInput(index, field, label, value, placeholder) {
     const isCommandName = field === 'name';
+    const displayValue = ['description', 'usage', 'noPermissionMessage'].includes(field) ? messageEditorValue(value) : value;
     return `
         <div class="setting-item">
             <label>${escapeHtml(label)}</label>
@@ -322,11 +249,12 @@ function commandInput(index, field, label, value, placeholder) {
                 name="gs-command-${index}-${field}"
                 data-command-index="${index}"
                 data-command-field="${field}"
+                ${isCommandName ? 'data-command-name-input="true"' : ''}
                 autocomplete="new-password"
                 autocorrect="off"
                 autocapitalize="none"
                 spellcheck="false"
-                value="${escapeHtml(value || '')}"
+                value="${escapeHtml(displayValue || '')}"
                 placeholder="${escapeHtml(placeholder || '')}"
                 onfocus="rememberCustomCommandBefore(this, ${index})"
                 oninput="updateCustomCommandValue(${index}, '${field}', this.value)"
@@ -406,10 +334,18 @@ function commitCustomCommandField(element, index, field, value) {
 function updateCustomCommandValue(index, field, value) {
     const command = customCommands[index];
     if (!command) return;
+    const previousUsage = command.usage;
     applyCustomCommandFieldValue(command, field, value);
+    if (field === 'name' && command.usage !== previousUsage) {
+        const usageInput = document.querySelector(`[data-command-card="${index}"] [data-command-field="usage"]`);
+        if (usageInput) usageInput.value = command.usage;
+    }
 }
 
 function applyCustomCommandFieldValue(command, field, value, beforeCommand) {
+    if (['description', 'usage', 'noPermissionMessage'].includes(field)) {
+        value = preserveMessageReference(command[field], value);
+    }
     if (field === 'aliases') {
         command.aliases = String(value || '').split(',').map(v => normalizeCommandToken(v)).filter(Boolean);
     } else if (field === 'enabled') {
@@ -523,7 +459,7 @@ function validateCustomCommandsForSave() {
 }
 
 function validateCustomCommandsDetailed(options = {}) {
-    syncCustomCommandsFromDom();
+    if (options.syncFromDom !== false) syncCustomCommandsFromDom();
     const runtime = options.runtime !== false;
     const errors = [];
     const warnings = [];
@@ -622,40 +558,7 @@ function yamlQuote(value) {
 }
 
 function generateCommandsYaml() {
-    const commands = collectCustomCommandsFromDom();
-    let yaml = '# Custom commands for Genius Shop\n';
-    yaml += '# Run /shop reload after saving to reload dynamic command registrations.\n\n';
-    yaml += 'commands:\n';
-    commands.forEach(command => {
-        const name = String(command.name || '').trim().toLowerCase();
-        if (!name) return;
-        const action = command.action || {};
-        const type = normalizeActionType(action.type || 'OPEN_SHOP');
-        yaml += `  ${name}:\n`;
-        yaml += `    enabled: ${command.enabled ? 'true' : 'false'}\n`;
-        if (command.aliases && command.aliases.length > 0) {
-            yaml += '    aliases:\n';
-            command.aliases.forEach(alias => {
-                if (alias) yaml += `      - ${yamlQuote(String(alias).trim().toLowerCase())}\n`;
-            });
-        } else {
-            yaml += '    aliases: []\n';
-        }
-        yaml += `    description: ${yamlQuote(command.description || 'Custom shop command')}\n`;
-        yaml += `    usage: ${yamlQuote(command.usage || `/${name}`)}\n`;
-        if (command.permission) yaml += `    permission: ${yamlQuote(command.permission)}\n`;
-        if (command.noPermissionMessage) yaml += `    no-permission-message: ${yamlQuote(command.noPermissionMessage)}\n`;
-        if (command.shopBypassPermission) yaml += `    shop-bypass-permission: ${yamlQuote(command.shopBypassPermission)}\n`;
-        yaml += '    action:\n';
-        yaml += `      type: ${type}\n`;
-        if (action.shop) yaml += `      shop: ${yamlQuote(action.shop)}\n`;
-        if (type === 'OPEN_ITEM') {
-            yaml += `      item: ${yamlQuote(action.item || '')}\n`;
-            yaml += `      menu: ${normalizeMenuMode(action.menu || 'BOTH')}\n`;
-        }
-        yaml += '\n';
-    });
-    return yaml;
+    return EditorYaml.writeCommands();
 }
 
 function collectCustomCommandsFromDom() {
@@ -667,73 +570,41 @@ function collectCustomCommandsFromDom() {
     }
 
     const collected = cards.map(card => {
-        const index = Number(card.dataset.commandCard);
-        const fallback = customCommands[index] || createDefaultCustomCommand();
-        const command = JSON.parse(JSON.stringify(fallback));
-        command.action = command.action || {};
-
-        const nameField = card.querySelector('input[data-command-field="name"]');
-        command.name = normalizeCommandToken(nameField ? nameField.value : (card.dataset.commandName || command.name));
-
-        card.querySelectorAll('[data-command-field]').forEach(field => {
-            const key = field.dataset.commandField;
-            if (!key) return;
-            if (key === 'enabled') {
-                command.enabled = !!field.checked;
-            } else if (key === 'aliases') {
-                command.aliases = String(field.value || '').split(',').map(v => normalizeCommandToken(v)).filter(Boolean);
-            } else if (key === 'name') {
-                return;
-            } else {
-                command[key] = String(field.value || '').trim();
-            }
-        });
-
-        card.querySelectorAll('[data-command-action-field]').forEach(field => {
-            const key = field.dataset.commandActionField;
-            if (!key) return;
-            if (key === 'type') {
-                command.action.type = normalizeActionType(field.value || '');
-            } else if (key === 'menu') {
-                command.action.menu = normalizeMenuMode(field.value || '');
-            } else {
-                command.action[key] = String(field.value || '').trim();
-            }
-        });
-        return command;
+        return readCommandCard(card);
     });
 
     customCommands = collected;
     return collected;
 }
 
-function syncCustomCommandsFromDom() {
-    const container = document.getElementById('commands-container');
-    if (!container || !Array.isArray(customCommands)) return;
+function readCommandCard(card) {
+    const index = Number(card.dataset.commandCard);
+    const fallback = customCommands[index] || createDefaultCustomCommand();
+    const command = JSON.parse(JSON.stringify(fallback));
+    command.action = command.action || {};
 
-    container.querySelectorAll('[data-command-index][data-command-field]').forEach(field => {
-        const index = Number(field.dataset.commandIndex);
+    // Read the current input even when autofill or a programmatic edit skipped input events.
+    const nameInput = card.querySelector('[data-command-field="name"]');
+    command.name = normalizeCommandToken(nameInput ? nameInput.value : command.name);
+
+    card.querySelectorAll('[data-command-field]').forEach(field => {
         const key = field.dataset.commandField;
-        const command = customCommands[index];
-        if (!command || !key) return;
-
+        if (!key || key === 'name') return;
+        // Text inputs remove newlines; an untouched control must not flatten block scalars.
+        if (key !== 'enabled' && typeof field.defaultValue === 'string'
+            && field.value === field.defaultValue.replace(/[\r\n]/g, '')) return;
         if (key === 'enabled') {
             command.enabled = !!field.checked;
         } else if (key === 'aliases') {
             command.aliases = String(field.value || '').split(',').map(v => normalizeCommandToken(v)).filter(Boolean);
-        } else if (key === 'name') {
-            command.name = normalizeCommandToken(field.value);
         } else {
             command[key] = String(field.value || '').trim();
         }
     });
 
-    container.querySelectorAll('[data-command-index][data-command-action-field]').forEach(field => {
-        const index = Number(field.dataset.commandIndex);
+    card.querySelectorAll('[data-command-action-field]').forEach(field => {
         const key = field.dataset.commandActionField;
-        const command = customCommands[index];
-        if (!command || !key) return;
-        command.action = command.action || {};
+        if (!key) return;
         if (key === 'type') {
             command.action.type = normalizeActionType(field.value || '');
         } else if (key === 'menu') {
@@ -742,6 +613,16 @@ function syncCustomCommandsFromDom() {
             command.action[key] = String(field.value || '').trim();
         }
     });
+    return command;
+}
+
+function syncCustomCommandsFromDom() {
+    const container = document.getElementById('commands-container');
+    if (!container || !Array.isArray(customCommands)) return;
+
+    const cards = Array.from(container.querySelectorAll('[data-command-card]'));
+    if (cards.length === 0) return;
+    customCommands = cards.map(card => readCommandCard(card));
 }
 
 function triggerCommandsImport() {
@@ -754,12 +635,18 @@ function handleCommandsImport(file) {
     const reader = new FileReader();
     reader.onload = () => {
         const before = JSON.parse(JSON.stringify(customCommands || []));
-        parseCommandsYaml(String(reader.result || ''));
-        const errors = validateCustomCommands();
-        if (errors.length > 0) {
+        const previousRaw = commandsFileRaw;
+        const source = String(reader.result || '');
+        try {
+            parseCommandsYaml(source, false);
+            const errors = validateCustomCommandsDetailed({ syncFromDom: false }).errors;
+            if (errors.length) throw new Error(errors.slice(0, 10).join('\n'));
+            parseCommandsYaml(source);
+        } catch (error) {
             customCommands = before;
+            commandsFileRaw = previousRaw;
             renderCommandsTab();
-            showAlert(`Import failed:\n\n${errors.slice(0, 10).join('\n')}`, 'error');
+            showAlert(`Import failed:\n\n${error.message}`, 'error');
             return;
         }
         renderCommandsTab();

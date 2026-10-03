@@ -66,6 +66,13 @@ function calculateItemTotalPrice(item, isSell = false) {
     return perItem ? (unitPrice * amount) : unitPrice;
 }
 
+function resolveGuiLoreTemplate(value, fallback) {
+    if (typeof resolveMessageText === 'function') {
+        return resolveMessageText(value, fallback);
+    }
+    return value || fallback;
+}
+
 function parseCampaignDate(raw, timezone) {
     const input = String(raw || '').trim();
     if (!input) return null;
@@ -163,7 +170,7 @@ function togglePreviewParityMode() {
 function buildGlobalLimitValue(item) {
     const current = 0;
     const limit = Math.max(0, Number(item.globalLimit) || 0);
-    const template = guiSettings.itemLore.globalLimitValueFormat || '%current%/%limit%';
+    const template = resolveGuiLoreTemplate(guiSettings.itemLore.globalLimitValueFormat, '%current%/%limit%');
     return template
         .replace('%current%', String(current))
         .replace('%limit%', String(limit));
@@ -172,14 +179,14 @@ function buildGlobalLimitValue(item) {
 function buildPlayerLimitValue(item) {
     const current = 0;
     const limit = Math.max(0, Number(item.limit) || 0);
-    const template = guiSettings.itemLore.playerLimitValueFormat || '%current%/%limit%';
+    const template = resolveGuiLoreTemplate(guiSettings.itemLore.playerLimitValueFormat, '%current%/%limit%');
     return template
         .replace('%current%', String(current))
         .replace('%limit%', String(limit));
 }
 
 function buildStockResetPreviewValue() {
-    const template = guiSettings.itemLore.stockResetTimerValueFormat || 'Stock resets in %time%';
+    const template = resolveGuiLoreTemplate(guiSettings.itemLore.stockResetTimerValueFormat, 'Stock resets in %time%');
     return template.replace('%time%', '--');
 }
 
@@ -190,7 +197,7 @@ function buildShopPriceLoreLines(item) {
         const buyText = buyData.active
             ? `&m$${formatDisplayPrice(buyData.base)}&r &a$${formatDisplayPrice(buyData.total)}`
             : `$${formatDisplayPrice(buyData.total)}`;
-        lines.push((guiSettings.itemLore.buyPriceLine || '&6Buy Price: &a%price%')
+        lines.push(resolveGuiLoreTemplate(guiSettings.itemLore.buyPriceLine, '&6Buy Price: &a%price%')
             .replace('%price%', buyText));
     }
     if (guiSettings.itemLore.showSellPrice && (Number(item.sellPrice) || 0) > 0) {
@@ -198,7 +205,7 @@ function buildShopPriceLoreLines(item) {
         const sellText = sellData.active
             ? `&m$${formatDisplayPrice(sellData.base)}&r &a$${formatDisplayPrice(sellData.total)}`
             : `$${formatDisplayPrice(sellData.total)}`;
-        lines.push((guiSettings.itemLore.sellPriceLine || '&cSell Price: &a%sell-price%')
+        lines.push(resolveGuiLoreTemplate(guiSettings.itemLore.sellPriceLine, '&cSell Price: &a%sell-price%')
             .replace('%sell-price%', sellText));
     }
     return lines;
@@ -207,10 +214,10 @@ function buildShopPriceLoreLines(item) {
 function buildShopHintLoreLines(item) {
     const lines = [];
     if (guiSettings.itemLore.showBuyHint && (Number(item.price) || 0) > 0) {
-        lines.push(guiSettings.itemLore.buyHintLine || '&eLeft-click to buy');
+        lines.push(resolveGuiLoreTemplate(guiSettings.itemLore.buyHintLine, '&eLeft-click to buy'));
     }
     if (guiSettings.itemLore.showSellHint && (Number(item.sellPrice) || 0) > 0) {
-        lines.push(guiSettings.itemLore.sellHintLine || '&aRight-click to sell');
+        lines.push(resolveGuiLoreTemplate(guiSettings.itemLore.sellHintLine, '&aRight-click to sell'));
     }
     return lines;
 }
@@ -273,23 +280,23 @@ function buildShopTooltipLoreParity(item) {
                 break;
             case '%spawner-type-line%':
                 if (item.spawnerType) {
-                    lore.push((guiSettings.itemLore.spawnerTypeLine || '&7Spawner Type: &e%type%').replace('%type%', item.spawnerType));
+                    lore.push(resolveGuiLoreTemplate(guiSettings.itemLore.spawnerTypeLine, '&7Spawner Type: &e%type%').replace('%type%', item.spawnerType));
                 }
                 break;
             case '%spawner-item-line%':
                 if (item.spawnerItem) {
-                    lore.push((guiSettings.itemLore.spawnerItemLine || '&7Spawner Item: &e%item%').replace('%item%', item.spawnerItem));
+                    lore.push(resolveGuiLoreTemplate(guiSettings.itemLore.spawnerItemLine, '&7Spawner Item: &e%item%').replace('%item%', item.spawnerItem));
                 }
                 break;
             case '%potion-type-line%':
                 if (item.potionType) {
-                    lore.push((guiSettings.itemLore.potionTypeLine || '&7Potion Type: &d%type%').replace('%type%', item.potionType));
+                    lore.push(resolveGuiLoreTemplate(guiSettings.itemLore.potionTypeLine, '&7Potion Type: &d%type%').replace('%type%', item.potionType));
                 }
                 break;
             case '%stock-reset-timer-line%':
             case '%stock-reset-timer%':
                 if (item.showStockResetTimer && item.stockResetRule && item.stockResetRule.enabled) {
-                    const timerLine = (guiSettings.itemLore.stockResetTimerLine || '&7%stock-reset-timer%')
+                    const timerLine = resolveGuiLoreTemplate(guiSettings.itemLore.stockResetTimerLine, '&7%stock-reset-timer%')
                         .replace('%stock-reset-timer%', buildStockResetPreviewValue());
                     lore.push(timerLine);
                 }
@@ -297,14 +304,14 @@ function buildShopTooltipLoreParity(item) {
             case '%global-limit%':
             case '%global-limit-line%':
                 if (item.showStock && (Number(item.globalLimit) || 0) > 0) {
-                    lore.push((guiSettings.itemLore.globalLimitLine || '&7Stock: &e%global-limit%')
+                    lore.push(resolveGuiLoreTemplate(guiSettings.itemLore.globalLimitLine, '&7Stock: &e%global-limit%')
                         .replace('%global-limit%', buildGlobalLimitValue(item)));
                 }
                 break;
             case '%player-limit%':
             case '%player-limit-line%':
                 if ((Number(item.limit) || 0) > 0) {
-                    lore.push((guiSettings.itemLore.playerLimitLine || '&7Your limit: &e%player-limit%')
+                    lore.push(resolveGuiLoreTemplate(guiSettings.itemLore.playerLimitLine, '&7Your limit: &e%player-limit%')
                         .replace('%player-limit%', buildPlayerLimitValue(item)));
                 }
                 break;
@@ -313,12 +320,12 @@ function buildShopTooltipLoreParity(item) {
                 break;
             case '%buy-hint-line%':
                 if (guiSettings.itemLore.showBuyHint && (Number(item.price) || 0) > 0) {
-                    lore.push(guiSettings.itemLore.buyHintLine || '&eLeft-click to buy');
+                    lore.push(resolveGuiLoreTemplate(guiSettings.itemLore.buyHintLine, '&eLeft-click to buy'));
                 }
                 break;
             case '%sell-hint-line%':
                 if (guiSettings.itemLore.showSellHint && (Number(item.sellPrice) || 0) > 0) {
-                    lore.push(guiSettings.itemLore.sellHintLine || '&aRight-click to sell');
+                    lore.push(resolveGuiLoreTemplate(guiSettings.itemLore.sellHintLine, '&aRight-click to sell'));
                 }
                 break;
             default:
@@ -362,6 +369,8 @@ function switchTab(tabName) {
             tab.classList.add('active');
         }
     });
+
+    if (typeof syncEditorNavigation === 'function') syncEditorNavigation();
 
     // Sync preview settings bar
     updatePreviewSettingsBar();
@@ -531,6 +540,9 @@ function handleSellSettingsChange() {
 }
 
 function updateCurrentTitle(value) {
+    const original = currentTab === 'shop' ? currentShopSettings.guiName
+        : currentTab === 'mainmenu' ? mainMenuSettings.title : transactionSettings[currentTab]?.titlePrefix;
+    value = preserveMessageReference(original, value);
     let beforeValue = null;
     let changed = false;
 
@@ -591,7 +603,7 @@ function updateCurrentTitle(value) {
     // Update display instantly
     const titleElement = document.getElementById('preview-title');
     if (titleElement) {
-        let displayValue = value;
+        let displayValue = resolveMessageText(value);
         if (currentTab === 'purchase' || currentTab === 'sell') {
             displayValue += 'Item';
         }
@@ -669,12 +681,12 @@ function renderStockAnalyticsDashboard() {
                     <div class="stock-item-name">${name}</div>
                     <div class="stock-item-sub">${escapeHtml(entry.shopKey || '')} | ${escapeHtml(entry.itemKey || '')}</div>
                 </div>
-                <div class="stock-col-material">${escapeHtml(entry.material || '')}</div>
-                <div class="stock-col-slot">#${Number(entry.slot) || 0}</div>
-                <div>${Number(entry.current) || 0}</div>
-                <div>${Number(entry.globalLimit) || 0}</div>
-                <div>${Number(entry.remaining) || 0}</div>
-                <div><span class="stock-pill ${statusClass}">${statusText} ${formatDisplayPrice(utilization)}%</span></div>
+                <div class="stock-col-material" data-label="Material">${escapeHtml(entry.material || '')}</div>
+                <div class="stock-col-slot" data-label="Slot">#${Number(entry.slot) || 0}</div>
+                <div data-label="Current">${Number(entry.current) || 0}</div>
+                <div data-label="Limit">${Number(entry.globalLimit) || 0}</div>
+                <div data-label="Remaining">${Number(entry.remaining) || 0}</div>
+                <div data-label="Status"><span class="stock-pill ${statusClass}">${statusText} ${formatDisplayPrice(utilization)}%</span></div>
             </div>
         `;
     }).join('');
@@ -968,7 +980,7 @@ function renderTransactionPreview(type) {
     grid.innerHTML = '';
 
     const settings = transactionSettings[type];
-    document.getElementById('preview-title').innerHTML = parseMinecraftColors(settings.titlePrefix + 'Item');
+    document.getElementById('preview-title').innerHTML = parseMinecraftColors(resolveMessageText(settings.titlePrefix) + 'Item');
 
     for (let i = 0; i < 54; i++) {
         const slot = document.createElement('div');
@@ -1207,50 +1219,11 @@ function updateShopCampaignAssignment(value) {
 }
 
 function getTopLevelCampaignFromShopYaml(yaml) {
-    if (!yaml || typeof yaml !== 'string') return '';
-    const lines = yaml.split('\n');
-    for (const raw of lines) {
-        const line = String(raw || '');
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const indent = line.search(/\S/);
-        if (indent !== 0) continue;
-        const match = trimmed.match(/^campaign:\s*(.*)$/i);
-        if (!match) continue;
-        return String(match[1] || '').replace(/['"]/g, '').trim();
-    }
-    return '';
+    return String(EditorYaml.parse(yaml || '').campaign || '');
 }
 
 function setTopLevelCampaignInShopYaml(yaml, campaignKey) {
-    const source = String(yaml || '');
-    const nextKey = String(campaignKey || '').trim();
-    const hasTrailingNewline = source.endsWith('\n');
-    const lines = source.split('\n');
-    const campaignLineIndex = lines.findIndex(line => {
-        const trimmed = String(line || '').trim();
-        if (!trimmed || trimmed.startsWith('#')) return false;
-        const indent = String(line || '').search(/\S/);
-        return indent === 0 && /^campaign:\s*/i.test(trimmed);
-    });
-
-    if (!nextKey) {
-        if (campaignLineIndex >= 0) lines.splice(campaignLineIndex, 1);
-    } else {
-        const escaped = nextKey.replace(/'/g, "''");
-        const replacement = `campaign: '${escaped}'`;
-        if (campaignLineIndex >= 0) {
-            lines[campaignLineIndex] = replacement;
-        } else {
-            const itemsIndex = lines.findIndex(line => /^items:\s*/i.test(String(line || '').trim()) && String(line || '').search(/\S/) === 0);
-            if (itemsIndex >= 0) lines.splice(itemsIndex, 0, replacement);
-            else lines.push(replacement);
-        }
-    }
-
-    let out = lines.join('\n');
-    if (hasTrailingNewline && !out.endsWith('\n')) out += '\n';
-    return out;
+    return EditorYaml.edit(yaml, ['campaign'], String(campaignKey || '').trim() || undefined);
 }
 
 function getShopCampaignAssignment(shopFile) {
@@ -2005,7 +1978,7 @@ function updatePreview() {
     const titleElement = document.getElementById('preview-title');
     const titleInput = document.getElementById('preview-title-input');
     if (titleElement) titleElement.innerHTML = parseMinecraftColors(guiName);
-    if (titleInput) titleInput.value = guiName;
+    setMessageEditorInput(titleInput, guiName);
     
     // Handle paging visibility
     updatePaginationVisibility(totalPages);
@@ -2048,21 +2021,23 @@ function updatePreview() {
 
                 // Add global GUI lore settings
                 if (guiSettings.itemLore.showBuyPrice && item.price > 0) {
-                    const processed = guiSettings.itemLore.buyPriceLine.replace('%price%', '$' + formatDisplayPrice(calculateItemTotalPrice(item, false)));
+                    const processed = resolveGuiLoreTemplate(guiSettings.itemLore.buyPriceLine, '&6Buy Price: &a%price%')
+                        .replace('%price%', '$' + formatDisplayPrice(calculateItemTotalPrice(item, false)));
                     extraHtml += `<div class="tooltip-line">${parseMinecraftColors(processed)}</div>`;
                 }
                 if (guiSettings.itemLore.showSellPrice && item.sellPrice > 0) {
-                    const processed = guiSettings.itemLore.sellPriceLine.replace('%sell-price%', '$' + formatDisplayPrice(calculateItemTotalPrice(item, true)));
+                    const processed = resolveGuiLoreTemplate(guiSettings.itemLore.sellPriceLine, '&cSell Price: &a%sell-price%')
+                        .replace('%sell-price%', '$' + formatDisplayPrice(calculateItemTotalPrice(item, true)));
                     extraHtml += `<div class="tooltip-line">${parseMinecraftColors(processed)}</div>`;
                 }
 
                 // Hints at the bottom
                 let hintHtml = '';
                 if (guiSettings.itemLore.showBuyHint && item.price > 0) {
-                    hintHtml += `<div class="tooltip-line">${parseMinecraftColors(guiSettings.itemLore.buyHintLine)}</div>`;
+                    hintHtml += `<div class="tooltip-line">${parseMinecraftColors(resolveGuiLoreTemplate(guiSettings.itemLore.buyHintLine, '&eLeft-click to buy'))}</div>`;
                 }
                 if (guiSettings.itemLore.showSellHint && item.sellPrice > 0) {
-                    hintHtml += `<div class="tooltip-line">${parseMinecraftColors(guiSettings.itemLore.sellHintLine)}</div>`;
+                    hintHtml += `<div class="tooltip-line">${parseMinecraftColors(resolveGuiLoreTemplate(guiSettings.itemLore.sellHintLine, '&aRight-click to sell'))}</div>`;
                 }
 
                 if (hintHtml) extraHtml += `<div style="margin-top: 8px;">${hintHtml}</div>`;
@@ -2080,7 +2055,7 @@ function setupTooltip(element, title, lore = [], extraHtml = '') {
         if (!tooltip) return;
         let html = `<div class="tooltip-title">${parseMinecraftColors(title)}</div>`;
         if (lore && lore.length > 0) {
-            lore.forEach(line => {
+            resolveMessageLines(lore).forEach(line => {
                 const coloredLine = parseMinecraftColors(line);
                 html += `<div class="tooltip-line">${coloredLine || '&nbsp;'}</div>`;
             });
@@ -2492,21 +2467,21 @@ function renderGuiSettings() {
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-buy-price-line">Buy Price Line</label>
-                    <input type="text" id="gui-buy-price-line" name="buy-price-line" value="${guiSettings.itemLore.buyPriceLine}" onchange="updateGuiSetting('itemLore', 'buyPriceLine', this.value)">
+                    <input type="text" id="gui-buy-price-line" name="buy-price-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.buyPriceLine))}" onchange="updateGuiSetting('itemLore', 'buyPriceLine', this.value)">
                 </div>
                 <div class="setting-item flex-1">
                     <label for="gui-sell-price-line">Sell Price Line</label>
-                    <input type="text" id="gui-sell-price-line" name="sell-price-line" value="${guiSettings.itemLore.sellPriceLine}" onchange="updateGuiSetting('itemLore', 'sellPriceLine', this.value)">
+                    <input type="text" id="gui-sell-price-line" name="sell-price-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.sellPriceLine))}" onchange="updateGuiSetting('itemLore', 'sellPriceLine', this.value)">
                 </div>
             </div>
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-buy-hint-line">Buy Hint Line</label>
-                    <input type="text" id="gui-buy-hint-line" name="buy-hint-line" value="${guiSettings.itemLore.buyHintLine}" onchange="updateGuiSetting('itemLore', 'buyHintLine', this.value)">
+                    <input type="text" id="gui-buy-hint-line" name="buy-hint-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.buyHintLine))}" onchange="updateGuiSetting('itemLore', 'buyHintLine', this.value)">
                 </div>
                 <div class="setting-item flex-1">
                     <label for="gui-sell-hint-line">Sell Hint Line</label>
-                    <input type="text" id="gui-sell-hint-line" name="sell-hint-line" value="${guiSettings.itemLore.sellHintLine}" onchange="updateGuiSetting('itemLore', 'sellHintLine', this.value)">
+                    <input type="text" id="gui-sell-hint-line" name="sell-hint-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.sellHintLine))}" onchange="updateGuiSetting('itemLore', 'sellHintLine', this.value)">
                 </div>
             </div>
             
@@ -2535,57 +2510,57 @@ function renderGuiSettings() {
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-amount-line">Amount Line</label>
-                    <input type="text" id="gui-amount-line" name="amount-line" value="${guiSettings.itemLore.amountLine}" onchange="updateGuiSetting('itemLore', 'amountLine', this.value)">
+                    <input type="text" id="gui-amount-line" name="amount-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.amountLine))}" onchange="updateGuiSetting('itemLore', 'amountLine', this.value)">
                 </div>
                 <div class="setting-item flex-1">
                     <label for="gui-total-line">Total Line</label>
-                    <input type="text" id="gui-total-line" name="total-line" value="${guiSettings.itemLore.totalLine}" onchange="updateGuiSetting('itemLore', 'totalLine', this.value)">
+                    <input type="text" id="gui-total-line" name="total-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.totalLine))}" onchange="updateGuiSetting('itemLore', 'totalLine', this.value)">
                 </div>
             </div>
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-spawner-type-line">Spawner Type Line</label>
-                    <input type="text" id="gui-spawner-type-line" name="spawner-type-line" value="${guiSettings.itemLore.spawnerTypeLine}" onchange="updateGuiSetting('itemLore', 'spawnerTypeLine', this.value)">
+                    <input type="text" id="gui-spawner-type-line" name="spawner-type-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.spawnerTypeLine))}" onchange="updateGuiSetting('itemLore', 'spawnerTypeLine', this.value)">
                 </div>
                 <div class="setting-item flex-1">
                     <label for="gui-spawner-item-line">Spawner Item Line</label>
-                    <input type="text" id="gui-spawner-item-line" name="spawner-item-line" value="${guiSettings.itemLore.spawnerItemLine}" onchange="updateGuiSetting('itemLore', 'spawnerItemLine', this.value)">
+                    <input type="text" id="gui-spawner-item-line" name="spawner-item-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.spawnerItemLine))}" onchange="updateGuiSetting('itemLore', 'spawnerItemLine', this.value)">
                 </div>
             </div>
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-potion-type-line">Potion Type Line</label>
-                    <input type="text" id="gui-potion-type-line" name="potion-type-line" value="${guiSettings.itemLore.potionTypeLine}" onchange="updateGuiSetting('itemLore', 'potionTypeLine', this.value)">
+                    <input type="text" id="gui-potion-type-line" name="potion-type-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.potionTypeLine))}" onchange="updateGuiSetting('itemLore', 'potionTypeLine', this.value)">
                 </div>
             </div>
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-global-limit-line">Global Limit Line</label>
-                    <input type="text" id="gui-global-limit-line" name="global-limit-line" value="${guiSettings.itemLore.globalLimitLine}" onchange="updateGuiSetting('itemLore', 'globalLimitLine', this.value)">
+                    <input type="text" id="gui-global-limit-line" name="global-limit-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.globalLimitLine))}" onchange="updateGuiSetting('itemLore', 'globalLimitLine', this.value)">
                 </div>
                 <div class="setting-item flex-1">
                     <label for="gui-player-limit-line">Player Limit Line</label>
-                    <input type="text" id="gui-player-limit-line" name="player-limit-line" value="${guiSettings.itemLore.playerLimitLine}" onchange="updateGuiSetting('itemLore', 'playerLimitLine', this.value)">
+                    <input type="text" id="gui-player-limit-line" name="player-limit-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.playerLimitLine))}" onchange="updateGuiSetting('itemLore', 'playerLimitLine', this.value)">
                 </div>
             </div>
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-stock-reset-timer-line">Stock Reset Timer Line</label>
-                    <input type="text" id="gui-stock-reset-timer-line" name="stock-reset-timer-line" value="${guiSettings.itemLore.stockResetTimerLine}" onchange="updateGuiSetting('itemLore', 'stockResetTimerLine', this.value)">
+                    <input type="text" id="gui-stock-reset-timer-line" name="stock-reset-timer-line" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.stockResetTimerLine))}" onchange="updateGuiSetting('itemLore', 'stockResetTimerLine', this.value)">
                 </div>
                 <div class="setting-item flex-1">
                     <label for="gui-global-limit-value-format">Global Limit Value Format</label>
-                    <input type="text" id="gui-global-limit-value-format" name="global-limit-value-format" value="${guiSettings.itemLore.globalLimitValueFormat}" onchange="updateGuiSetting('itemLore', 'globalLimitValueFormat', this.value)">
+                    <input type="text" id="gui-global-limit-value-format" name="global-limit-value-format" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.globalLimitValueFormat))}" onchange="updateGuiSetting('itemLore', 'globalLimitValueFormat', this.value)">
                 </div>
             </div>
             <div class="form-row">
                 <div class="setting-item flex-1">
                     <label for="gui-player-limit-value-format">Player Limit Value Format</label>
-                    <input type="text" id="gui-player-limit-value-format" name="player-limit-value-format" value="${guiSettings.itemLore.playerLimitValueFormat}" onchange="updateGuiSetting('itemLore', 'playerLimitValueFormat', this.value)">
+                    <input type="text" id="gui-player-limit-value-format" name="player-limit-value-format" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.playerLimitValueFormat))}" onchange="updateGuiSetting('itemLore', 'playerLimitValueFormat', this.value)">
                 </div>
                 <div class="setting-item flex-1">
                     <label for="gui-stock-reset-timer-value-format">Stock Reset Timer Value Format</label>
-                    <input type="text" id="gui-stock-reset-timer-value-format" name="stock-reset-timer-value-format" value="${guiSettings.itemLore.stockResetTimerValueFormat}" onchange="updateGuiSetting('itemLore', 'stockResetTimerValueFormat', this.value)">
+                    <input type="text" id="gui-stock-reset-timer-value-format" name="stock-reset-timer-value-format" value="${escapeHtml(messageEditorValue(guiSettings.itemLore.stockResetTimerValueFormat))}" onchange="updateGuiSetting('itemLore', 'stockResetTimerValueFormat', this.value)">
                 </div>
             </div>
         </div>
@@ -2595,7 +2570,7 @@ function renderGuiSettings() {
             <div class="setting-item">
                 <label for="gui-lore-format" class="sr-only" data-i18n="web-editor.gui-settings.lore-format-label">Lore Format</label>
                 <textarea id="gui-lore-format" name="lore-format" rows="8" style="width: 100%; background: rgba(0,0,0,0.2); color: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 15px; font-family: 'Consolas', monospace; font-size: 14px; line-height: 1.6;" 
-                          onchange="updateGuiLoreFormat(this.value)">${guiSettings.itemLore.loreFormat ? guiSettings.itemLore.loreFormat.join('\n') : ''}</textarea>
+                          onchange="updateGuiLoreFormat(this.value)">${escapeHtml(messageEditorValue((guiSettings.itemLore.loreFormat || []).join('\n'), true))}</textarea>
                 <div style="margin-top: 12px; font-size: 13px; color: var(--text-muted); line-height: 1.6; background: rgba(120, 119, 198, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(120, 119, 198, 0.1);">
                     <strong style="color: var(--primary-light);">Available Placeholders:</strong><br>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-top: 10px;">
@@ -2608,6 +2583,7 @@ function renderGuiSettings() {
 }
 
 function updateGuiLoreFormat(value) {
+    if (value === messageEditorValue((guiSettings.itemLore.loreFormat || []).join('\n'), true)) return;
     const beforeData = [...(guiSettings.itemLore.loreFormat || [])];
     const lines = value.split('\n').map(l => l.trim());
     guiSettings.itemLore.loreFormat = lines;
@@ -2621,6 +2597,7 @@ function updateGuiLoreFormat(value) {
 }
 
 function updateGuiSetting(group, field, value) {
+    value = preserveMessageReference(guiSettings[group][field], value);
     const beforeData = JSON.parse(JSON.stringify(guiSettings[group]));
     guiSettings[group][field] = value;
     
@@ -2633,6 +2610,7 @@ function updateGuiSetting(group, field, value) {
 }
 
 function updateGuiSettingGroup(group, subGroup, field, value) {
+    value = preserveMessageReference(guiSettings[group][subGroup][field], value);
     const beforeData = JSON.parse(JSON.stringify(guiSettings[group][subGroup]));
     guiSettings[group][subGroup][field] = value;
     
@@ -2799,7 +2777,7 @@ function renderMainMenuShops() {
         let loreHtml = '';
         if (shop.lore && shop.lore.length > 0) {
             loreHtml = '<div class="item-lore-preview">';
-            shop.lore.forEach(line => {
+            buildMainMenuPreviewLore(shop).forEach(line => {
                 loreHtml += `<div class="lore-line">${parseMinecraftColors(line) || '&nbsp;'}</div>`;
             });
             loreHtml += '</div>';
@@ -2833,6 +2811,20 @@ function renderMainMenuShops() {
     }
 }
 
+function buildMainMenuPreviewLore(shop) {
+    const catalogShop = (commandCatalog || {})[shop.shopKey];
+    const times = catalogShop && Array.isArray(catalogShop.availableTimes) && catalogShop.availableTimes.length
+        ? catalogShop.availableTimes.join(', ')
+        : resolveMessageText('messages.shop-always-available', 'Always');
+    return resolveMessageLines(shop.lore).flatMap(line => {
+        if (line.includes('%update-available%') || line.includes('%latest-update-highlights%')) return [];
+        const availableTimes = /<gradient:[^>]+>[^]*%available-times%[^]*<\/gradient>/i.test(line)
+            ? stripMinecraftDisplayCodes(times) : times;
+        return [line.replace(/%available-times%/g, () => availableTimes)
+            .replace(/%version%/g, () => serverInfo.version || '')];
+    });
+}
+
 function updateGuiPreview() {
     const grid = document.getElementById('preview-grid');
     if (!grid) return;
@@ -2845,7 +2837,7 @@ function updateGuiPreview() {
     const titleElement = document.getElementById('preview-title');
     const titleInput = document.getElementById('preview-title-input');
     if (titleElement) titleElement.innerHTML = parseMinecraftColors(mainMenuSettings.title);
-    if (titleInput) titleInput.value = mainMenuSettings.title;
+    setMessageEditorInput(titleInput, mainMenuSettings.title);
 
     const rowsInput = document.getElementById('mainmenu-rows-input');
     if (rowsInput) rowsInput.value = mainMenuSettings.rows;
@@ -2874,11 +2866,7 @@ function updateGuiPreview() {
 
             if (previewParityMode) {
                 // Replace placeholders in preview
-                const processedLore = (shop.lore || []).map(line =>
-                    line.replace(/%available-times%/g, 'Available Times...')
-                        .replace(/%version%/g, serverInfo.version || '1.0.0')
-                        .replace(/%update-available%/g, '')
-                );
+                const processedLore = buildMainMenuPreviewLore(shop);
                 setupTooltip(slot, shop.name, processedLore);
             } else {
                 setupTooltip(slot, shop.name, [
@@ -2904,8 +2892,8 @@ function updatePurchasePreview() {
     const settings = transactionSettings.purchase;
     const titleElement = document.getElementById('preview-title');
     const titleInput = document.getElementById('preview-title-input');
-    if (titleElement) titleElement.innerHTML = parseMinecraftColors(settings.titlePrefix + 'Item');
-    if (titleInput) titleInput.value = settings.titlePrefix;
+    if (titleElement) titleElement.innerHTML = parseMinecraftColors(resolveMessageText(settings.titlePrefix) + 'Item');
+    setMessageEditorInput(titleInput, settings.titlePrefix);
 
     for (let i = 0; i < 54; i++) {
         const slot = document.createElement('div');
@@ -2993,8 +2981,8 @@ function updateSellPreview() {
     const settings = transactionSettings.sell;
     const titleElement = document.getElementById('preview-title');
     const titleInput = document.getElementById('preview-title-input');
-    if (titleElement) titleElement.innerHTML = parseMinecraftColors(settings.titlePrefix + 'Item');
-    if (titleInput) titleInput.value = settings.titlePrefix;
+    if (titleElement) titleElement.innerHTML = parseMinecraftColors(resolveMessageText(settings.titlePrefix) + 'Item');
+    setMessageEditorInput(titleInput, settings.titlePrefix);
 
     for (let i = 0; i < 54; i++) {
         const slot = document.createElement('div');

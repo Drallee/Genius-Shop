@@ -247,7 +247,7 @@ public class ConfigUpdater {
         for (String key : keys) {
             String fullPath = path.isEmpty() ? key : path + "." + key;
 
-            if (!user.contains(key)) {
+            if (!hasUsableValue(user, key)) {
                 if (allowAdd) {
                     user.set(key, def.get(key));
                     changed = true;
@@ -267,5 +267,12 @@ public class ConfigUpdater {
             }
         }
         return changed;
+    }
+
+    private static boolean hasUsableValue(ConfigurationSection section, String key) {
+        if (section == null || !section.contains(key)) {
+            return false;
+        }
+        return section.get(key) != null;
     }
 }

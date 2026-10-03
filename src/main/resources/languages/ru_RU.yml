@@ -52,7 +52,7 @@ messages:
   and: " Ð¸ "
   during: " Ð² Ñ‚ÐµÑ‡ÐµÐ½Ð¸Ðµ "
   between: " Ð¼ÐµÐ¶Ð´Ñƒ "
-  on: " Ð² "
+  "on": " Ð² "
   in: " Ð² "
   in-the-month-of: " Ð² Ð¼ÐµÑÑÑ†Ðµ "
   # Use \n for a new line

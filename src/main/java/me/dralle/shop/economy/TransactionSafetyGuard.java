@@ -53,18 +53,26 @@ public final class TransactionSafetyGuard {
             double maxPrice
     ) {
         if (quantity <= 0) {
-            return reject(plugin, player, action, shopKey, itemKey, material, total, "Quantity must be > 0.");
+            return reject(plugin, player, action, shopKey, itemKey, material, total, "Quantity must be > 0.", null);
         }
         if (!isValidMoney(unitPrice) || !isValidMoney(total)) {
-            return reject(plugin, player, action, shopKey, itemKey, material, total, "Invalid money value (NaN/Infinity/negative).");
+            return reject(plugin, player, action, shopKey, itemKey, material, total, "Invalid money value (NaN/Infinity/negative).", null);
         }
         if (unitPrice > HARD_MAX_MONEY || total > HARD_MAX_MONEY) {
-            return reject(plugin, player, action, shopKey, itemKey, material, total, "Money value exceeds hard safety cap.");
+            return reject(plugin, player, action, shopKey, itemKey, material, total, "Money value exceeds hard safety cap.", null);
         }
 
         // These checks must always run, even when optional safety toggles are disabled.
         if ((minPrice > 0D && unitPrice + 1.0E-9D < minPrice) || (maxPrice > 0D && unitPrice - 1.0E-9D > maxPrice)) {
-            return reject(plugin, player, action, shopKey, itemKey, material, total, "Unit price violates configured floor/ceiling.");
+            String limit = minPrice > 0D && unitPrice + 1.0E-9D < minPrice ? plugin.formatCurrency(minPrice) : plugin.formatCurrency(maxPrice);
+            return reject(
+                    plugin, player, action, shopKey, itemKey, material, total,
+                    "Unit price violates configured floor/ceiling. unit=" + unitPrice + ", min=" + minPrice + ", max=" + maxPrice,
+                    plugin.getMessages().getMessage("safety-price-limit")
+                            .replace("%action%", action)
+                            .replace("%unit%", plugin.formatCurrency(unitPrice))
+                            .replace("%limit%", limit)
+            );
         }
 
         if (!plugin.getConfig().getBoolean("economy-safety.enabled", true)) {
@@ -73,20 +81,48 @@ public final class TransactionSafetyGuard {
 
         double maxTransactionValue = plugin.getConfig().getDouble("economy-safety.max-transaction-value", 0D);
         if (maxTransactionValue > 0D && total > maxTransactionValue) {
-            return reject(plugin, player, action, shopKey, itemKey, material, total, "Transaction exceeds max-transaction-value.");
+            return reject(
+                    plugin, player, action, shopKey, itemKey, material, total,
+                    "Transaction exceeds max-transaction-value. total=" + total + ", max=" + maxTransactionValue,
+                    plugin.getMessages().getMessage("safety-max-transaction")
+                            .replace("%action%", action)
+                            .replace("%total%", plugin.formatCurrency(total))
+                            .replace("%max%", plugin.formatCurrency(maxTransactionValue))
+            );
         }
 
         double maxUnitPrice = plugin.getConfig().getDouble("economy-safety.max-unit-price", 0D);
         if (maxUnitPrice > 0D && unitPrice > maxUnitPrice) {
-            return reject(plugin, player, action, shopKey, itemKey, material, total, "Unit price exceeds max-unit-price.");
+            return reject(
+                    plugin, player, action, shopKey, itemKey, material, total,
+                    "Unit price exceeds max-unit-price. unit=" + unitPrice + ", max=" + maxUnitPrice,
+                    plugin.getMessages().getMessage("safety-max-unit-price")
+                            .replace("%action%", action)
+                            .replace("%unit%", plugin.formatCurrency(unitPrice))
+                            .replace("%max%", plugin.formatCurrency(maxUnitPrice))
+            );
         }
 
         if (dynamicPricing) {
             if (minPrice > 0D && unitPrice + 1.0E-9D < minPrice) {
-                return reject(plugin, player, action, shopKey, itemKey, material, total, "Dynamic price below configured min-price.");
+                return reject(
+                        plugin, player, action, shopKey, itemKey, material, total,
+                        "Dynamic price below configured min-price. unit=" + unitPrice + ", min=" + minPrice,
+                        plugin.getMessages().getMessage("safety-price-limit")
+                                .replace("%action%", action)
+                                .replace("%unit%", plugin.formatCurrency(unitPrice))
+                                .replace("%limit%", plugin.formatCurrency(minPrice))
+                );
             }
             if (maxPrice > 0D && unitPrice - 1.0E-9D > maxPrice) {
-                return reject(plugin, player, action, shopKey, itemKey, material, total, "Dynamic price above configured max-price.");
+                return reject(
+                        plugin, player, action, shopKey, itemKey, material, total,
+                        "Dynamic price above configured max-price. unit=" + unitPrice + ", max=" + maxPrice,
+                        plugin.getMessages().getMessage("safety-price-limit")
+                                .replace("%action%", action)
+                                .replace("%unit%", plugin.formatCurrency(unitPrice))
+                                .replace("%limit%", plugin.formatCurrency(maxPrice))
+                );
             }
         }
 
@@ -95,10 +131,26 @@ public final class TransactionSafetyGuard {
             double minBaseMultiplier = plugin.getConfig().getDouble("economy-safety.anti-spike.min-base-multiplier", 0.0D);
             if (baseUnitPrice > 0D) {
                 if (maxBaseMultiplier > 0D && unitPrice > baseUnitPrice * maxBaseMultiplier) {
-                    return reject(plugin, player, action, shopKey, itemKey, material, total, "Anti-spike: unit price above base multiplier.");
+                    double maxAllowed = baseUnitPrice * maxBaseMultiplier;
+                    return reject(
+                            plugin, player, action, shopKey, itemKey, material, total,
+                            "Anti-spike: unit price above base multiplier. unit=" + unitPrice + ", base=" + baseUnitPrice + ", multiplier=" + maxBaseMultiplier + ", maxAllowed=" + maxAllowed,
+                            plugin.getMessages().getMessage("safety-anti-spike-high")
+                                    .replace("%action%", action)
+                                    .replace("%unit%", plugin.formatCurrency(unitPrice))
+                                    .replace("%max%", plugin.formatCurrency(maxAllowed))
+                            );
                 }
                 if (minBaseMultiplier > 0D && unitPrice < baseUnitPrice * minBaseMultiplier) {
-                    return reject(plugin, player, action, shopKey, itemKey, material, total, "Anti-spike: unit price below base multiplier.");
+                    double minAllowed = baseUnitPrice * minBaseMultiplier;
+                    return reject(
+                            plugin, player, action, shopKey, itemKey, material, total,
+                            "Anti-spike: unit price below base multiplier. unit=" + unitPrice + ", base=" + baseUnitPrice + ", multiplier=" + minBaseMultiplier + ", minAllowed=" + minAllowed,
+                            plugin.getMessages().getMessage("safety-anti-spike-low")
+                                    .replace("%action%", action)
+                                    .replace("%unit%", plugin.formatCurrency(unitPrice))
+                                    .replace("%min%", plugin.formatCurrency(minAllowed))
+                    );
                 }
             }
 
@@ -109,7 +161,14 @@ public final class TransactionSafetyGuard {
                 if (previous != null && previous > 0D && maxStepChangeRatio >= 0D) {
                     double step = Math.abs(unitPrice - previous) / previous;
                     if (step > maxStepChangeRatio) {
-                        return reject(plugin, player, action, shopKey, itemKey, material, total, "Anti-spike: unit price step-change too large.");
+                        return reject(
+                                plugin, player, action, shopKey, itemKey, material, total,
+                                "Anti-spike: unit price step-change too large. unit=" + unitPrice + ", previous=" + previous + ", ratio=" + step + ", maxRatio=" + maxStepChangeRatio,
+                                plugin.getMessages().getMessage("safety-anti-spike-step")
+                                        .replace("%action%", action)
+                                        .replace("%unit%", plugin.formatCurrency(unitPrice))
+                                        .replace("%previous%", plugin.formatCurrency(previous))
+                        );
                     }
                 }
             }
@@ -203,7 +262,8 @@ public final class TransactionSafetyGuard {
             String itemKey,
             Material material,
             double total,
-            String reason
+            String reason,
+            String playerMessage
     ) {
         String materialName = material != null ? material.name() : "UNKNOWN";
         String shop = shopKey != null && !shopKey.isEmpty() ? shopKey : "n/a";
@@ -216,7 +276,9 @@ public final class TransactionSafetyGuard {
             // Safe no-op in non-Bukkit test contexts.
         }
         notifyAdmins(plugin, "blocked", player.getName(), shop, key, materialName, total, reason);
-        return GuardResult.fail(plugin.getMessages().getMessage("safety-transaction-blocked"));
+        return GuardResult.fail(playerMessage != null && !playerMessage.isBlank()
+                ? playerMessage
+                : plugin.getMessages().getMessage("safety-transaction-blocked"));
     }
 
     public static void auditEconomyFailure(

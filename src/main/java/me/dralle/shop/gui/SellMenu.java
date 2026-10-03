@@ -834,7 +834,7 @@ public class SellMenu implements Listener {
         }
         double total = calculateTransactionTotal(effectiveUnitPrice, amount, sellPricePerItem, priceUnitAmount);
         double baseUnitPrice = matchedItem != null && matchedItem.getSellPrice() != null
-                ? PriceFormulaUtil.resolveSellBasePrice(plugin, matchedItem)
+                ? matchedItem.getSellPrice()
                 : effectiveUnitPrice;
 
         TransactionSafetyGuard.GuardResult transactionGuard = TransactionSafetyGuard.validateTransaction(

@@ -11,6 +11,7 @@ import me.dralle.shop.util.ItemConditionUtil;
 import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
+import me.dralle.shop.util.SmartSpawnerHook;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.CreatureSpawner;
@@ -30,7 +31,6 @@ import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 
@@ -816,7 +816,7 @@ public class PurchaseMenu implements Listener {
               }
 
               double baseUnitPrice = matchedItem != null
-                      ? PriceFormulaUtil.resolveBuyBasePrice(plugin, matchedItem)
+                      ? matchedItem.getPrice()
                       : effectiveUnitPrice;
               TransactionSafetyGuard.GuardResult transactionGuard = TransactionSafetyGuard.validateTransaction(
                       plugin,
@@ -836,6 +836,31 @@ public class PurchaseMenu implements Listener {
               if (!transactionGuard.allowed()) {
                   player.sendMessage(transactionGuard.message());
                   return;
+              }
+
+              boolean shouldGiveItem = !runCommandOnly || commands == null || commands.isEmpty();
+              ItemStack deliveryTemplate = null;
+              if (shouldGiveItem) {
+                  try {
+                      if (matchedItem != null && matchedItem.getItemStackData() != null && !matchedItem.getItemStackData().isEmpty()) {
+                          deliveryTemplate = ShopItemUtil.deserializeItemStack(matchedItem.getItemStackData());
+                      }
+                      if (deliveryTemplate == null) {
+                          String headTexture = meta(player, "buy.headTexture", null);
+                          String headOwner = meta(player, "buy.headOwner", null);
+                          deliveryTemplate = createDeliveryTemplate(material, spawnerType, spawnerItem, potionType, potionLevel,
+                                  requireName ? customName : null, requireLore ? customLore : null,
+                                  enchantments, hideAttr, hideAdd, unstableTnt, headTexture, headOwner);
+                      }
+                  } catch (Exception ex) {
+                      TransactionSafetyGuard.auditEconomyFailure(plugin, player, "prepare-delivery", shopKey, itemKey, material, total, ex.toString());
+                      player.sendMessage(plugin.getMessages().getMessage("purchase-delivery-failed"));
+                      return;
+                  }
+                  if (!canFitPurchase(player, deliveryTemplate, amount)) {
+                      player.sendMessage(plugin.getMessages().getMessage("purchase-inventory-full"));
+                      return;
+                  }
               }
 
               // Check balance
@@ -870,11 +895,6 @@ public class PurchaseMenu implements Listener {
               }
 
               try {
-                  // Deliver item (with overflow dropping)
-                  // Only apply custom name/lore if their respective require flags are true
-                  String nameToApply = requireName ? customName : null;
-                  List<String> loreToApply = requireLore ? customLore : null;
-
                   // Execute commands if present
                   if (commands != null && !commands.isEmpty()) {
                       for (String cmd : commands) {
@@ -896,18 +916,8 @@ public class PurchaseMenu implements Listener {
                       }
                   }
 
-                  // Give item if not run-command-only OR if there are no commands
-                  boolean shouldGiveItem = !runCommandOnly || commands == null || commands.isEmpty();
                   if (shouldGiveItem) {
-                      String headTexture = player.hasMetadata("buy.headTexture") ? player.getMetadata("buy.headTexture").getFirst().asString() : null;
-                      String headOwner = player.hasMetadata("buy.headOwner") ? player.getMetadata("buy.headOwner").getFirst().asString() : null;
-                      if (matchedItem != null && matchedItem.getItemStackData() != null && !matchedItem.getItemStackData().isEmpty()) {
-                          if (!giveSerializedItemSafe(player, matchedItem.getItemStackData(), amount)) {
-                              giveItemSafe(player, material, amount, spawnerType, spawnerItem, potionType, potionLevel, nameToApply, loreToApply, enchantments, hideAttr, hideAdd, unstableTnt, headTexture, headOwner);
-                          }
-                      } else {
-                          giveItemSafe(player, material, amount, spawnerType, spawnerItem, potionType, potionLevel, nameToApply, loreToApply, enchantments, hideAttr, hideAdd, unstableTnt, headTexture, headOwner);
-                      }
+                      giveItemTemplateSafe(player, deliveryTemplate, amount);
                   }
               } catch (Exception ex) {
                   TransactionSafetyGuard.auditEconomyFailure(
@@ -1016,179 +1026,191 @@ public class PurchaseMenu implements Listener {
     }
 
     /* ============================================================
-     * GIVE ITEM (With Overflow Drop)
+     * ITEM DELIVERY
      * ============================================================ */
-    private static boolean giveSerializedItemSafe(Player player, String itemStackData, int amount) {
-        ItemStack template = ShopItemUtil.deserializeItemStack(itemStackData);
-        if (template == null) {
-            return false;
+    private static boolean canFitPurchase(Player player, ItemStack template, int amount) {
+        if (template == null || amount <= 0) return false;
+        int stackLimit = Math.max(1, Math.min(template.getMaxStackSize(), player.getInventory().getMaxStackSize()));
+        long capacity = 0;
+        // Storage contents exclude armor and offhand slots, which addItem does not fill.
+        for (ItemStack existing : player.getInventory().getStorageContents()) {
+            if (existing == null || existing.getType() == Material.AIR) {
+                capacity += stackLimit;
+            } else if (template.isSimilar(existing)) {
+                capacity += Math.max(0, stackLimit - existing.getAmount());
+            }
+            if (capacity >= amount) return true;
         }
-
-        int remaining = Math.max(1, amount);
-        int maxStackSize = Math.max(1, template.getMaxStackSize());
-        while (remaining > 0) {
-            int stackSize = Math.min(remaining, maxStackSize);
-            ItemStack item = template.clone();
-            item.setAmount(stackSize);
-            Map<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-            leftover.values().forEach(it -> player.getWorld().dropItemNaturally(player.getLocation(), it));
-            remaining -= stackSize;
-        }
-        return true;
+        return false;
     }
 
-    private static void giveItemSafe(Player player,
-                                     Material material,
-                                     int amount,
-                                     String spawnerType,
-                                     String spawnerItem,
-                                     String potionType,
-                                     int potionLevel,
-                                     String customName,
-                                     List<String> customLore,
-                                     Map<String, Integer> enchantments,
-                                     boolean hideAttr,
-                                     boolean hideAdd,
-                                     boolean unstableTnt,
-                                     String headTexture,
-                                     String headOwner) {
+    private static void giveItemTemplateSafe(Player player, ItemStack template, int amount) {
+        // Commands may have changed storage since the pre-withdraw capacity check.
+        if (!canFitPurchase(player, template, amount)) {
+            throw new IllegalStateException("Insufficient inventory space for purchase");
+        }
+        ItemStack[] originalStorage = player.getInventory().getStorageContents().clone();
+        for (int slot = 0; slot < originalStorage.length; slot++) {
+            if (originalStorage[slot] != null) originalStorage[slot] = originalStorage[slot].clone();
+        }
+        try {
+            int remaining = amount;
+            int maxStackSize = Math.max(1, Math.min(template.getMaxStackSize(), player.getInventory().getMaxStackSize()));
+            while (remaining > 0) {
+                int stackSize = Math.min(remaining, maxStackSize);
+                ItemStack item = template.clone();
+                item.setAmount(stackSize);
+                Map<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+                if (!leftover.isEmpty()) {
+                    throw new IllegalStateException("Inventory rejected prechecked purchase items");
+                }
+                remaining -= stackSize;
+            }
+        } catch (RuntimeException ex) {
+            // Remove any partial delivery before the caller refunds the transaction.
+            player.getInventory().setStorageContents(originalStorage);
+            throw ex;
+        }
+    }
+
+    private static ItemStack createDeliveryTemplate(Material material,
+                                                    String spawnerType,
+                                                    String spawnerItem,
+                                                    String potionType,
+                                                    int potionLevel,
+                                                    String customName,
+                                                    List<String> customLore,
+                                                    Map<String, Integer> enchantments,
+                                                    boolean hideAttr,
+                                                    boolean hideAdd,
+                                                    boolean unstableTnt,
+                                                    String headTexture,
+                                                    String headOwner) {
 
         ShopPlugin plugin = ShopPlugin.getInstance();
 
-        // SmartSpawner Command Integration
-        if (material == Material.SPAWNER && plugin.getConfig().getBoolean("smart-spawner-support", true) &&
+        // Serialized item-stack data is handled before this API fallback.
+        if (material == Material.SPAWNER &&
+                plugin.getConfig().getBoolean("smart-spawner-support", true) &&
+                plugin.getConfig().getBoolean("smart-spawner-command-fallback", true) &&
                 (org.bukkit.Bukkit.getPluginManager().isPluginEnabled("SmartSpawner") || org.bukkit.Bukkit.getPluginManager().isPluginEnabled("SmartSpawners"))) {
 
-            String cmd = null;
-            if (spawnerItem != null && !spawnerItem.isEmpty()) {
-                cmd = "ss give item_spawner " + player.getName() + " " + spawnerItem + " " + amount;
-            } else if (spawnerType != null && !spawnerType.isEmpty()) {
-                cmd = "ss give spawner " + player.getName() + " " + spawnerType + " " + amount;
-            }
-
-            if (cmd != null) {
-                org.bukkit.Bukkit.dispatchCommand(org.bukkit.Bukkit.getConsoleSender(), cmd);
-                return;
+            if ((spawnerItem != null && !spawnerItem.isBlank()) || (spawnerType != null && !spawnerType.isBlank())) {
+                org.bukkit.plugin.Plugin spawnerPlugin = Bukkit.getPluginManager().getPlugin("SmartSpawner");
+                if (spawnerPlugin == null || !spawnerPlugin.isEnabled()) {
+                    spawnerPlugin = Bukkit.getPluginManager().getPlugin("SmartSpawners");
+                }
+                ItemStack template = SmartSpawnerHook.createSpawnerItem(spawnerPlugin, spawnerType, spawnerItem);
+                return template;
             }
         }
 
-        int remaining = amount;
+        int stackSize = 1;
+        ItemStack item;
 
-        while (remaining > 0) {
-            int stackSize = Math.min(remaining, material.getMaxStackSize());
-            ItemStack item;
-
-            // Spawner handling (both regular and trial spawners)
-            if (material == Material.SPAWNER) {
-                if (spawnerItem != null && !spawnerItem.isEmpty()) {
-                    item = ShopItemUtil.getSpawnerItem(spawnerItem, stackSize, true);
-                } else if (spawnerType != null && !spawnerType.isEmpty()) {
-                    item = ShopItemUtil.getSpawnerItem(spawnerType, stackSize, false);
-                } else {
-                    item = new ItemStack(material, stackSize);
-                }
-            } else if (material.name().equals("TRIAL_SPAWNER")) {
-                item = new ItemStack(material, stackSize);
-
-                if (item.getItemMeta() instanceof BlockStateMeta) {
-                    BlockStateMeta meta = (BlockStateMeta) item.getItemMeta();
-
-                    // Try to handle as CreatureSpawner (works for both SPAWNER and TRIAL_SPAWNER)
-                    if (meta.getBlockState() instanceof CreatureSpawner) {
-                        CreatureSpawner cs = (CreatureSpawner) meta.getBlockState();
-
-                        if (spawnerType != null) {
-                            try {
-                                cs.setSpawnedType(EntityType.valueOf(spawnerType.toUpperCase()));
-                            } catch (Exception ignored) {
-                            }
-                        }
-
-                        meta.setBlockState(cs);
-                        item.setItemMeta(meta);
-                    }
-                }
+        // Spawner handling (both regular and trial spawners)
+        if (material == Material.SPAWNER) {
+            if (spawnerItem != null && !spawnerItem.isEmpty()) {
+                item = ShopItemUtil.getSpawnerItem(spawnerItem, stackSize, true);
+            } else if (spawnerType != null && !spawnerType.isEmpty()) {
+                item = ShopItemUtil.getSpawnerItem(spawnerType, stackSize, false);
             } else {
                 item = new ItemStack(material, stackSize);
             }
+        } else if (material.name().equals("TRIAL_SPAWNER")) {
+            item = new ItemStack(material, stackSize);
 
-            // Apply potion type if this is a potion or tipped arrow
-            if (potionType != null && (material == Material.POTION || material == Material.SPLASH_POTION || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW)) {
-                ShopItemUtil.applyPotionType(item, potionType, potionLevel);
-            }
+            if (item.getItemMeta() instanceof BlockStateMeta) {
+                BlockStateMeta meta = (BlockStateMeta) item.getItemMeta();
 
-            if (material == Material.PLAYER_HEAD) {
-                ShopItemUtil.applyHeadTexture(item, headTexture, headOwner);
-            }
+                // Try to handle as CreatureSpawner (works for both SPAWNER and TRIAL_SPAWNER)
+                if (meta.getBlockState() instanceof CreatureSpawner) {
+                    CreatureSpawner cs = (CreatureSpawner) meta.getBlockState();
 
-            // Apply enchantments
-            if (enchantments != null && !enchantments.isEmpty()) {
-                ShopItemUtil.applyEnchantments(item, enchantments);
-            }
-
-            ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                if (customName != null) meta.setDisplayName(ShopItemUtil.color(customName));
-                if (customLore != null && !customLore.isEmpty()) {
-                    List<String> coloredLore = new ArrayList<>();
-                    for (String line : customLore) {
-                        if (line == null) continue;
-                        coloredLore.addAll(ShopItemUtil.splitAndColor(line));
-                    }
-                    meta.setLore(coloredLore);
-                }
-                if (hideAttr) meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-                if (hideAdd) meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-                item.setItemMeta(meta);
-            }
-
-            // Apply unstable TNT components if enabled
-            if (unstableTnt && material == Material.TNT) {
-                try {
-                    // Method 1: Modern BlockData API (Available since 1.13)
-                    ItemMeta currentMeta = item.getItemMeta();
-                    boolean appliedViaApi = false;
-
-                    if (currentMeta instanceof BlockStateMeta) {
-                        BlockStateMeta bsm = (BlockStateMeta) currentMeta;
-                        org.bukkit.block.BlockState state = bsm.getBlockState();
+                    if (spawnerType != null) {
                         try {
-                            org.bukkit.block.data.BlockData data = org.bukkit.Bukkit.createBlockData(Material.TNT);
-                            if (data instanceof org.bukkit.block.data.type.TNT) {
-                                ((org.bukkit.block.data.type.TNT) data).setUnstable(true);
-                                state.setBlockData(data);
-                                bsm.setBlockState(state);
-                                item.setItemMeta(bsm);
-                                appliedViaApi = true;
-                                me.dralle.shop.util.ConsoleLog.info(ShopPlugin.getInstance(), "[DEBUG] Applied unstable TNT via BlockData API");
-                            }
-                        } catch (Throwable ignored) {
+                            cs.setSpawnedType(EntityType.valueOf(spawnerType.toUpperCase()));
+                        } catch (Exception ignored) {
                         }
                     }
 
-                    if (!appliedViaApi) {
-                        // Method 2: Modern Components (1.21 / 1.20.5+)
-                        try {
-                            item = org.bukkit.Bukkit.getUnsafe().modifyItemStack(item, "minecraft:tnt[minecraft:block_state={unstable:\"true\"}]");
-                            me.dralle.shop.util.ConsoleLog.info(ShopPlugin.getInstance(), "[DEBUG] Applied unstable TNT via Data Components");
-                        } catch (Throwable t1) {
-                            me.dralle.shop.util.ConsoleLog.warn(ShopPlugin.getInstance(), "Failed to apply unstable TNT property.");
-                        }
-                    }
-                } catch (Exception e) {
-                    me.dralle.shop.util.ConsoleLog.warn(ShopPlugin.getInstance(), "Error while applying unstable property: " + e.getMessage());
+                    meta.setBlockState(cs);
+                    item.setItemMeta(meta);
                 }
             }
-
-            // Try to add to inventory
-            HashMap<Integer, ItemStack> leftovers = player.getInventory().addItem(item);
-
-            // Drop leftover items
-            leftovers.values().forEach(leftover ->
-                    player.getWorld().dropItem(player.getLocation(), leftover));
-
-            remaining -= stackSize;
+        } else {
+            item = new ItemStack(material, stackSize);
         }
+
+        // Apply potion type if this is a potion or tipped arrow
+        if (potionType != null && (material == Material.POTION || material == Material.SPLASH_POTION || material == Material.LINGERING_POTION || material == Material.TIPPED_ARROW)) {
+            ShopItemUtil.applyPotionType(item, potionType, potionLevel);
+        }
+
+        if (material == Material.PLAYER_HEAD) {
+            ShopItemUtil.applyHeadTexture(item, headTexture, headOwner);
+        }
+
+        // Apply enchantments
+        if (enchantments != null && !enchantments.isEmpty()) {
+            ShopItemUtil.applyEnchantments(item, enchantments);
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            if (customName != null) meta.setDisplayName(ShopItemUtil.color(customName));
+            if (customLore != null && !customLore.isEmpty()) {
+                List<String> coloredLore = new ArrayList<>();
+                for (String line : customLore) {
+                    if (line == null) continue;
+                    coloredLore.addAll(ShopItemUtil.splitAndColor(line));
+                }
+                meta.setLore(coloredLore);
+            }
+            if (hideAttr) meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            if (hideAdd) meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+            item.setItemMeta(meta);
+        }
+
+        // Apply unstable TNT components if enabled
+        if (unstableTnt && material == Material.TNT) {
+            try {
+                // Method 1: Modern BlockData API (Available since 1.13)
+                ItemMeta currentMeta = item.getItemMeta();
+                boolean appliedViaApi = false;
+
+                if (currentMeta instanceof BlockStateMeta) {
+                    BlockStateMeta bsm = (BlockStateMeta) currentMeta;
+                    org.bukkit.block.BlockState state = bsm.getBlockState();
+                    try {
+                        org.bukkit.block.data.BlockData data = org.bukkit.Bukkit.createBlockData(Material.TNT);
+                        if (data instanceof org.bukkit.block.data.type.TNT) {
+                            ((org.bukkit.block.data.type.TNT) data).setUnstable(true);
+                            state.setBlockData(data);
+                            bsm.setBlockState(state);
+                            item.setItemMeta(bsm);
+                            appliedViaApi = true;
+                            me.dralle.shop.util.ConsoleLog.info(ShopPlugin.getInstance(), "[DEBUG] Applied unstable TNT via BlockData API");
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+
+                if (!appliedViaApi) {
+                    // Method 2: Modern Components (1.21 / 1.20.5+)
+                    try {
+                        item = org.bukkit.Bukkit.getUnsafe().modifyItemStack(item, "minecraft:tnt[minecraft:block_state={unstable:\"true\"}]");
+                        me.dralle.shop.util.ConsoleLog.info(ShopPlugin.getInstance(), "[DEBUG] Applied unstable TNT via Data Components");
+                    } catch (Throwable t1) {
+                        me.dralle.shop.util.ConsoleLog.warn(ShopPlugin.getInstance(), "Failed to apply unstable TNT property.");
+                    }
+                }
+            } catch (Exception e) {
+                me.dralle.shop.util.ConsoleLog.warn(ShopPlugin.getInstance(), "Error while applying unstable property: " + e.getMessage());
+            }
+        }
+
+        return item;
     }
 
     /* ============================================================

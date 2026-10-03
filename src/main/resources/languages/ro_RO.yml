@@ -52,7 +52,7 @@ messages:
   and: " È™i "
   during: " Ã®n timpul "
   between: " Ã®ntre "
-  on: " pe "
+  "on": " pe "
   in: " Ã®n "
   in-the-month-of: " Ã®n luna "
   # Use \n for a new line

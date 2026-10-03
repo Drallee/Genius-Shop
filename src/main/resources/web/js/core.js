@@ -445,6 +445,7 @@ async function loadTranslations() {
             }
             
             applyTranslations();
+            if (typeof switchTab === 'function') switchTab(currentTab || 'mainmenu');
         }
     } catch (error) {
         console.error('Failed to load translations:', error);
@@ -566,6 +567,66 @@ function t(key, replacements = {}) {
         }
     }
     return text;
+}
+
+function resolveMessageText(value, fallback = '') {
+    if (value === undefined || value === null) return fallback;
+    const raw = String(value);
+    const translated = resolveMessageValue(raw);
+    return typeof translated === 'string' ? translated : raw;
+}
+
+function resolveMessageValue(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+
+    const candidates = [];
+    if (trimmed.startsWith('messages.')) {
+        candidates.push(trimmed);
+        candidates.push(trimmed.substring('messages.'.length));
+    } else {
+        candidates.push(trimmed);
+        candidates.push(`messages.${trimmed}`);
+    }
+
+    for (const source of [translations, DEFAULT_TRANSLATIONS]) {
+        for (const key of candidates) {
+            const translated = key.split('.').reduce((obj, part) => obj && obj[part], source);
+            if (typeof translated === 'string' || Array.isArray(translated)) return translated;
+        }
+    }
+    return undefined;
+}
+
+function resolveMessageLines(value) {
+    const lines = Array.isArray(value) ? value : value == null ? [] : [value];
+    return lines.flatMap(line => {
+        const translated = resolveMessageValue(String(line));
+        return (Array.isArray(translated) ? translated : [typeof translated === 'string' ? translated : String(line)])
+            .flatMap(text => String(text).split(/\r?\n|\\n/));
+    });
+}
+
+function messageEditorValue(value, multiline = false) {
+    const raw = String(value ?? '');
+    return multiline ? resolveMessageLines(raw.split('\n')).join('\n') : resolveMessageText(raw);
+}
+
+// Keep language references in the model until their displayed text is actually edited.
+function setMessageEditorInput(element, value, multiline = false) {
+    if (!element) return;
+    element.value = messageEditorValue(value, multiline);
+    element.dataset.messageSource = String(value ?? '');
+    element.dataset.messageDisplay = element.value;
+}
+
+function readMessageEditorInput(element) {
+    return element.dataset.messageSource !== undefined && element.value === element.dataset.messageDisplay
+        ? element.dataset.messageSource : element.value;
+}
+
+function preserveMessageReference(original, edited) {
+    return typeof original === 'string' && edited === messageEditorValue(original) ? original : edited;
 }
 
 function applyFontAwesomeIcons() {
@@ -913,7 +974,7 @@ function getActivitySummary(entry) {
 
     const getDisplayName = (data) => {
         if (!data) return '';
-        return data.name || data.material || data.key || data.title || data.guiName || '';
+        return data.name || data.material || data.key || data.title || data.guiName || data.fileName || '';
     };
 
     if (entry.details && entry.details.isSwap && Array.isArray(entry.afterData)) {
@@ -1003,7 +1064,7 @@ function escapeHtml(text) {
 
 function stripMinecraftDisplayCodes(text) {
     if (!text) return '';
-    return String(text)
+    return resolveMessageText(text)
         .replace(/<gradient:[^>]+>([\s\S]*?)<\/gradient>/gi, '$1')
         .replace(/&[0-9a-fk-or]/gi, '')
         .replace(/&#[0-9a-fA-F]{6}/gi, '')

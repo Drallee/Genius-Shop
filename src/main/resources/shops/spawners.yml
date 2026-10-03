@@ -109,30 +109,141 @@ items:
     allow-sell-stock-overflow: true
 
   - material: SPAWNER
-    name: '<gradient:#57C1FF:#7EE8FA:#EEC0C6>Diamond Spawner</gradient>'
-    price: 1000000
-    sell-price: 500000
+    name: '<gradient:#333333:#aaaaaa>ᴄᴏᴀʟ ꜱᴘᴀᴡɴᴇʀ</gradient>'
+    price: 500000
+    sell-price: 250000
+    item-key: 'coal-spawner'
     amount: 1
-    global-limit: 3
-    spawner-item: DIAMOND
+    lore:
+      - '&7Produces <gradient:#333333:#aaaaaa>coal</gradient>'
+      - '&8Requires SmartSpawner'
+    hide-attributes: true
+    hide-additional: true
+    require-name: true
+    require-lore: true
+    global-limit: 8
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
     show-stock: true
     show-stock-reset-timer: true
-    lore:
-      - '&7Produces diamonds.'
-      - '&8Requires SmartSpawner'
-    # Example command execution context
-    commands:
-      - 'broadcast <gradient:#57C1FF:#7EE8FA>%player% bought a Diamond Spawner!</gradient>'
-    run-as: console
-    run-command-only: false
+    spawner-item: COAL
 
   - material: SPAWNER
-    name: '&eGold Ingot Spawner'
+    name: '<gradient:#57C1FF:#7EE8FA>ᴅɪᴀᴍᴏɴᴅ ꜱᴘᴀᴡɴᴇʀ</gradient>'
+    price: 1000000
+    sell-price: 500000
+    item-key: 'diamond-spawner'
+    amount: 1
+    lore:
+      - '&7Produces <gradient:#57C1FF:#7EE8FA>diamonds</gradient>'
+      - '&8Requires SmartSpawner'
+    hide-attributes: true
+    hide-additional: true
+    require-name: true
+    require-lore: true
+    global-limit: 3
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
+    show-stock: true
+    show-stock-reset-timer: true
+    spawner-item: DIAMOND
+
+  - material: SPAWNER
+    name: '<gradient:#16A34A:#86EFAC>ᴇᴍᴇʀᴀʟᴅ ꜱᴘᴀᴡɴᴇʀ</gradient>'
+    price: 900000
+    sell-price: 450000
+    item-key: 'emerald-spawner'
+    amount: 1
+    lore:
+      - '&7Produces <gradient:#16A34A:#86EFAC>emeralds</gradient>'
+      - '&8Requires SmartSpawner'
+    hide-attributes: true
+    hide-additional: true
+    require-name: true
+    require-lore: true
+    global-limit: 4
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
+    show-stock: true
+    show-stock-reset-timer: true
+    spawner-item: EMERALD
+
+  - material: SPAWNER
+    name: '<gradient:#F59E0B:#FDE68A>ɢᴏʟᴅ ɪɴɢᴏᴛ ꜱᴘᴀᴡɴᴇʀ</gradient>'
     price: 750000
     sell-price: 375000
+    item-key: 'gold-ingot-spawner'
     amount: 1
-    global-limit: 5
-    spawner-item: GOLD_INGOT
     lore:
-      - '&7Produces gold ingots.'
+      - '&7Produces <gradient:#F59E0B:#FDE68A>gold ingots</gradient>'
       - '&8Requires SmartSpawner'
+    hide-attributes: true
+    hide-additional: true
+    require-name: true
+    require-lore: true
+    global-limit: 5
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
+    show-stock: true
+    show-stock-reset-timer: true
+    spawner-item: GOLD_INGOT
+
+  - material: SPAWNER
+    name: '<gradient:#A78BFA:#F0FDFA>ɴᴇᴛʜᴇʀ ꜱᴛᴀʀ ꜱᴘᴀᴡɴᴇʀ</gradient>'
+    price: 1500000
+    sell-price: 750000
+    item-key: 'nether-star-spawner'
+    amount: 1
+    lore:
+      - '&7Produces <gradient:#A78BFA:#F0FDFA>nether stars</gradient>'
+      - '&8Requires SmartSpawner'
+    hide-attributes: true
+    hide-additional: true
+    require-name: true
+    require-lore: true
+    global-limit: 2
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
+    show-stock: true
+    show-stock-reset-timer: true
+    spawner-item: NETHER_STAR
+
+  - material: SPAWNER
+    name: '<gradient:#3F3F46:#A78BFA>ɴᴇᴛʜᴇʀɪᴛᴇ ɪɴɢᴏᴛ ꜱᴘᴀᴡɴᴇʀ</gradient>'
+    price: 1750000
+    sell-price: 875000
+    item-key: 'netherite-ingot-spawner'
+    amount: 1
+    lore:
+      - '&7Produces <gradient:#3F3F46:#A78BFA>netherite ingots</gradient>'
+      - '&8Requires SmartSpawner'
+    hide-attributes: true
+    hide-additional: true
+    require-name: true
+    require-lore: true
+    global-limit: 2
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
+    show-stock: true
+    show-stock-reset-timer: true
+    spawner-item: NETHERITE_INGOT
+
+  - material: SPAWNER
+    name: '<gradient:#FACC15:#22C55E>ᴛᴏᴛᴇᴍ ᴏꜰ ᴜɴᴅʏɪɴɢ ꜱᴘᴀᴡɴᴇʀ</gradient>'
+    price: 2000000
+    sell-price: 1000000
+    item-key: 'totem-of-undying-spawner'
+    amount: 1
+    lore:
+      - '&7Produces <gradient:#FACC15:#22C55E>totems of undying</gradient>'
+      - '&8Requires SmartSpawner'
+    hide-attributes: true
+    hide-additional: true
+    require-name: true
+    require-lore: true
+    global-limit: 1
+    sell-adds-to-stock: false
+    allow-sell-stock-overflow: false
+    show-stock: true
+    show-stock-reset-timer: true
+    spawner-item: TOTEM_OF_UNDYING

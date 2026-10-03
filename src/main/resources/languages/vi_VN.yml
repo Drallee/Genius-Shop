@@ -52,7 +52,7 @@ messages:
   and: " vÃ  "
   during: " trong "
   between: " giá»¯a "
-  on: " vÃ o "
+  "on": " vÃ o "
   in: " trong "
   in-the-month-of: " trong thÃ¡ng "
   # Use \n for a new line

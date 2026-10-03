@@ -353,16 +353,14 @@ async function saveCurrentShop(isSilent = false) {
         items = normalizedItems;
     }
 
-    const yamlContent = document.getElementById('export-output').textContent;
-
-    if (allShops[currentShopFile] === yamlContent) {
-        return;
-    }
-
     isSaving = true;
     if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
+        updateExport();
+        const yamlContent = document.getElementById('export-output').textContent;
+        EditorYaml.parse(yamlContent);
+        if (allShops[currentShopFile] === yamlContent) return;
         const response = await fetch(`api/file/shops/${currentShopFile}`, {
             method: 'POST',
             headers: {
@@ -415,54 +413,7 @@ async function saveMainMenuYaml(isSilent = false) {
     if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
-        let yamlContent = `# Main shop menu configuration\n`;
-        yamlContent += `# This file contains the main menu that players see when opening /shop\n\n`;
-        yamlContent += `title: '${mainMenuSettings.title}'\n`;
-        yamlContent += `rows: ${mainMenuSettings.rows}\n\n`;
-        yamlContent += `# Shop buttons\n`;
-        yamlContent += `items:\n`;
-
-        loadedGuiShops.forEach(shop => {
-            yamlContent += `  ${shop.key}:\n`;
-            yamlContent += `    slot: ${shop.slot}\n`;
-            yamlContent += `    material: ${shop.material}\n`;
-            yamlContent += `    name: '${shop.name}'\n`;
-            if (shop.lore && shop.lore.length > 0) {
-                yamlContent += `    lore:\n`;
-                shop.lore.forEach(line => {
-                    yamlContent += `      - '${line}'\n`;
-                });
-            }
-            let action = (shop.action || '').toString().trim().toLowerCase();
-            if (!action) {
-                if (shop.shopKey) {
-                    action = 'shop-key';
-                } else if (Array.isArray(shop.commands) && shop.commands.length > 0) {
-                    action = 'command';
-                } else {
-                    action = 'no-action';
-                }
-            }
-            if (action) yamlContent += `    action: ${action}\n`;
-
-            if (action === 'shop' || action === 'shop-key') {
-                if (shop.shopKey) yamlContent += `    shop-key: ${shop.shopKey}\n`;
-            } else if (action === 'command' || action === 'command-close') {
-                const commands = Array.isArray(shop.commands) ? shop.commands.filter(line => line && line.trim()) : [];
-                if (commands.length > 0) {
-                    yamlContent += `    commands:\n`;
-                    commands.forEach(line => {
-                        yamlContent += `      - '${line}'\n`;
-                    });
-                }
-                const runAs = (shop.runAs || 'player').toString().trim().toLowerCase();
-                yamlContent += `    run-as: ${runAs === 'console' ? 'console' : 'player'}\n`;
-            }
-
-            if (shop.permission) yamlContent += `    permission: ${shop.permission}\n`;
-            if (shop.hideAttributes) yamlContent += `    hide-attributes: true\n`;
-            if (shop.hideAdditional) yamlContent += `    hide-additional: true\n`;
-        });
+        const yamlContent = EditorYaml.writeMain();
 
         const response = await fetch(`api/file/menus/main-menu.yml`, {
             method: 'POST',
@@ -495,41 +446,7 @@ async function savePurchaseMenuYaml(isSilent = false) {
     if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
-        let yamlContent = `# Purchase menu configuration\n`;
-        yamlContent += `# This file contains settings for the item purchase interface\n\n`;
-        yamlContent += `title-prefix: '${transactionSettings.purchase.titlePrefix}'\n`;
-        yamlContent += `rows: ${transactionSettings.purchase.rows || 6}\n`;
-        yamlContent += `display-material: ${transactionSettings.purchase.displayMaterial}\n`;
-        yamlContent += `display-slot: ${transactionSettings.purchase.displaySlot}\n`;
-        yamlContent += `max-amount: ${transactionSettings.purchase.maxAmount}\n\n`;
-
-        yamlContent += `# Display item lore placeholders\n`;
-        yamlContent += `lore:\n`;
-        yamlContent += `  amount: '${transactionSettings.purchase.lore.amount}'\n`;
-        yamlContent += `  total: '${transactionSettings.purchase.lore.total}'\n`;
-        yamlContent += `  spawner: '${transactionSettings.purchase.lore.spawner}'\n\n`;
-
-        yamlContent += `# Action buttons\n`;
-        yamlContent += `buttons:\n`;
-        
-        const p = transactionSettings.purchase;
-        ['confirm', 'cancel', 'back'].forEach(key => {
-            const btn = p.buttons[key];
-            yamlContent += `  ${key}:\n`;
-            yamlContent += `    material: ${btn.material}\n`;
-            yamlContent += `    name: '${btn.name}'\n`;
-            yamlContent += `    slot: ${btn.slot}\n`;
-        });
-
-        ['add', 'remove', 'set'].forEach(group => {
-            yamlContent += `  ${group}:\n`;
-            yamlContent += `    material: ${p[group].material}\n`;
-            Object.entries(p[group].buttons).forEach(([key, btn]) => {
-                yamlContent += `    '${key}':\n`;
-                yamlContent += `      name: '${btn.name}'\n`;
-                yamlContent += `      slot: ${btn.slot}\n`;
-            });
-        });
+        const yamlContent = EditorYaml.writeTransaction('purchase');
 
         const response = await fetch(`api/file/menus/purchase-menu.yml`, {
             method: 'POST',
@@ -562,41 +479,7 @@ async function saveSellMenuYaml(isSilent = false) {
     if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
-        let yamlContent = `# Sell menu configuration\n`;
-        yamlContent += `# This file contains settings for the item sell interface\n\n`;
-        yamlContent += `title-prefix: '${transactionSettings.sell.titlePrefix}'\n`;
-        yamlContent += `rows: ${transactionSettings.sell.rows || 6}\n`;
-        yamlContent += `display-material: ${transactionSettings.sell.displayMaterial}\n`;
-        yamlContent += `display-slot: ${transactionSettings.sell.displaySlot}\n`;
-        yamlContent += `max-amount: ${transactionSettings.sell.maxAmount}\n\n`;
-
-        yamlContent += `# Display item lore placeholders\n`;
-        yamlContent += `lore:\n`;
-        yamlContent += `  amount: '${transactionSettings.sell.lore.amount}'\n`;
-        yamlContent += `  total: '${transactionSettings.sell.lore.total}'\n\n`;
-
-        yamlContent += `# Action buttons\n`;
-        yamlContent += `buttons:\n`;
-        
-        const s = transactionSettings.sell;
-        ['confirm', 'cancel', 'back', 'sellAll'].forEach(key => {
-            const btn = s.buttons[key];
-            if (!btn) return;
-            yamlContent += `  ${key}:\n`;
-            yamlContent += `    material: ${btn.material}\n`;
-            yamlContent += `    name: '${btn.name}'\n`;
-            yamlContent += `    slot: ${btn.slot}\n`;
-        });
-
-        ['add', 'remove', 'set'].forEach(group => {
-            yamlContent += `  ${group}:\n`;
-            yamlContent += `    material: ${s[group].material}\n`;
-            Object.entries(s[group].buttons).forEach(([key, btn]) => {
-                yamlContent += `    '${key}':\n`;
-                yamlContent += `      name: '${btn.name}'\n`;
-                yamlContent += `      slot: ${btn.slot}\n`;
-            });
-        });
+        const yamlContent = EditorYaml.writeTransaction('sell');
 
         const response = await fetch(`api/file/menus/sell-menu.yml`, {
             method: 'POST',
@@ -658,6 +541,7 @@ async function saveGuiSettingsYaml(isSilent = false) {
 }
 
 async function saveShopFileDirect(shopFile, yamlContent, isSilent = true) {
+    EditorYaml.parse(yamlContent);
     const response = await fetch(`api/file/shops/${shopFile}`, {
         method: 'POST',
         headers: {

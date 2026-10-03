@@ -86,7 +86,6 @@ public class MainMenu implements Listener {
                 if (mat == null) mat = Material.BARRIER;
 
                 String name = plugin.getMessages().resolveConfigString(mainConfig, "items." + key + ".name", key);
-                List<String> loreRaw = plugin.getMessages().resolveConfigStringList(mainConfig, "items." + key + ".lore");
                 List<String> lore = new ArrayList<>();
                 List<String> latestHighlights = plugin.getUpdateChecker() != null
                         ? plugin.getUpdateChecker().getLatestReleaseHighlights()
@@ -105,9 +104,12 @@ public class MainMenu implements Listener {
                     }
                 }
                 
+                final String times = availableTimes;
+                List<String> loreRaw = plugin.getMessages().resolveConfigStringList(mainConfig, "items." + key + ".lore",
+                        line -> replaceAvailableTimesPlaceholder(line, times)
+                                .replace("%version%", plugin.getDescription().getVersion()));
                 for (String line : loreRaw) {
-                    String processed = replaceAvailableTimesPlaceholder(line, availableTimes)
-                            .replace("%version%", plugin.getDescription().getVersion());
+                    String processed = line;
 
                     // Handle update-available placeholder
                     if (processed.contains("%update-available%")) {

@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 
 public class MessageManager {
 
@@ -29,7 +30,7 @@ public class MessageManager {
 
     public String getMessage(String path) {
         FileConfiguration cfg = plugin.getMessagesConfig();
-        String msg = cfg.getString("messages." + path);
+        String msg = readLanguageString(cfg, "messages." + path);
         if (msg == null) {
             msg = getFallbackMessagesConfig().getString("messages." + path);
             warnMissingPath("messages." + path);
@@ -42,7 +43,7 @@ public class MessageManager {
     }
 
     private String getRaw(String path) {
-        String raw = plugin.getMessagesConfig().getString("messages." + path);
+        String raw = readLanguageString(plugin.getMessagesConfig(), "messages." + path);
         if (raw != null) return raw;
         return getFallbackMessagesConfig().getString("messages." + path, "");
     }
@@ -74,16 +75,20 @@ public class MessageManager {
     }
 
     public List<String> resolveConfigStringList(ConfigurationSection cfg, String path) {
+        return resolveConfigStringList(cfg, path, UnaryOperator.identity());
+    }
+
+    public List<String> resolveConfigStringList(ConfigurationSection cfg, String path, UnaryOperator<String> placeholders) {
         Object raw = cfg != null ? cfg.get(path) : null;
         if (raw instanceof List<?> list) {
             List<String> values = new ArrayList<>();
             for (Object entry : list) {
                 if (entry != null) values.add(String.valueOf(entry));
             }
-            return resolveConfiguredStringList(values);
+            return resolveConfiguredStringList(values, placeholders);
         }
         if (raw instanceof String value) {
-            return resolveConfiguredStringList(List.of(value));
+            return resolveConfiguredStringList(List.of(value), placeholders);
         }
         return new ArrayList<>();
     }
@@ -102,6 +107,10 @@ public class MessageManager {
     }
 
     public List<String> resolveConfiguredStringList(List<String> raw) {
+        return resolveConfiguredStringList(raw, UnaryOperator.identity());
+    }
+
+    public List<String> resolveConfiguredStringList(List<String> raw, UnaryOperator<String> placeholders) {
         List<String> out = new ArrayList<>();
         if (raw == null || raw.isEmpty()) return out;
 
@@ -125,7 +134,7 @@ public class MessageManager {
             }
 
             value = value.replace("%prefix%", getRaw("prefix"));
-            out.addAll(ShopItemUtil.splitAndColor(value));
+            out.addAll(ShopItemUtil.splitAndColor(placeholders.apply(value)));
         }
         return out;
     }
@@ -135,12 +144,19 @@ public class MessageManager {
         if (path == null) return null;
 
         String fullPath = "messages." + path;
-        String value = plugin.getMessagesConfig().getString(fullPath);
+        String value = readLanguageString(plugin.getMessagesConfig(), fullPath);
         if (value != null) return value;
         value = getFallbackMessagesConfig().getString(fullPath);
         if (value != null) {
             warnMissingPath(fullPath);
         }
+        return value;
+    }
+
+    private String readLanguageString(FileConfiguration config, String path) {
+        String value = config.getString(path);
+        // YAML 1.1 converted the old unquoted "on" key into the string key "true".
+        if (value == null && path.equals("messages.on")) value = config.getString("messages.true");
         return value;
     }
 

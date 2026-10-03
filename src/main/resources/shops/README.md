@@ -253,6 +253,19 @@ items:
       - '&7Available: <gradient:#C8FF00:#9BFCA2>%available-times%</gradient>'
 ```
 
+SmartSpawner exported item delivery:
+
+```yaml
+items:
+  - material: SPAWNER
+    name: '&bDiamond Spawner'
+    price: 1000000
+    amount: 1
+    item-stack: '<base64 from /shop exportitem>'
+```
+
+When `item-stack` is present, the shop gives that exact serialized item instead of using the SmartSpawner creation API fallback.
+
 Price mode (per-item vs bundle):
 
 ```yaml

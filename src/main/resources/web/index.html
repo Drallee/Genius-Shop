@@ -15,10 +15,36 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="navigation.css?v=sidebar-1">
+    <link rel="stylesheet" href="editor-design.css?v=workspace-1">
 </head>
-<body>
-    <div class="container">
-        <header>
+<body class="editor-shell">
+    <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
+        <div class="sidebar-brand">
+            <i class="fa-solid fa-store" aria-hidden="true"></i>
+            <span class="sidebar-label">Genius Shop</span>
+            <button type="button" class="sidebar-close navigation-icon-button" onclick="closeEditorNavigation()" aria-label="Close navigation" title="Close navigation"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </div>
+        <nav class="sidebar-tabs" aria-label="Editor sections">
+            <button type="button" class="tab active" data-tab="mainmenu" aria-current="page" title="Main Menu" onclick="selectEditorTab('mainmenu')"><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.main-menu">Main Menu</span></button>
+            <button type="button" class="tab" data-tab="shop" title="Shop" onclick="selectEditorTab('shop')"><i class="fa-solid fa-store" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.shop">Shop</span></button>
+            <button type="button" class="tab" data-tab="purchase" title="Purchase" onclick="selectEditorTab('purchase')"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.purchase">Purchase</span></button>
+            <button type="button" class="tab" data-tab="sell" title="Sell" onclick="selectEditorTab('sell')"><i class="fa-solid fa-tag" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.sell">Sell</span></button>
+            <div class="sidebar-divider" role="separator"></div>
+            <button type="button" class="tab" data-tab="campaigns" title="Campaigns" onclick="selectEditorTab('campaigns')"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span class="sidebar-label">Campaigns</span></button>
+            <button type="button" class="tab" data-tab="commands" title="Commands" onclick="selectEditorTab('commands')"><i class="fa-solid fa-terminal" aria-hidden="true"></i><span class="sidebar-label">Commands</span></button>
+            <button type="button" class="tab" data-tab="stockanalytics" title="Stock" onclick="selectEditorTab('stockanalytics')"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.stock-analytics">Stock</span></button>
+            <button type="button" class="tab" data-tab="dataeditor" title="Data" onclick="selectEditorTab('dataeditor')"><i class="fa-solid fa-database" aria-hidden="true"></i><span class="sidebar-label">Data</span></button>
+            <button type="button" class="tab" data-tab="guisettings" title="GUI Settings" onclick="selectEditorTab('guisettings')"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.gui-settings">GUI Settings</span></button>
+        </nav>
+    </aside>
+    <button type="button" class="navigation-backdrop" onclick="closeEditorNavigation()" aria-label="Close navigation" tabindex="-1" hidden></button>
+    <div class="container editor-workspace" id="editor-workspace">
+        <header class="editor-navigation-bar editor-topbar">
+            <div class="editor-section-heading">
+            <button type="button" id="navigation-toggle" class="navigation-icon-button" onclick="toggleEditorNavigation()" aria-controls="editor-sidebar" aria-expanded="true" aria-label="Collapse navigation" title="Collapse navigation"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+            <span id="navigation-current-section">Main Menu</span>
+            </div>
             <div class="header-top flex justify-between items-center mb-16">
                 <div class="flex items-center gap-12">
                     <label for="language-selector" class="sr-only">Editor Language</label>
@@ -52,30 +78,7 @@
                 </div>
             </div>
 
-            <div class="header-hero">
-                <div class="header-hero-content text-center">
-                    <h1 class="mb-8" data-i18n="web-editor.hero-title"> GENIUS SHOP EDITOR</h1>
-                    <p class="mb-16" data-i18n="web-editor.hero-subtitle">Configure your shop with live Minecraft preview</p>
-                    <div class="beta-badge" data-i18n="web-editor.beta-badge">
-                         LIVE
-                    </div>
-                </div>
-            </div>
         </header>
-
-        <div class="tabs-container">
-            <div class="tabs">
-                <button class="tab active" data-tab="mainmenu" data-i18n="web-editor.tabs.main-menu" onclick="switchTab('mainmenu')">MAIN MENU</button>
-                <button class="tab" data-tab="shop" data-i18n="web-editor.tabs.shop" onclick="switchTab('shop')">SHOP</button>
-                <button class="tab" data-tab="campaigns" onclick="switchTab('campaigns')">CAMPAIGNS</button>
-                <button class="tab" data-tab="commands" onclick="switchTab('commands')">COMMANDS</button>
-                <button class="tab" data-tab="stockanalytics" data-i18n="web-editor.tabs.stock-analytics" onclick="switchTab('stockanalytics')">STOCK</button>
-                <button class="tab" data-tab="dataeditor" onclick="switchTab('dataeditor')">DATA</button>
-                <button class="tab" data-tab="purchase" data-i18n="web-editor.tabs.purchase" onclick="switchTab('purchase')">PURCHASE</button>
-                <button class="tab" data-tab="sell" data-i18n="web-editor.tabs.sell" onclick="switchTab('sell')">SELL</button>
-                <button class="tab" data-tab="guisettings" data-i18n="web-editor.tabs.gui-settings" onclick="switchTab('guisettings')">GUI SETTINGS</button>
-            </div>
-        </div>
 
         <div class="main-content">
             <!-- Unified Editor & Preview Panel -->
@@ -354,6 +357,10 @@
                         </div>
                         <div class="flex items-center gap-12">
                             <input type="file" id="commands-import-file" accept=".yml,.yaml,text/yaml,text/plain" style="display: none;" onchange="handleCommandsImport(this.files && this.files[0]); this.value = '';">
+                            <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="openActivityLogModal()">
+                                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                <span data-i18n="web-editor.history">HISTORY</span>
+                            </button>
                             <button class="btn btn-secondary" style="padding: 8px 12px;" onclick="triggerCommandsImport()">
                                 <span style="font-size: 0.78rem; font-weight: 700;">IMPORT</span>
                             </button>
@@ -448,7 +455,7 @@
                 <div id="guisettings-tab" class="tab-content">
                     <div class="content-header flex justify-between items-center mb-24">
                         <div class="flex items-center gap-12">
-                            <div class="icon-badge primary"><span style="font-size: 1.1em; color: white;"></span></div>
+                            <div class="icon-badge primary"><i class="fa-solid fa-sliders" aria-hidden="true"></i></div>
                             <span class="header-title" data-i18n="web-editor.gui-settings.title">GUI GLOBAL SETTINGS</span>
                         </div>
                     </div>
@@ -461,7 +468,7 @@
                     <pre id="export-output"></pre>
                 </div>
 
-                <div class="info-box" style="margin-top: 40px;">
+                <div class="info-box editor-quick-tips" style="margin-top: 40px;">
                     <div class="flex justify-between items-center mb-12 cursor-pointer" onclick="toggleQuickTips()">
                         <h3 class="flex items-center gap-8 m-0">
                             <span style="font-size: 1.2em;"></span>
@@ -708,16 +715,19 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script src="js/state-store.js"></script>
-    <script src="js/core.js"></script>
+    <script src="js/core.js?v=menu-placeholders-1"></script>
     <script src="js/schema.js"></script>
+    <script src="vendor/yaml.min.js"></script>
+    <script src="js/yaml-editor.js"></script>
     <script src="js/telemetry.js"></script>
-    <script src="js/database.js"></script>
-    <script src="js/modals.js"></script>
+    <script src="js/database.js?v=menu-placeholders-1"></script>
+    <script src="js/modals.js?v=commands-history-1"></script>
     <script src="js/api.js"></script>
-    <script src="js/commands.js?v=custom-commands-dom-save-2"></script>
+    <script src="js/commands.js?v=custom-commands-model-name-4"></script>
     <script src="js/save-dispatcher.js"></script>
     <script src="js/autosave-manager.js"></script>
-    <script src="js/ui.js"></script>
+    <script src="js/ui.js?v=menu-placeholders-1"></script>
+    <script src="js/navigation.js?v=sidebar-1"></script>
     <script src="js/events.js"></script>
 </body>
 </html>

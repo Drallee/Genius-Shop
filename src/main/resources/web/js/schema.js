@@ -21,9 +21,9 @@
         return !!value;
     }
 
-    function normalizeStringList(value) {
+    function normalizeStringList(value, keepEmpty = false) {
         if (!Array.isArray(value)) return [];
-        return value.map(v => toStringSafe(v, '')).filter(v => v.length > 0);
+        return value.map(v => toStringSafe(v, '')).filter(v => keepEmpty || v.length > 0);
     }
 
     function normalizeCampaign(input) {
@@ -90,7 +90,7 @@
             campaignBuyMultiplier: Math.max(0.01, toNumberSafe(src.campaignBuyMultiplier, 1)),
             campaignSellMultiplier: Math.max(0.01, toNumberSafe(src.campaignSellMultiplier, 1)),
             amount: Math.max(1, toIntSafe(src.amount, 1)),
-            lore: normalizeStringList(src.lore),
+            lore: normalizeStringList(src.lore, true),
             enchantments: safeEnchantments,
             hideAttributes: toBooleanSafe(src.hideAttributes, false),
             hideAdditional: toBooleanSafe(src.hideAdditional, false),

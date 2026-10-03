@@ -7,6 +7,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -19,6 +20,7 @@ public class CustomCommandRegistry {
     private final ShopPlugin plugin;
     private final CustomSellAllService sellAllService;
     private final List<String> registeredLabels = new ArrayList<>();
+    private BukkitTask refreshTask;
 
     public CustomCommandRegistry(ShopPlugin plugin, CustomSellAllService sellAllService) {
         this.plugin = plugin;
@@ -26,7 +28,7 @@ public class CustomCommandRegistry {
     }
 
     public int reload(List<CustomCommandDefinition> definitions) {
-        unregisterAll();
+        removeRegisteredCommands();
         int registered = 0;
         CommandMap commandMap = getCommandMap();
         if (commandMap == null) {
@@ -62,6 +64,14 @@ public class CustomCommandRegistry {
     }
 
     public void unregisterAll() {
+        if (refreshTask != null) {
+            refreshTask.cancel();
+            refreshTask = null;
+        }
+        removeRegisteredCommands();
+    }
+
+    private void removeRegisteredCommands() {
         CommandMap commandMap = getCommandMap();
         if (commandMap == null || registeredLabels.isEmpty()) {
             registeredLabels.clear();
@@ -83,7 +93,6 @@ public class CustomCommandRegistry {
             ConsoleLog.warn(plugin, "Custom command unregister failed; changed commands may require a restart on this server: " + e.getMessage());
         } finally {
             registeredLabels.clear();
-            refreshOnlinePlayerCommands();
         }
     }
 
@@ -115,6 +124,16 @@ public class CustomCommandRegistry {
     }
 
     private void refreshOnlinePlayerCommands() {
+        if (!plugin.isEnabled() || refreshTask != null) return;
+        // Never send the intermediate tree between unregistering and registering.
+        refreshTask = Bukkit.getScheduler().runTask(plugin, () -> {
+            refreshTask = null;
+            if (!plugin.isEnabled()) return;
+            sendOnlinePlayerCommands();
+        });
+    }
+
+    private void sendOnlinePlayerCommands() {
         try {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 player.updateCommands();

@@ -52,7 +52,7 @@ messages:
   and: " og "
   during: " i lÃ¸bet af "
   between: " mellem "
-  on: " pÃ¥ "
+  "on": " pÃ¥ "
   in: " i "
   in-the-month-of: " i mÃ¥neden "
   # Use \n for a new line

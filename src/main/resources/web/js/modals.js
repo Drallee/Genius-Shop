@@ -611,6 +611,9 @@ function openEditModal(data) {
         data.fields.forEach(field => {
             const el = document.getElementById(field.id);
             if (el) {
+                if ((!field.type || field.type === 'text' || field.type === 'textarea') && /name|lore|title|message/i.test(field.id)) {
+                    setMessageEditorInput(el, field.value, field.type === 'textarea');
+                }
                 if (field.onchange) {
                     el.addEventListener('change', (e) => {
                         field.onchange(e);
@@ -734,7 +737,7 @@ function saveEditModal() {
                 if (field.type === 'checkbox') {
                     data[field.id] = element.checked;
                 } else {
-                    data[field.id] = element.value;
+                    data[field.id] = readMessageEditorInput(element);
                 }
             }
         });
@@ -955,10 +958,16 @@ function buildShopItemPreviewHtml(baseItem, formData) {
 
     const lore = [];
     if (guiSettings?.itemLore?.showBuyPrice && buyPrice > 0) {
-        lore.push((guiSettings.itemLore.buyPriceLine || '&6Buy Price: &a%price%').replace('%price%', `$${formatModalPreviewPrice(buyTotal)}`));
+        const template = typeof resolveMessageText === 'function'
+            ? resolveMessageText(guiSettings.itemLore.buyPriceLine, '&6Buy Price: &a%price%')
+            : (guiSettings.itemLore.buyPriceLine || '&6Buy Price: &a%price%');
+        lore.push(template.replace('%price%', `$${formatModalPreviewPrice(buyTotal)}`));
     }
     if (guiSettings?.itemLore?.showSellPrice && sellPrice > 0) {
-        lore.push((guiSettings.itemLore.sellPriceLine || '&cSell Price: &a%sell-price%').replace('%sell-price%', `$${formatModalPreviewPrice(sellTotal)}`));
+        const template = typeof resolveMessageText === 'function'
+            ? resolveMessageText(guiSettings.itemLore.sellPriceLine, '&cSell Price: &a%sell-price%')
+            : (guiSettings.itemLore.sellPriceLine || '&cSell Price: &a%sell-price%');
+        lore.push(template.replace('%sell-price%', `$${formatModalPreviewPrice(sellTotal)}`));
     }
 
     const enableLore = !!formData['modal-enableLore'];
@@ -1451,7 +1460,7 @@ function parseImportYamlItems(payload) {
     let parsedItems = [];
 
     try {
-        parseShopYaml(payload);
+        parseShopYaml(payload, false);
         parsedItems = JSON.parse(JSON.stringify(items || []));
     } finally {
         items = backupItems;
@@ -1573,80 +1582,11 @@ function yamlQuote(value) {
 }
 
 function buildMainMenuYamlExport() {
-    let yaml = `title: ${yamlQuote(mainMenuSettings.title || '&8Shop Menu')}\n`;
-    yaml += `rows: ${parseInt(mainMenuSettings.rows, 10) || 3}\n`;
-    yaml += `items:\n`;
-
-    (loadedGuiShops || []).forEach(shop => {
-        const key = (shop.key || `shop_${shop.slot ?? 0}`).toString();
-        yaml += `  ${key}:\n`;
-        yaml += `    slot: ${parseInt(shop.slot, 10) || 0}\n`;
-        yaml += `    material: ${(shop.material || 'CHEST').toString()}\n`;
-        yaml += `    name: ${yamlQuote(shop.name || '&eShop')}\n`;
-        yaml += `    action: ${(shop.action || 'shop-key').toString()}\n`;
-
-        if (shop.shopKey) yaml += `    shop-key: ${yamlQuote(shop.shopKey)}\n`;
-        if (shop.permission) yaml += `    permission: ${yamlQuote(shop.permission)}\n`;
-        if (shop.hideAttributes) yaml += `    hide-attributes: true\n`;
-        if (shop.hideAdditional) yaml += `    hide-additional: true\n`;
-        if (shop.closeAfterAction) yaml += `    close-after-action: true\n`;
-        if (shop.runAs && shop.runAs !== 'player') yaml += `    run-as: ${shop.runAs}\n`;
-
-        if (Array.isArray(shop.lore) && shop.lore.length > 0) {
-            yaml += `    lore:\n`;
-            shop.lore.forEach(line => {
-                yaml += `      - ${yamlQuote(line)}\n`;
-            });
-        }
-        if (Array.isArray(shop.commands) && shop.commands.length > 0) {
-            yaml += `    commands:\n`;
-            shop.commands.forEach(cmd => {
-                yaml += `      - ${yamlQuote(cmd)}\n`;
-            });
-        }
-    });
-
-    return yaml;
+    return EditorYaml.writeMain();
 }
 
 function buildTransactionMenuYamlExport(type) {
-    const settings = transactionSettings && transactionSettings[type] ? transactionSettings[type] : {};
-    let yaml = `title-prefix: ${yamlQuote(settings.titlePrefix || (type === 'purchase' ? '&8Buying ' : '&8Selling '))}\n`;
-    yaml += `display-material: ${(settings.displayMaterial || 'BOOK').toString()}\n`;
-    yaml += `display-slot: ${parseInt(settings.displaySlot, 10) || 22}\n`;
-    yaml += `max-amount: ${parseInt(settings.maxAmount, 10) || 2304}\n`;
-
-    yaml += `lore:\n`;
-    yaml += `  amount: ${yamlQuote((settings.lore && settings.lore.amount) || '&eAmount: &7')}\n`;
-    yaml += `  total: ${yamlQuote((settings.lore && settings.lore.total) || '&eTotal: &7')}\n`;
-    if (type === 'purchase') {
-        yaml += `  spawner: ${yamlQuote((settings.lore && settings.lore.spawner) || '&7Spawner: &e')}\n`;
-    }
-
-    yaml += `buttons:\n`;
-    const mainButtons = settings.buttons || {};
-    Object.entries(mainButtons).forEach(([key, btn]) => {
-        const button = btn || {};
-        yaml += `  ${key}:\n`;
-        yaml += `    material: ${(button.material || 'STONE').toString()}\n`;
-        yaml += `    name: ${yamlQuote(button.name || '&fButton')}\n`;
-        yaml += `    slot: ${parseInt(button.slot, 10) || 0}\n`;
-    });
-
-    ['add', 'remove', 'set'].forEach(group => {
-        const groupData = settings[group] || {};
-        yaml += `  ${group}:\n`;
-        yaml += `    material: ${(groupData.material || 'STONE').toString()}\n`;
-        const buttons = groupData.buttons || {};
-        Object.entries(buttons).forEach(([amount, btn]) => {
-            const b = btn || {};
-            yaml += `    '${amount}':\n`;
-            yaml += `      name: ${yamlQuote(b.name || '&fButton')}\n`;
-            yaml += `      slot: ${parseInt(b.slot, 10) || 0}\n`;
-        });
-    });
-
-    return yaml;
+    return EditorYaml.writeTransaction(type);
 }
 
 function applyImportedMenuPayload(menuType, parsed) {
@@ -3106,7 +3046,20 @@ function openActivityDetailModal(entryId) {
 }
 
 function generateChangeSummary(before, after) {
+    // File history stores raw content; compare values, not comments or formatting.
+    if (typeof before?.content === 'string' || typeof after?.content === 'string') {
+        try {
+            before = before ? { ...before, content: EditorYaml.parse(before.content || '') } : before;
+            after = after ? { ...after, content: EditorYaml.parse(after.content || '') } : after;
+        } catch (error) {
+            // Old invalid files still need a readable history entry.
+        }
+    }
     if (JSON.stringify(before) === JSON.stringify(after)) return '';
+
+    if ((before == null || typeof before !== 'object') && (after == null || typeof after !== 'object')) {
+        return `<div class="yaml-value-diff"><del>${escapeHtml(String(before ?? ''))}</del> &rarr; ${escapeHtml(String(after ?? ''))}</div>`;
+    }
 
     if (Array.isArray(before) && Array.isArray(after)) {
         let html = '';
@@ -3118,7 +3071,7 @@ function generateChangeSummary(before, after) {
                 const cleanName = name.toString().replace(/&[0-9a-fk-or]/gi, '').replace(/&#[0-9a-fA-F]{6}/gi, '');
                 html += `
                     <div style="margin-top: 12px; border-top: 1px solid rgba(255, 215, 0, 0.2); padding-top: 8px;">
-                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px; font-size: 0.9em;">${cleanName}</div>
+                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px; font-size: 0.9em;">${escapeHtml(cleanName)}</div>
                         <div style="padding-left: 12px;">${generateChangeSummary(b, a)}</div>
                     </div>
                 `;
@@ -3135,6 +3088,10 @@ function generateChangeSummary(before, after) {
         const afterVal = after?.[key];
 
         if (JSON.stringify(beforeVal) !== JSON.stringify(afterVal)) {
+            if ((beforeVal && typeof beforeVal === 'object') || (afterVal && typeof afterVal === 'object')) {
+                changes.push(`<div style="padding: 8px 0;"><strong>${escapeHtml(key)}</strong><div style="padding-left: 12px;">${generateChangeSummary(beforeVal, afterVal)}</div></div>`);
+                return;
+            }
             let beforeText, afterText;
 
             if (beforeVal !== null && typeof beforeVal === 'object') {
@@ -3161,7 +3118,7 @@ function generateChangeSummary(before, after) {
 
             changes.push(`
                 <div style="padding: 4px 0; border-bottom: 1px solid rgba(255, 215, 0, 0.05); display: grid; grid-template-columns: 100px 1fr 1fr; gap: 12px; align-items: start;">
-                    <div style="font-weight: 600; color: rgba(220, 230, 245, 0.6); font-size: 0.8em;">${key}:</div>
+                    <div style="font-weight: 600; color: rgba(220, 230, 245, 0.6); font-size: 0.8em;">${escapeHtml(key)}:</div>
                     <div style="color: rgba(255, 107, 107, 0.7); font-size: 0.8em; word-break: break-word;">
                         <span style="text-decoration: line-through; opacity: 0.5;">${beforeText}</span>
                     </div>
@@ -3250,7 +3207,7 @@ async function refreshActivityLog() {
 
     if (emptyState) emptyState.style.display = 'none';
 
-    const sortedActivity = [...activityLog].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+    const sortedActivity = [...activityLog].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
     let html = '';
     sortedActivity.forEach(entry => {
         const timeAgo = getTimeAgo(entry.timestamp);
@@ -3259,7 +3216,7 @@ async function refreshActivityLog() {
         const borderColor = entry.action === 'created' ? 'var(--activity-created-border)' : entry.action === 'updated' ? 'var(--activity-updated-border)' : 'var(--activity-deleted-border)';
 
         html += `
-            <div class="shop-item" style="margin-bottom: 10px; background: ${color}; border-color: ${borderColor}; cursor: pointer;" onclick="openActivityDetailModal(${JSON.stringify(entry.id)})">
+            <div class="shop-item" style="margin-bottom: 10px; background: ${color}; border-color: ${borderColor}; cursor: pointer;" onclick="openActivityDetailModal(${escapeHtml(JSON.stringify(entry.id))})">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                     <div style="font-size: 1.2em; flex-shrink: 0;">${icon}</div>
                     <div style="flex: 1; min-width: 0;">

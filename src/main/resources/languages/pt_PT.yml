@@ -52,7 +52,7 @@ messages:
   and: " e "
   during: " durante "
   between: " entre "
-  on: " em "
+  "on": " em "
   in: " em "
   in-the-month-of: " no mÃªs de "
   # Use \n for a new line

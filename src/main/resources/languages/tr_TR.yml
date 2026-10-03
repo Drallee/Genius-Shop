@@ -52,7 +52,7 @@ messages:
   and: " ve "
   during: " boyunca "
   between: " arasÄ±nda "
-  on: " "
+  "on": " "
   in: " iÃ§inde "
   in-the-month-of: " ayÄ±nda "
   # Use \n for a new line

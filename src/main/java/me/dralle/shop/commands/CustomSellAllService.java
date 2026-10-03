@@ -196,7 +196,7 @@ public class CustomSellAllService {
                 sellInfo.item.getMaterial(),
                 amountToSell,
                 unitPrice,
-                PriceFormulaUtil.resolveSellBasePrice(plugin, sellInfo.item),
+                sellInfo.item.getSellPrice(),
                 earned,
                 dynamic,
                 min,

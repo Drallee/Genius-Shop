@@ -194,7 +194,7 @@ public class BulkSellMenu implements Listener {
                         sellInfo.item.getMaterial(),
                         amountToSell,
                         effectiveUnitPrice,
-                        PriceFormulaUtil.resolveSellBasePrice(plugin, sellInfo.item),
+                        sellInfo.item.getSellPrice(),
                         price,
                         effectiveDynamicPricing,
                         effectiveMinPrice,

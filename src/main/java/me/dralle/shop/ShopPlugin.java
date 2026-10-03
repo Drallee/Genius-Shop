@@ -670,6 +670,10 @@ public class ShopPlugin extends JavaPlugin {
      * and rebuild managers so already-registered GUIs see new data.
      */
     public void reloadPlugin() {
+        if (!getServer().isPrimaryThread()) {
+            awaitServerThreadReload(this::reloadPlugin);
+            return;
+        }
         // smart updater
         ConfigUpdater.update(this, "config.yml");
         reloadConfig();
@@ -726,6 +730,10 @@ public class ShopPlugin extends JavaPlugin {
     }
 
     public void reloadCustomCommands() {
+        if (!getServer().isPrimaryThread()) {
+            awaitServerThreadReload(this::reloadCustomCommands);
+            return;
+        }
         if (customCommandRepository == null || customCommandRegistry == null) return;
         CustomCommandLoadResult result = customCommandRepository.load();
         for (String error : result.getErrors()) {
@@ -736,6 +744,20 @@ public class ShopPlugin extends JavaPlugin {
                 + ", registered: " + registered
                 + ", disabled: " + result.getDisabledCount()
                 + ", validation failures: " + result.getErrors().size());
+    }
+
+    private void awaitServerThreadReload(Runnable reload) {
+        try {
+            getServer().getScheduler().callSyncMethod(this, () -> {
+                reload.run();
+                return null;
+            }).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for server-thread reload", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            throw new IllegalStateException("Server-thread reload failed", e.getCause());
+        }
     }
 
     private void startDataFlushTask() {
