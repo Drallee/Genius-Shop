@@ -16,11 +16,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 public class MainMenu implements Listener {
 
@@ -165,10 +161,12 @@ Inventory inv = new MainMenuHolder().createInventory(size, title);
         if (!(e.getWhoClicked() instanceof Player player)) return;
         if (!(e.getInventory().getHolder() instanceof MainMenuHolder)) return;
 
+        e.setCancelled(true);
+        if (e.getRawSlot() < 0 || e.getRawSlot() >= e.getInventory().getSize()) return;
+
         ConfigurationSection mainConfig = plugin.getMenuManager().getMainMenuConfig();
         if (mainConfig == null) return;
 
-        e.setCancelled(true);
         if (e.getCurrentItem() == null || e.getCurrentItem().getType() == Material.AIR) return;
 
         int clickedSlot = e.getSlot();

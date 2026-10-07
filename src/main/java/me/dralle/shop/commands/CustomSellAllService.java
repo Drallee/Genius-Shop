@@ -12,15 +12,10 @@ import me.dralle.shop.util.PriceFormulaUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class CustomSellAllService {
     private final ShopPlugin plugin;
@@ -40,14 +35,35 @@ public class CustomSellAllService {
             return;
         }
         try {
-            SellAllResult result = planAndExecute(player, shopKey == null || shopKey.isBlank() ? null : shopKey);
+            SellAllResult result = planAndExecute(player, SaleStorage.inventory(player.getInventory()),
+                    shopKey == null || shopKey.isBlank() ? null : shopKey, 1D, true, null);
             sendSummary(player, result);
         } finally {
             running.remove(player.getUniqueId());
         }
     }
 
-    private SellAllResult planAndExecute(Player player, String shopKey) {
+    public boolean sellContainer(Player player, Inventory inventory, String shopKey,
+                                 double multiplier, boolean useCampaigns, String itemId) {
+        return sellStorage(player, SaleStorage.inventory(inventory), shopKey, multiplier, useCampaigns, itemId);
+    }
+
+    public boolean sellStorage(Player player, SaleStorage inventory, String shopKey,
+                               double multiplier, boolean useCampaigns, String itemId) {
+        if (!Bukkit.isPrimaryThread() || !Double.isFinite(multiplier) || multiplier <= 0D
+                || !running.add(player.getUniqueId())) return false;
+        try {
+            SellAllResult result = planAndExecute(player, inventory,
+                    shopKey == null || shopKey.isBlank() ? null : shopKey, multiplier, useCampaigns, itemId);
+            sendSummary(player, result);
+            return result.itemsSold > 0;
+        } finally {
+            running.remove(player.getUniqueId());
+        }
+    }
+
+    private SellAllResult planAndExecute(Player player, SaleStorage inventory, String shopKey,
+                                        double multiplier, boolean useCampaigns, String itemId) {
         if (shopKey != null && plugin.getShopManager().getShop(shopKey) == null) {
             player.sendMessage(plugin.getMessages().getMessage("custom-command-shop-not-found").replace("%shop%", shopKey));
             return SellAllResult.empty();
@@ -65,19 +81,30 @@ public class CustomSellAllService {
         double totalEarned = 0D;
         int totalItems = 0;
 
-        ItemStack[] contents = player.getInventory().getStorageContents();
+        ItemStack[] contents = inventory.getStorageContents();
+        ItemStack[] snapshot = java.util.Arrays.stream(contents)
+                .map(stack -> stack == null ? null : stack.clone()).toArray(ItemStack[]::new);
         for (int slot = 0; slot < contents.length; slot++) {
             ItemStack stack = contents[slot];
             if (stack == null || stack.getType() == Material.AIR || stack.getAmount() <= 0) continue;
+            if (itemId != null && plugin.getCustomItemManager().isCustomItem(stack)) continue;
 
-            List<ShopManager.SellInfo> candidates = plugin.getShopManager().getSellInfos(player, stack, shopKey);
+            List<ShopManager.SellInfo> candidates = new ArrayList<>(plugin.getShopManager().getSellInfos(player, stack, shopKey));
+            if (itemId != null) {
+                candidates.sort(java.util.Comparator.comparingDouble((ShopManager.SellInfo info) ->
+                        info.item.calculateSellTotal(calculateCurrentSellPrice(
+                                plugin.getShopManager().getShop(info.shopKey), info.item, useCampaigns), 1)).reversed());
+            }
             if (candidates.isEmpty()) continue;
 
             int remainingStackAmount = stack.getAmount();
             for (ShopManager.SellInfo sellInfo : candidates) {
                 if (sellInfo == null || sellInfo.item == null || remainingStackAmount <= 0) continue;
+                int available = Math.min(remainingStackAmount, Integer.MAX_VALUE - totalItems);
+                if (available <= 0) { partial = true; break; }
 
-                SalePlan plan = createPlan(player, slot, stack, remainingStackAmount, sellInfo, plannedByItem);
+                SalePlan plan = createPlan(player, slot, stack, available, sellInfo, plannedByItem,
+                        multiplier, useCampaigns, itemId);
                 if (plan == null) {
                     partial = true;
                     continue;
@@ -120,10 +147,19 @@ public class CustomSellAllService {
             return SellAllResult.empty();
         }
 
-        removePlannedItems(player, plans);
-        EconomyHook.EconomyOperationResult depositResult = plugin.getEconomy().tryDeposit(player, totalEarned);
+        Map<Integer, Integer> quantities = new HashMap<>();
+        for (SalePlan plan : plans) quantities.merge(plan.slot, plan.amount, Integer::sum);
+        if (!inventory.approveSale(quantities, totalEarned)) return SellAllResult.empty();
+        EconomyHook.EconomyOperationResult depositResult;
+        try {
+            if (!inventory.removeItems(snapshot, quantities)) return SellAllResult.empty();
+            depositResult = plugin.getEconomy().tryDeposit(player, totalEarned);
+        } catch (RuntimeException ex) {
+            inventory.restoreItems(snapshot);
+            throw ex;
+        }
         if (!depositResult.success()) {
-            restorePlannedItems(player, plans);
+            inventory.restoreItems(snapshot);
             TransactionSafetyGuard.auditEconomyFailure(plugin, player, "custom-sellall-deposit", shopKey, null, Material.AIR, totalEarned, depositResult.errorMessage());
             player.sendMessage(plugin.getMessages().getMessage("custom-command-economy-failure"));
             return SellAllResult.empty();
@@ -138,13 +174,15 @@ public class CustomSellAllService {
             if (adjustForStock || adjustForDynamicOnly) {
                 plugin.getDataManager().incrementGlobalCount(item.getUniqueKey(), -plan.amount);
             }
-            TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_SELL, item.getUniqueKey(), plan.unitPrice);
+            TransactionSafetyGuard.rememberSuccessfulUnitPrice(saleAction(itemId), saleKey(itemId, item.getUniqueKey()), plan.unitPrice);
             Bukkit.getPluginManager().callEvent(new ShopSellEvent(player, item, plan.amount, plan.earned, plan.sellInfo.shopKey));
         }
 
         plugin.itemsSold += totalItems;
         plugin.getGenericShopGui().requestRefresh();
-        plugin.getDiscordWebhook().sendSellNotification(player.getName(), "Command Sell All (" + totalItems + " items)", totalItems, totalEarned, plugin.getCurrencySymbol());
+        plugin.getDiscordWebhook().sendSellNotification(player.getName(),
+                (itemId == null ? "Command Sell All" : "Sell Wand " + itemId) + " (" + totalItems + " items)",
+                totalItems, totalEarned, plugin.getCurrencySymbol());
         return new SellAllResult(totalItems, totalEarned, partial);
     }
 
@@ -154,7 +192,8 @@ public class CustomSellAllService {
             ItemStack stack,
             int maxAmount,
             ShopManager.SellInfo sellInfo,
-            Map<String, Integer> plannedByItem
+            Map<String, Integer> plannedByItem,
+            double multiplier, boolean useCampaigns, String itemId
     ) {
         int amountToSell = maxAmount;
         String itemKey = sellInfo.item.getUniqueKey();
@@ -177,25 +216,25 @@ public class CustomSellAllService {
         }
 
         if (amountToSell <= 0) return null;
-        double unitPrice = calculateCurrentSellPrice(shopData, sellInfo.item);
+        double unitPrice = calculateCurrentSellPrice(shopData, sellInfo.item, useCampaigns) * multiplier;
         double earned = sellInfo.item.calculateSellTotal(unitPrice, amountToSell);
         if (!Double.isFinite(earned) || earned <= 0D) return null;
 
         boolean dynamic = sellInfo.item.isDynamicPricing()
                 || (sellInfo.item.getSellPriceFormula() != null && !sellInfo.item.getSellPriceFormula().trim().isEmpty());
-        double campaignMultiplier = CampaignUtil.getActiveSellMultiplier(shopData, sellInfo.item);
+        double campaignMultiplier = (useCampaigns ? CampaignUtil.getActiveSellMultiplier(shopData, sellInfo.item) : 1D) * multiplier;
         double min = sellInfo.item.getMinPrice() > 0D ? sellInfo.item.getMinPrice() * campaignMultiplier : 0D;
         double max = sellInfo.item.getMaxPrice() > 0D ? sellInfo.item.getMaxPrice() * campaignMultiplier : 0D;
         TransactionSafetyGuard.GuardResult guard = TransactionSafetyGuard.validateTransaction(
                 plugin,
                 player,
-                TransactionSafetyGuard.ACTION_SELL,
+                saleAction(itemId),
                 sellInfo.shopKey,
-                itemKey,
+                saleKey(itemId, itemKey),
                 sellInfo.item.getMaterial(),
                 amountToSell,
                 unitPrice,
-                sellInfo.item.getSellPrice(),
+                sellInfo.item.getSellPrice() * multiplier,
                 earned,
                 dynamic,
                 min,
@@ -203,29 +242,7 @@ public class CustomSellAllService {
         );
         if (!guard.allowed()) return null;
 
-        return new SalePlan(slot, stack.clone(), amountToSell, earned, unitPrice, sellInfo);
-    }
-
-    private void removePlannedItems(Player player, List<SalePlan> plans) {
-        for (SalePlan plan : plans) {
-            ItemStack current = player.getInventory().getItem(plan.slot);
-            if (current == null || current.getType() == Material.AIR) continue;
-            if (plan.amount >= current.getAmount()) {
-                player.getInventory().setItem(plan.slot, null);
-            } else {
-                current.setAmount(current.getAmount() - plan.amount);
-                player.getInventory().setItem(plan.slot, current);
-            }
-        }
-    }
-
-    private void restorePlannedItems(Player player, List<SalePlan> plans) {
-        for (SalePlan plan : plans) {
-            ItemStack restore = plan.original.clone();
-            restore.setAmount(plan.amount);
-            Map<Integer, ItemStack> leftovers = player.getInventory().addItem(restore);
-            leftovers.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-        }
+        return new SalePlan(slot, amountToSell, earned, unitPrice, sellInfo);
     }
 
     private void sendSummary(Player player, SellAllResult result) {
@@ -250,13 +267,21 @@ public class CustomSellAllService {
         return shop != null && shop.isAllowSellStockOverflow();
     }
 
-    private double calculateCurrentSellPrice(ShopData shop, ShopItem item) {
+    private double calculateCurrentSellPrice(ShopData shop, ShopItem item, boolean useCampaigns) {
         if (item.getSellPrice() == null) return 0D;
         double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, item);
-        return CampaignUtil.applySellCampaign(shop, item, currentPrice);
+        return useCampaigns ? CampaignUtil.applySellCampaign(shop, item, currentPrice) : currentPrice;
     }
 
-    private record SalePlan(int slot, ItemStack original, int amount, double earned, double unitPrice, ShopManager.SellInfo sellInfo) {}
+    private String saleAction(String itemId) {
+        return itemId == null ? TransactionSafetyGuard.ACTION_SELL : "custom-item-sell";
+    }
+
+    private String saleKey(String itemId, String itemKey) {
+        return itemId == null ? itemKey : itemId + ":" + itemKey;
+    }
+
+    private record SalePlan(int slot, int amount, double earned, double unitPrice, ShopManager.SellInfo sellInfo) {}
 
     private record SellAllResult(int itemsSold, double earned, boolean partial) {
         static SellAllResult empty() {

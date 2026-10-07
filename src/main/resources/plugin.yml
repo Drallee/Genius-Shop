@@ -9,9 +9,18 @@ softdepend: [SmartSpawner, SmartSpawners]
 commands:
   shop:
     description: Open the shop menu or reload the plugin
-    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem]
+    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem|giveitem]
 
 permissions:
+  geniusshop.giveitem:
+    description: Allows giving configured custom items to online players
+    default: op
+  geniusshop.items.sellwand:
+    description: Allows using the default sell wand
+    default: true
+  geniusshop.items.premium:
+    description: Allows using the premium sell wand
+    default: op
   geniusshop.use:
     description: Allows opening /shop
     default: true
@@ -67,4 +76,5 @@ permissions:
       geniusshop.wiki: true
       geniusshop.validateprices: true
       geniusshop.exportitem: true
+      geniusshop.giveitem: true
       geniusshop.login.ip.bypass: true

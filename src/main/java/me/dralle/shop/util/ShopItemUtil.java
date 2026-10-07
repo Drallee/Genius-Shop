@@ -5,8 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import me.dralle.shop.ShopPlugin;
-import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.BlockState;
@@ -15,10 +15,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.BlockStateMeta;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.inventory.meta.*;
 import org.bukkit.potion.PotionType;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
@@ -29,11 +26,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -530,6 +523,8 @@ public class ShopItemUtil {
     public static void applyEnchantments(ItemStack item, Map<String, Integer> enchantments) {
         if (item == null || enchantments == null || enchantments.isEmpty()) return;
 
+        EnchantmentStorageMeta bookMeta = item.getType() == Material.ENCHANTED_BOOK
+                && item.getItemMeta() instanceof EnchantmentStorageMeta storage ? storage : null;
         for (Map.Entry<String, Integer> entry : enchantments.entrySet()) {
             String key = entry.getKey();
             int level = entry.getValue();
@@ -537,7 +532,11 @@ public class ShopItemUtil {
                 Enchantment enchantment = getEnchantment(key);
 
                 if (enchantment != null) {
-                    item.addUnsafeEnchantment(enchantment, level);
+                    if (bookMeta != null) {
+                        bookMeta.addStoredEnchant(enchantment, level, true);
+                    } else {
+                        item.addUnsafeEnchantment(enchantment, level);
+                    }
                 } else {
                     me.dralle.shop.util.ConsoleLog.warn(ShopPlugin.getInstance(), 
                         "Invalid enchantment: " + key
@@ -548,6 +547,9 @@ public class ShopItemUtil {
                     "Failed to apply enchantment " + key + ": " + e.getMessage()
                 );
             }
+        }
+        if (bookMeta != null) {
+            item.setItemMeta(bookMeta);
         }
     }
 
@@ -606,7 +608,9 @@ public class ShopItemUtil {
         if (!it.hasItemMeta() || requiredEnchants == null || requiredEnchants.isEmpty()) return false;
 
         ItemMeta meta = it.getItemMeta();
-        if (!meta.hasEnchants()) return false;
+        EnchantmentStorageMeta bookMeta = it.getType() == Material.ENCHANTED_BOOK
+                && meta instanceof EnchantmentStorageMeta storage ? storage : null;
+        if (bookMeta != null ? !bookMeta.hasStoredEnchants() : !meta.hasEnchants()) return false;
 
         // Check each required enchantment
         for (Map.Entry<String, Integer> entry : requiredEnchants.entrySet()) {
@@ -616,7 +620,7 @@ public class ShopItemUtil {
             org.bukkit.enchantments.Enchantment enchant = ShopItemUtil.getEnchantment(enchantName);
             if (enchant == null) continue;
 
-            int itemLevel = meta.getEnchantLevel(enchant);
+            int itemLevel = bookMeta != null ? bookMeta.getStoredEnchantLevel(enchant) : meta.getEnchantLevel(enchant);
             if (itemLevel != requiredLevel) return false;
         }
 

@@ -5,17 +5,12 @@
 !.gitignore
 !pom.xml
 !README.md
-!CHANGELOG.md
 !VERSION_*.md
 
 # Keep plugin source and resources.
 !src/
 !src/main/
 !src/main/**
-
-# Do not include tests in commits by default.
-src/test/
-src/test/**
 
 # Keep documentation.
 !wiki/
@@ -27,29 +22,3 @@ src/test/**
 !.mvn/
 !.mvn/wrapper/
 !.mvn/wrapper/**
-
-# Still ignore generated files inside whitelisted folders.
-target/
-out/
-*.class
-*.jar
-*.war
-*.zip
-*.tar.gz
-*.rar
-*.log
-*.db
-*.db-shm
-*.db-wal
-*.bak
-*.backup
-*.tmp
-*~
-
-# Local editor and agent state.
-.idea/
-*.iml
-*.ipr
-*.iws
-.agents/
-.claude/

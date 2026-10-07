@@ -18,6 +18,8 @@ async function saveCurrentTabChanges(isSilent = false) {
             await saveCampaignHubDirtyShops(true);
         } else if (tab === 'commands') {
             await saveCommandsYaml(isSilent);
+        } else if (tab === 'customitems') {
+            await saveCustomItemsYaml(isSilent);
         } else if (tab === 'guisettings') {
             await saveGuiSettingsYaml(isSilent);
             await saveEconomySafetySettings(true);
@@ -45,6 +47,7 @@ async function publishAllChanges() {
         await savePurchaseMenuYaml(true);
         await saveSellMenuYaml(true);
         await saveCampaignsYaml(true);
+        await saveCustomItemsYaml(true);
         if (getEditorState('currentTab') !== 'commands') {
             await saveCommandsYaml(true);
         }

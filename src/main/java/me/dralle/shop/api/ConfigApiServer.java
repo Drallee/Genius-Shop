@@ -1,6 +1,5 @@
 package me.dralle.shop.api;
 
-import me.dralle.shop.ShopPlugin;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -10,14 +9,17 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
+import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
+import me.dralle.shop.util.YamlUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import me.dralle.shop.util.YamlUtil;
 import org.bukkit.entity.Player;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import java.io.*;
 import java.net.BindException;
 import java.net.InetSocketAddress;
@@ -26,18 +28,10 @@ import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.zip.GZIPOutputStream;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 
 public class ConfigApiServer {
     private final ShopPlugin plugin;
@@ -882,6 +876,7 @@ public class ConfigApiServer {
         putIfPresent(response, "discord", new File(plugin.getDataFolder(), "discord.yml"));
         putIfPresent(response, "campaignsFile", new File(plugin.getDataFolder(), "campaigns.yml"));
         putIfPresent(response, "commandsFile", new File(plugin.getDataFolder(), "commands.yml"));
+        putIfPresent(response, "customItemsFile", new File(plugin.getDataFolder(), "custom-items.yml"));
 
         // Sanitized price format config for web preview (no sensitive config values exposed).
         Map<String, Object> priceFormat = new HashMap<>();
@@ -1317,6 +1312,7 @@ public class ConfigApiServer {
         ensureDefaultResourceExists("menus/gui-settings.yml");
         ensureDefaultResourceExists("discord.yml");
         ensureDefaultResourceExists("commands.yml");
+        ensureDefaultResourceExists("custom-items.yml");
         ensureTextFileExists(new File(plugin.getDataFolder(), "campaigns.yml"), "campaigns: []\n");
     }
 
@@ -1436,6 +1432,14 @@ public class ConfigApiServer {
             errorData.put("exception", e.getClass().getSimpleName());
             sendError(exchange, 400, "Invalid YAML Syntax", "The file content contains invalid YAML syntax and cannot be saved. Please fix the syntax errors and try again", errorData);
             return;
+        }
+
+        if (fileName.equals("custom-items.yml")) {
+            java.util.List<String> errors = me.dralle.shop.items.CustomItemRepository.validateYaml(fileContent);
+            if (!errors.isEmpty()) {
+                sendError(exchange, 400, "Invalid Custom Items", String.join("; ", errors));
+                return;
+            }
         }
 
         if (fileName.equals("commands.yml") && plugin.getCustomCommandRepository() != null) {
@@ -1739,7 +1743,7 @@ public class ConfigApiServer {
 
         // Handle main config files
         if (fileName.equals("discord.yml") || fileName.equals("config.yml") ||
-            fileName.equals("gui.yml") || fileName.equals("campaigns.yml") || fileName.equals("commands.yml")) {
+            fileName.equals("gui.yml") || fileName.equals("campaigns.yml") || fileName.equals("commands.yml") || fileName.equals("custom-items.yml")) {
             return new File(plugin.getDataFolder(), fileName);
         }
 

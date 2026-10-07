@@ -215,6 +215,10 @@ async function loadAllFiles() {
             globalCampaigns = [];
         }
         commandCatalog = data.commandCatalog || {};
+        if (typeof parseCustomItemsYaml === 'function') {
+            parseCustomItemsYaml(typeof data.customItemsFile === 'string' ? data.customItemsFile : 'items: {}\n');
+            renderCustomItemsTab();
+        }
         commandsFileRaw = typeof data.commandsFile === 'string' ? data.commandsFile : 'commands:\n';
         if (typeof parseCommandsYaml === 'function') {
             parseCommandsYaml(commandsFileRaw);
@@ -229,7 +233,7 @@ async function loadAllFiles() {
         // Update preview based on current active tab
         const previewSection = document.querySelector('.minecraft-preview-section');
         if (previewSection) {
-            previewSection.style.display = (currentTab === 'guisettings' || currentTab === 'campaigns' || currentTab === 'commands' || currentTab === 'stockanalytics' || currentTab === 'dataeditor') ? 'none' : 'block';
+            previewSection.style.display = (currentTab === 'guisettings' || currentTab === 'campaigns' || currentTab === 'commands' || currentTab === 'customitems' || currentTab === 'stockanalytics' || currentTab === 'dataeditor') ? 'none' : 'block';
         }
 
         if (currentTab === 'mainmenu') {

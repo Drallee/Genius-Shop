@@ -263,6 +263,9 @@ function openSaveConfirmationModal(mode = 'tab') {
         if (currentTab === 'commands') {
             return change.target === 'custom-command';
         }
+        if (currentTab === 'customitems') {
+            return change.target === 'custom-item';
+        }
         if (currentTab === 'guisettings') {
             return change.target === 'gui-settings' || change.target === 'config-settings';
         }

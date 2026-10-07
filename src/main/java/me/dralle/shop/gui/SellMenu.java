@@ -5,11 +5,7 @@ import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
-import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.ItemConditionUtil;
-import me.dralle.shop.util.PriceFormulaUtil;
-import me.dralle.shop.util.ShopItemUtil;
-import me.dralle.shop.util.ShopTimeUtil;
+import me.dralle.shop.util.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -501,6 +497,7 @@ Inventory inv = new SellHolder().createInventory(54, title);
         if (!(e.getInventory().getHolder() instanceof SellHolder)) return;
 
         e.setCancelled(true);
+        if (e.getRawSlot() < 0 || e.getRawSlot() >= e.getInventory().getSize()) return;
 
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null) return;

@@ -9,7 +9,9 @@ const EditorYaml = (() => {
     const object = value => value && typeof value === 'object' && !Array.isArray(value);
     const list = value => Array.isArray(value) ? value.map(String) : value == null ? [] : [String(value)];
     const defaults = {
-        gui: clone(guiSettings), main: clone(mainMenuSettings), transaction: clone(transactionSettings)
+        gui: clone(guiSettings), main: clone(mainMenuSettings), transaction: clone(transactionSettings),
+        mainItem: { slot: null, material: 'CHEST', name: '', lore: [], action: '', shopKey: '', commands: [],
+            runAs: 'player', permission: '', hideAttributes: false, hideAdditional: false, closeAfterAction: false }
     };
 
     function parse(source) {
@@ -71,6 +73,21 @@ const EditorYaml = (() => {
             result[yamlKey] = key === 'enchantments' ? clone(value) : object(value) ? encode(value) : value;
         });
         return result;
+    }
+
+    function encodeOptional(model, defaultModel, requiredKeys) {
+        const data = encode(model);
+        const defaultData = encode(defaultModel);
+        for (const [key, value] of Object.entries(defaultData)) {
+            if (!requiredKeys.includes(key) && equal(data[key], value)) delete data[key];
+        }
+        return data;
+    }
+
+    function itemData(item) {
+        // Missing stock-reset inherits the shop rule, so an explicit disabled rule must survive.
+        const defaultItem = defaults.item ||= window.GeniusSchemas.normalizeShopItem({});
+        return encodeOptional(item, defaultItem, ['material', 'name', 'price', 'amount', 'slot', 'stock-reset']);
     }
 
     // Patch only model changes, leaving unknown fields and node comments untouched.
@@ -178,7 +195,7 @@ const EditorYaml = (() => {
         initializeShopItemSlots();
         if (retain) {
             remember(`shop:${currentShopFile}`, source, shopData());
-            documents.get(`shop:${currentShopFile}`).items = items.map(item => ({ id: item.id, data: encode(item) }));
+            documents.get(`shop:${currentShopFile}`).items = items.map(item => ({ id: item.id, data: itemData(item) }));
         }
     }
 
@@ -187,7 +204,7 @@ const EditorYaml = (() => {
         const state = documents.get(key);
         if (invalidDocuments.has(key)) throw new Error(invalidDocuments.get(key));
         if (state && equal(state.baseline, shopData())
-            && equal(state.items, items.map(item => ({ id: item.id, data: encode(item) })))) return state.source;
+            && equal(state.items, items.map(item => ({ id: item.id, data: itemData(item) })))) return state.source;
         return write(key, shopData(), doc => {
             const sequence = doc.get('items', true);
             const originals = library.isSeq(sequence) ? sequence.items : [];
@@ -199,7 +216,13 @@ const EditorYaml = (() => {
                 const row = sourceNode ? sourceNode.clone() : doc.createNode({});
                 const temporary = new library.Document({});
                 temporary.set('item', row);
-                patch(temporary, ['item'], index >= 0 ? state.items[index].data : {}, encode(item));
+                const before = index >= 0 ? state.items[index].data
+                    : { 'stock-reset': encode(createDefaultStockResetRule()) };
+                const after = itemData(item);
+                if (index >= 0 && !equal(before['buy-price-per-item'], after['buy-price-per-item'])) {
+                    temporary.deleteIn(['item', 'price-per-item']);
+                }
+                patch(temporary, ['item'], before, after);
                 return temporary.get('item', true);
             });
             doc.set('items', nextSequence);
@@ -210,8 +233,7 @@ const EditorYaml = (() => {
         const { value } = readChecked('main', source);
         mainMenuSettings = decode(defaults.main, value);
         loadedGuiShops = Object.entries(value.items || {}).map(([key, row]) => ({ key,
-            ...decode({ slot: null, material: 'CHEST', name: key, lore: [], action: '', shopKey: '', commands: [],
-                runAs: 'player', permission: '', hideAttributes: false, hideAdditional: false, closeAfterAction: false }, row),
+            ...decode({ ...defaults.mainItem, name: key }, row),
             commands: list(row.commands ?? row.command)
         }));
         remember('main', source, mainData());
@@ -222,7 +244,7 @@ const EditorYaml = (() => {
             const model = clone(row);
             if (!model.action && model.shopKey) model.action = 'shop-key';
             if (model.closeAfterAction && model.action === 'command') model.action = 'command-close';
-            data.items[row.key] = encode(model);
+            data.items[row.key] = encodeOptional(model, defaults.mainItem, ['slot', 'material', 'name']);
         });
         return data;
     }

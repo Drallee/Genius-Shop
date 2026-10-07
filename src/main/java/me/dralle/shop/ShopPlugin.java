@@ -1,44 +1,36 @@
 package me.dralle.shop;
 
-import me.dralle.shop.data.DataManager;
-import me.dralle.shop.data.ShopStateRepository;
 import me.dralle.shop.commands.CustomCommandLoadResult;
 import me.dralle.shop.commands.CustomCommandRegistry;
 import me.dralle.shop.commands.CustomCommandRepository;
 import me.dralle.shop.commands.CustomSellAllService;
+import me.dralle.shop.data.DataManager;
+import me.dralle.shop.data.ShopStateRepository;
 import me.dralle.shop.economy.EconomyHook;
-import me.dralle.shop.gui.BulkSellMenu;
-import me.dralle.shop.gui.GenericShopGui;
-import me.dralle.shop.gui.MainMenu;
-import me.dralle.shop.gui.PurchaseMenu;
-import me.dralle.shop.gui.SellMenu;
-import me.dralle.shop.gui.SpawnerPlaceListener;
+import me.dralle.shop.gui.*;
+import me.dralle.shop.items.CustomItemManager;
 import me.dralle.shop.metrics.MetricsWrapper;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.stock.StockResetService;
-import me.dralle.shop.util.ConfigPathDiagnostics;
-import me.dralle.shop.util.ConfigUpdater;
-import me.dralle.shop.util.ErrorFileLogger;
-import me.dralle.shop.util.ShopItemUtil;
-import me.dralle.shop.util.UpdateChecker;
+import me.dralle.shop.util.*;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bstats.charts.SingleLineChart;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -70,6 +62,7 @@ public class ShopPlugin extends JavaPlugin {
     private CustomCommandRepository customCommandRepository;
     private CustomCommandRegistry customCommandRegistry;
     private CustomSellAllService customSellAllService;
+    private CustomItemManager customItemManager;
     private int dataFlushTaskId = -1;
 
     // Counters for metrics
@@ -183,6 +176,8 @@ public class ShopPlugin extends JavaPlugin {
         this.customSellAllService = new CustomSellAllService(this);
         this.customCommandRepository = new CustomCommandRepository(this);
         this.customCommandRegistry = new CustomCommandRegistry(this, this.customSellAllService);
+        this.customItemManager = new CustomItemManager(this, this.customSellAllService);
+        this.customItemManager.reload();
 
         // listeners
         getServer().getPluginManager().registerEvents(new MainMenu(this), this);
@@ -191,6 +186,7 @@ public class ShopPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PurchaseMenu(this), this);
         getServer().getPluginManager().registerEvents(new SellMenu(this), this);
         getServer().getPluginManager().registerEvents(new SpawnerPlaceListener(), this);
+        getServer().getPluginManager().registerEvents(this.customItemManager, this);
 
         this.updateChecker = new UpdateChecker(this, "genius-shop");
         this.updateChecker.checkForUpdates();
@@ -525,6 +521,10 @@ public class ShopPlugin extends JavaPlugin {
                 return true;
             }
 
+            if (args.length > 0 && args[0].equalsIgnoreCase("giveitem")) {
+                return customItemManager.give(sender, args);
+            }
+
             // /shop validate-prices
             if (args.length > 0 && args[0].equalsIgnoreCase("validate-prices")) {
                 if (!sender.hasPermission("geniusshop.validateprices")
@@ -725,6 +725,8 @@ public class ShopPlugin extends JavaPlugin {
             this.customCommandRegistry = new CustomCommandRegistry(this, this.customSellAllService);
         }
         reloadCustomCommands();
+
+        if (customItemManager != null) customItemManager.reload();
 
         me.dralle.shop.util.ConsoleLog.info(this, "Genius-Shop reloaded from disk.");
     }
@@ -978,6 +980,8 @@ public class ShopPlugin extends JavaPlugin {
         return customCommandRepository;
     }
 
+    public CustomItemManager getCustomItemManager() { return customItemManager; }
+
     public EconomyHook getEconomy() {
         return economy;
     }
@@ -1018,10 +1022,17 @@ public class ShopPlugin extends JavaPlugin {
             if (canUseResetStock(sender)) options.add("resetstock");
             if (canUseValidatePrices(sender)) options.add("validate-prices");
             if (canUseExportItem(sender)) options.add("exportitem");
+            if (sender.hasPermission("geniusshop.giveitem")) options.add("giveitem");
             return filterByPrefix(options, args[0]);
         }
 
         String sub = args[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("giveitem") && sender.hasPermission("geniusshop.giveitem")) {
+            if (args.length == 2) return filterByPrefix(getServer().getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
+            if (args.length == 3 && customItemManager != null) return filterByPrefix(new ArrayList<>(customItemManager.getIds()), args[2]);
+            if (args.length == 4) return filterByPrefix(List.of("1"), args[3]);
+            return Collections.emptyList();
+        }
         if (!sub.equals("resetstock") || !canUseResetStock(sender)) {
             return Collections.emptyList();
         }

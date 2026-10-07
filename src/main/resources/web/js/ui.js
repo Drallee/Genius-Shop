@@ -349,7 +349,7 @@ function switchTab(tabName) {
     // Toggle preview section visibility
     const previewSection = document.querySelector('.minecraft-preview-section');
     if (previewSection) {
-        previewSection.style.display = (tabName === 'guisettings' || tabName === 'campaigns' || tabName === 'commands' || tabName === 'stockanalytics' || tabName === 'dataeditor') ? 'none' : 'block';
+        previewSection.style.display = (tabName === 'guisettings' || tabName === 'campaigns' || tabName === 'commands' || tabName === 'customitems' || tabName === 'stockanalytics' || tabName === 'dataeditor') ? 'none' : 'block';
     }
 
     // Toggle preview settings bar content
@@ -385,6 +385,8 @@ function switchTab(tabName) {
         renderCampaignsTab();
     } else if (tabName === 'commands' && typeof renderCommandsTab === 'function') {
         renderCommandsTab();
+    } else if (tabName === 'customitems') {
+        renderCustomItemsTab();
     } else if (tabName === 'stockanalytics') {
         loadStockAnalyticsData(true);
     } else if (tabName === 'dataeditor') {

@@ -5,13 +5,7 @@ import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
-import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.ConsoleLog;
-import me.dralle.shop.util.ItemConditionUtil;
-import me.dralle.shop.util.PriceFormulaUtil;
-import me.dralle.shop.util.ShopItemUtil;
-import me.dralle.shop.util.ShopTimeUtil;
-import me.dralle.shop.util.SmartSpawnerHook;
+import me.dralle.shop.util.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.CreatureSpawner;
@@ -30,8 +24,8 @@ import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 
 public class PurchaseMenu implements Listener {
 
@@ -486,10 +480,11 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
         if (!(e.getWhoClicked() instanceof Player player)) return;
         if (!(e.getInventory().getHolder() instanceof PurchaseHolder)) return;
 
+        e.setCancelled(true);
+        if (e.getRawSlot() < 0 || e.getRawSlot() >= e.getInventory().getSize()) return;
+
         ShopPlugin plugin = ShopPlugin.getInstance();
         FileConfiguration purchaseCfg = plugin.getMenuManager().getPurchaseMenuConfig();
-
-        e.setCancelled(true);
 
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null) return;

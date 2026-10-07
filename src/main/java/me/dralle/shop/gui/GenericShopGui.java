@@ -4,11 +4,7 @@ import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.stock.StockResetRule;
-import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.ItemConditionUtil;
-import me.dralle.shop.util.PriceFormulaUtil;
-import me.dralle.shop.util.ShopItemUtil;
-import me.dralle.shop.util.ShopTimeUtil;
+import me.dralle.shop.util.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -24,12 +20,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.Instant;
-import java.time.Duration;
 
 public class GenericShopGui implements Listener {
 
@@ -502,6 +498,7 @@ if (page < totalPages) {
         if (!(inventoryHolder instanceof GenericShopHolder) && !(inventoryHolder instanceof VariantHolder)) return;
 
         e.setCancelled(true);
+        if (e.getRawSlot() < 0 || e.getRawSlot() >= e.getInventory().getSize()) return;
 
         ItemStack clicked = e.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;

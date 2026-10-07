@@ -27,7 +27,8 @@
             <button type="button" class="tab" data-tab="sell" title="Sell" onclick="selectEditorTab('sell')"><i class="fa-solid fa-tag" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.sell">Sell</span></button>
             <div class="sidebar-divider" role="separator"></div>
             <button type="button" class="tab" data-tab="campaigns" title="Campaigns" onclick="selectEditorTab('campaigns')"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span class="sidebar-label">Campaigns</span></button>
-            <button type="button" class="tab" data-tab="commands" title="Commands" onclick="selectEditorTab('commands')"><i class="fa-solid fa-terminal" aria-hidden="true"></i><span class="sidebar-label">Commands</span></button>
+                <button type="button" class="tab" data-tab="commands" title="Commands" onclick="selectEditorTab('commands')"><i class="fa-solid fa-terminal" aria-hidden="true"></i><span class="sidebar-label">Commands</span></button>
+                <button type="button" class="tab" data-tab="customitems" title="Custom Items" onclick="selectEditorTab('customitems')"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><span class="sidebar-label">Custom Items</span></button>
             <button type="button" class="tab" data-tab="stockanalytics" title="Stock" onclick="selectEditorTab('stockanalytics')"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.stock-analytics">Stock</span></button>
             <button type="button" class="tab" data-tab="dataeditor" title="Data" onclick="selectEditorTab('dataeditor')"><i class="fa-solid fa-database" aria-hidden="true"></i><span class="sidebar-label">Data</span></button>
             <button type="button" class="tab" data-tab="guisettings" title="GUI Settings" onclick="selectEditorTab('guisettings')"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.gui-settings">GUI Settings</span></button>
@@ -370,6 +371,20 @@
                     </div>
                     <div id="commands-validation" class="commands-validation"></div>
                     <div id="commands-container" class="commands-editor"></div>
+                </div>
+
+                <!-- CUSTOM ITEMS TAB -->
+                <div id="customitems-tab" class="tab-content">
+                    <div class="content-header flex justify-between items-center mb-24">
+                        <div id="custom-items-count" class="count-badge">0 items</div>
+                        <div class="flex items-center gap-12">
+                            <input type="file" id="custom-items-import" accept=".yml,.yaml" hidden onchange="importCustomItemsYaml(this.files[0]); this.value = '';">
+                            <button class="btn btn-secondary" title="Import custom items" onclick="document.getElementById('custom-items-import').click()"><i class="fa-solid fa-upload"></i></button>
+                            <button class="btn btn-secondary" title="Export custom items" onclick="exportCustomItemsYaml()"><i class="fa-solid fa-download"></i></button>
+                            <button class="btn btn-primary" onclick="addCustomItem()"><i class="fa-solid fa-plus"></i> ADD ITEM</button>
+                        </div>
+                    </div>
+                    <div id="custom-items-container" class="commands-editor"></div>
                 </div>
 
                 <!-- STOCK ANALYTICS TAB -->
@@ -719,6 +734,7 @@
     <script src="js/modals.js?v=commands-history-1"></script>
     <script src="js/api.js"></script>
     <script src="js/commands.js?v=custom-commands-model-name-4"></script>
+    <script src="js/custom-items.js"></script>
     <script src="js/save-dispatcher.js"></script>
     <script src="js/autosave-manager.js"></script>
     <script src="js/ui.js?v=menu-placeholders-1"></script>

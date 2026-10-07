@@ -1,0 +1,50 @@
+# Give items with /shop giveitem <player> <item-id> [amount].
+# Item IDs remain on issued items; actions and multipliers are read from this file on each use.
+# max-uses: 0 means unlimited. Limited-use items cannot be stacked.
+# SELL_CONTAINER also handles compatible SmartSpawner loot storage after native access checks.
+items:
+  sell-wand:
+    material: BLAZE_ROD
+    name: "&6Sell Wand"
+    lore:
+      - "&7Sell eligible container or spawner loot"
+    permission: geniusshop.items.sellwand
+    cooldown-seconds: 2
+    actions:
+      right-click-container:
+        type: SELL_CONTAINER
+        multiplier: 1.0
+        use-campaigns: true
+      right-click-air:
+        type: OPEN_MAIN_MENU
+
+  premium-sell-wand:
+    material: BLAZE_ROD
+    name: "&dPremium Sell Wand"
+    permission: geniusshop.items.premium
+    cooldown-seconds: 2
+    actions:
+      right-click-container:
+        type: SELL_CONTAINER
+        multiplier: 1.5
+        use-campaigns: false
+
+  shop-token:
+    material: EMERALD
+    name: "&aShop Token"
+    actions:
+      right-click-air:
+        type: OPEN_SHOP
+        shop: blocks
+
+  command-token:
+    enabled: false
+    material: PAPER
+    name: "&eCommand Token"
+    max-uses: 10
+    actions:
+      right-click-air:
+        type: COMMAND
+        run-as: player
+        commands:
+          - "shop"

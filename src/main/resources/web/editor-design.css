@@ -248,3 +248,9 @@ body.login-page .login-container .premium-select { background: #24292d !importan
 @media (prefers-reduced-motion: reduce) {
     .editor-shell *, .login-page * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+.editor-shell .custom-item-action { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.editor-shell #custom-items-container .campaign-hub-title { font-size: 16px; overflow-wrap: anywhere; }
+.editor-shell #custom-items-container .setting-item { min-width: 0; }
+.editor-shell #custom-items-container .setting-item label { display: flex; flex-direction: column; gap: 6px; }
+.editor-shell #custom-items-container :is(input, select, textarea) { max-width: 100%; min-width: 0; }

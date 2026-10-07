@@ -1,17 +1,18 @@
-import { React, createRoot, useEffect, useState } from "./lib/react.js";
-import { autoLogin, fetchFiles, saveFile } from "./api.js";
-import { getUrlToken } from "./utils.js";
-import { Button, StatusBanner, Tabs } from "./components/ui.js";
-import { ShopFeature } from "./components/feature-shop.js";
-import { CommandsFeature } from "./components/feature-commands.js";
+import {createRoot, React, useEffect, useState} from "./lib/react.js";
+import {autoLogin, fetchFiles, saveFile} from "./api.js";
+import {getUrlToken} from "./utils.js";
+import {Button, StatusBanner, Tabs} from "./components/ui.js";
+import {ShopFeature} from "./components/feature-shop.js";
+import {CommandsFeature} from "./components/feature-commands.js";
+import {FeatureYamlEditor} from "./components/feature-yaml.js";
 import {
+    CampaignsFeature,
+    DataFeature,
+    GuiSettingsFeature,
     MainMenuFeature,
     PurchaseFeature,
     SellFeature,
-    GuiSettingsFeature,
-    CampaignsFeature,
-    StockFeature,
-    DataFeature
+    StockFeature
 } from "./components/features.js";
 
 const TABS = [
@@ -21,6 +22,7 @@ const TABS = [
     { id: "stock", label: "Stock" },
     { id: "data", label: "Data" },
     { id: "commands", label: "Commands" },
+    { id: "customitems", label: "Custom Items" },
     { id: "purchase", label: "Purchase" },
     { id: "sell", label: "Sell" },
     { id: "guisettings", label: "GUI Settings" }
@@ -42,6 +44,7 @@ function App() {
         guiSettings: "",
         campaignsFile: "",
         commandsFile: "",
+        customItemsFile: "",
         commandCatalog: {},
         stockJson: "",
         dataJson: ""
@@ -110,6 +113,7 @@ function App() {
             guiSettings: data?.guiSettings || "",
             campaignsFile: data?.campaignsFile || "",
             commandsFile: data?.commandsFile || "commands:\n",
+            customItemsFile: data?.customItemsFile || "items: {}\n",
             commandCatalog: data?.commandCatalog || {},
             stockJson: JSON.stringify(data?.stockAnalytics || {}, null, 2),
             dataJson: JSON.stringify(data?.database || {}, null, 2)
@@ -182,6 +186,8 @@ function App() {
                 await saveFile(sessionToken, "campaigns.yml", files.campaignsFile);
             } else if (activeTab === "commands") {
                 await saveFile(sessionToken, "commands.yml", files.commandsFile);
+            } else if (activeTab === "customitems") {
+                await saveFile(sessionToken, "custom-items.yml", files.customItemsFile);
             } else {
                 setStatus({ type: "warn", text: "This tab is read-only in React beta." });
                 return;
@@ -195,6 +201,13 @@ function App() {
     };
 
     const renderActiveTab = () => {
+        if (activeTab === "customitems") {
+            return React.createElement(FeatureYamlEditor, {
+                title: "Custom Items",
+                value: files.customItemsFile,
+                onChange: (v) => setFiles((p) => ({ ...p, customItemsFile: v }))
+            });
+        }
         if (activeTab === "shop") {
             return React.createElement(ShopFeature, {
                 shops: files.shops,
