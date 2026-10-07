@@ -1,4 +1,23 @@
-### 🚀 Genius Shop v1.6.0-BETA - Economy Safety, Price Formulas, Campaigns & Editor Overhaul
+### Genius Shop v1.7.0 - Custom Items, Sell Wands & SmartSpawner Loot
+
+#### Custom Items & Sell Wands
+* Added `custom-items.yml` for configurable right-click actions: sell container contents, open menus, or run player/console commands.
+* Added `/shop giveitem` for issuing custom items, with persistent item identity, permissions, cooldowns, and optional limited uses.
+* Successful actions can consume a use and remove the item when its uses run out; failed actions do not consume a use.
+* Sell wands support per-item multipliers, such as `1.0` or `1.5`, with configurable campaign participation through `use-campaigns`.
+* Container sales honor shop eligibility, item metadata, pricing, limits, stock, and transaction safety; failed payments restore removed items.
+* Added custom-item configuration controls to the classic and React web editors, plus configuration examples and documentation.
+
+#### SmartSpawner Loot Selling
+* Sell-container wands can sell eligible loot stored inside compatible SmartSpawner blocks, without selling experience or the spawner itself.
+* Native menu access, protection checks, the `smartspawner.sellall` permission, and cancellable native sale events remain enforced.
+* Added SmartSpawner 1.5.8 compatibility for legacy sale locks and list-based virtual storage, alongside support for newer storage methods.
+* Avoided resolving unrelated optional ShopGUI+ integration classes; ShopGUI+ is not required for wand sales.
+* Added a legacy native-sale guard to reject stale queued sales before payment, plus regression tests for compatibility, cancellation, locks, and rollback.
+
+---
+
+### 🚀 Genius Shop v1.6.0 - Economy Safety, Advanced Pricing & Web Editor Overhaul
 
 This release is a major feature expansion focused on economy safety, advanced pricing mechanics, campaign scheduling, item conditions, and a significantly upgraded web editor.
 
@@ -6,27 +25,33 @@ This release is a major feature expansion focused on economy safety, advanced pr
 * **Per-item price mode toggles**:
     * `buy-price-per-item` — toggle whether buy price is per single item or per configured amount.
     * `sell-price-per-item` — toggle whether sell price is per single item or per configured amount.
+    * Both default to `true`. With either set to `false`, the corresponding total is `price * (selected amount / configured amount)`.
 * **Price formula rules**:
     * New per-item keys: `buy-price-formula` and `sell-price-formula`.
     * Safe server-side formula evaluator supporting `+`, `-`, `*`, `/`, parentheses, unary operators, and functions: `min`, `max`, `abs`, `round`, `floor`, `ceil`, `pow`.
-    * Formula variables: `base`, `price`, `dynamic`, `global_count`, `amount`, `price_change`, `min_price`, `max_price`, `limit`, `global_limit`.
+    * Formula variables: `base`, `price`, `dynamic` / `dynamic_price`, `global_count` / `count`, `amount`, `price_change`, `min_price`, `max_price`, `limit`, `global_limit`.
     * Formula-based pricing is applied across shop GUI display, purchase, sell, bulk sell, best-sell matching, and public API lookups.
 * **Economy safety guards**:
     * Max transaction value guard (`economy-safety.max-transaction-value`).
+    * Optional unit-price cap (`economy-safety.max-unit-price`).
     * Anti-spike pricing rules (`economy-safety.anti-spike.*`) — base-multiplier and step-change protection.
     * Per-action cooldowns (`economy-safety.cooldowns.*`) for buy, sell, and bulk sell.
     * Optional large-purchase double-confirm flow (`economy-safety.large-purchase-confirmation.*`).
     * Strict invalid-value checks before transactions (NaN, Infinity, negative, hard-cap values).
     * Server-side unit floor/ceiling enforcement against configured min/max bounds.
     * Explicit fail-safe handling for withdraw/deposit failures with player-facing error messaging.
+    * Inventory capacity is checked before charging; purchases no longer drop overflow items on the ground. Delivery failures after withdrawal trigger a refund attempt.
+    * Anti-spike multipliers now compare against the configured base price, before dynamic pricing, formulas, or campaigns. Rejection messages include clearer reasons and diagnostic values.
     * Audit logging for guard/economy failures including reason, shop key, item, player, and total.
     * Optional in-game admin alerts for guard/economy failures with configurable permission and rate-limiting (`economy-safety.admin-alerts.*`).
 * **New dry-run validation command**:
     * `/shop validate-prices` — scans all loaded shop items and reports risky or invalid price configurations without modifying any data.
 
 #### 🗓️ Scheduled Campaigns
+* Reusable campaign definitions can be stored globally in `campaigns.yml` or locally in a shop's `campaigns` list, then assigned to shops or items with `campaign: <key>`.
 * New item-level campaign window keys: `campaign-enabled`, `campaign-name`, `campaign-start`, `campaign-end`, `campaign-timezone`, `campaign-buy-multiplier`, `campaign-sell-multiplier`.
 * Campaign multipliers are applied live to buy/sell prices across the shop GUI, purchase flow, sell flow, bulk sell flow, and best-sell item matching.
+* Web editor campaign management includes template editing and bulk assignment/removal for selected shops and items.
 
 #### 🔒 Advanced Item Conditions
 * New server-side condition checks: `min-player-level`, `max-player-level`, `required-gamemode`, `allowed-worlds`, `denied-worlds`.
@@ -38,6 +63,11 @@ This release is a major feature expansion focused on economy safety, advanced pr
 * Optional grouped variant selector menu — set `variant-menu: true` on a base item to show one slot that opens a variant selection inventory.
 
 #### 🖥️ Web Editor Improvements
+* Redesigned the editor around the Minecraft inventory preview, with responsive layouts, collapsible sidebar navigation, animated transitions, and a compact icon rail.
+* Replaced fragile shop/menu/command YAML parsing with structured, comment-preserving editing. Saves validate YAML and preserve unknown fields and unchanged references.
+* Added draft state, schema normalization/validation, centralized save dispatch, autosave handling, and opt-in editor telemetry.
+* Added an alternate React editor at `/react.html` alongside the classic editor.
+* Resolved language references are now displayed in names, titles, lore, and message fields.
 * **Export tools**:
     * `Export Item` action in the item modal (JSON).
     * `Export` action in the Shop tab for the current shop (YAML/JSON) or entire project (JSON).
@@ -59,6 +89,7 @@ This release is a major feature expansion focused on economy safety, advanced pr
 * **Item modal** fields added for Buy/Sell Price Mode, Buy/Sell Price Formula, campaign fields, condition fields, `item-key`, and `variant-key`.
 * Grouped modal checkboxes into titled sections for clearer organization.
 * Shop item list badges for `item-key` and `variant-key`.
+* Fixed unclickable footer buttons, duplicate search borders, stock text overflow, favicon references, invalid meta tags, missing image descriptions, and conflicting CSS overrides.
 
 #### 📊 Stock Analytics Dashboard
 * New `STOCK` tab in the web editor with a live dashboard.
@@ -84,6 +115,54 @@ This release is a major feature expansion focused on economy safety, advanced pr
     * Server-side rollback via `POST /api/activity-log/rollback`.
     * Activity log clear via `POST /api/activity-log/clear`.
     * Web editor history modal reads from server audit data and performs server-side rollback.
+* Added missing configuration-path diagnostics, with console notices and debug logging.
+* Added compiled shop catalogs and structured validation warnings/errors, including invalid availability rules and duplicate/invalid slots; corrected validation of slots on later pages.
+
+#### 🛒 Bulk Selling, Stock & Persistence
+* Added the Bulk Sell GUI and `menus/bulk-sell-menu.yml` for selling multiple deposited items through `/shop sell`.
+* Best-sell matching checks accessible shops, item metadata, availability, conditions, pricing formulas, and campaigns.
+* Added dedicated stock reset rules/services for daily, hourly, minute/second intervals, weekly, monthly, yearly, and one-time schedules, with persisted last-run tracking.
+* Cached player/global counters and stock reset timestamps, with batched SQLite writes and periodic flushing to reduce repeated database work.
+* Improved shop refresh handling and variant stock identity so stock, limits, and dynamic prices remain consistent across menus.
+* Shop navigation buttons now support configurable materials.
+
+#### ⌨️ Custom Commands & Permissions
+* Added `commands.yml` and a web editor Commands tab for configurable command names, aliases, descriptions, usage, permissions, and denial messages.
+* Supported actions: `OPEN_SHOP`, `OPEN_ITEM` (buy, sell, or both), and `SELL_ALL` across all accessible shops or a selected shop. Example commands are disabled by default.
+* Added command validation and dynamic registration/reloading; duplicate names and aliases are reported. Fixed custom names reverting to `shop` during saving and tightened alias validation.
+* Added `/shop exportitem [file-name]` to export the held item as editor-importable JSON under `item-exports/`, preserving serialized `item-stack` data.
+* Added `geniusshop.validateprices` and `geniusshop.exportitem`, explicit base/reload permissions, protected default-shop permissions and legacy aliases, and child permissions for `geniusshop.admin`.
+* Corrected permission routing so `/shop` subcommands enforce their own access checks; added permission-aware completion for the new commands.
+
+#### 🔐 HTTPS & Editor Login
+* Added native HTTPS through `api.ssl.*`, with configurable keystore path, type, keystore password, and key password. Editor URLs support explicit schemes and custom domains.
+* Login and editor screens now display `/shop confirmlogin <token>` with copy/retry controls for pending IP confirmation, including the React editor.
+* Added `geniusshop.login.ip.bypass` for confirming logins from another IP. Confirmed trusted IPs can retain valid sessions for eligible users.
+* Web-triggered plugin and custom-command reloads now run on the server thread; redundant command refreshes are coalesced.
+* Guarded nullable player addresses during login/session checks.
+
+#### 🧩 Integrations & Public API
+* Added optional Floodgate detection and shortened inventory titles for Bedrock players.
+* Added `GeniusShopAPI` / `GeniusShopAPIProvider` for opening menus, enumerating shops, querying item prices, and finding the best accessible buy/sell offers.
+* Added shop-open and purchase/sell transaction events for plugin integrations.
+* SmartSpawner delivery now uses its creation API, with support for `SmartSpawner` and `SmartSpawners` plugin names. Exported `item-stack` data takes priority when present.
+* Added serialized `item-stack` support for exact item delivery and sell matching, and expanded editor controls for player-head owners/textures.
+* Improved shared logging, metrics wrapping, and Discord webhook error diagnostics.
+
+#### 🌍 Localization & Configuration Fixes
+* Added/expanded bundled language files and localized menu titles, buttons, messages, custom-command feedback, and diagnostic output.
+* Missing language defaults are merged even when an existing language file already has the current version.
+* Fixed placeholder replacement before lore coloring and default merging for nested configuration sections.
+* Quoted language `on` keys to avoid YAML boolean interpretation, while retaining compatibility with legacy `messages.true` values.
+
+#### 📚 Examples, Documentation & Build
+* Updated `weekend_market.yml` with a reusable Weekend Boost campaign (`0.85` buy and `1.10` sell multipliers), four-apple bundle pricing, and dynamic/formula-priced Ancient Debris. Campaign dates are examples and must be adjusted for a live promotion.
+* Added `variants_demo.yml` and expanded potion, special-item, miscellaneous, and spawner examples, including item export/import guidance.
+* Updated the README, shop configuration guide, and wiki documentation for commands, pricing, campaigns, conditions, editor workflows, integrations, and the public API. Hosting guidance covers alternate API ports, conflicts, firewalls, HTTPS, and provider allocations.
+* Maven now produces a shaded `Shop-1.6.0-all.jar` alongside the regular JAR; the server-copy build step uses the shaded artifact.
+* Added JUnit/Mockito and Surefire support. Earlier test files and temporary development notes/worktrees were cleaned up; the current tree retains custom-command repository tests.
+* Pinned compile/test dependencies to Log4j API `2.25.5`, Commons Lang `3.18.0`, and Plexus Utils `3.6.1`. Server-provided runtime dependencies remain supplied by the server.
+* Added an MIT license, updated copyright information, and expanded Git ignore rules for generated/development files.
 
 #### 🔄 Changes
 * Buy and sell total calculations now respect each item's configured pricing mode.
@@ -91,6 +170,7 @@ This release is a major feature expansion focused on economy safety, advanced pr
 * Shop item lore price lines now show totals for the configured item amount (for both per-item and per-configured-amount modes).
 * Buy/Sell menu lore now resolves stock placeholders in item/custom lore: `%global-limit%`, `%player-limit%`, `%limit%`, `%stock-reset-timer%`.
 * Transaction guard pricing checks treat formula-driven item pricing as dynamic guard input where applicable.
+* Fixed menu inventory holders returning null and validated enchantment metadata before applying it; guarded SmartSpawner plugin lookup and removed redundant/unused runtime and editor code.
 
 ---
 **Compatible with Minecraft 1.21+ and Java 21.**

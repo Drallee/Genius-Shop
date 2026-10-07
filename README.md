@@ -1,179 +1,173 @@
-# Genius Shop v1.6.0-BETA
+# Genius Shop v1.7.0-TB.26.10.07
 
-A modern, data-driven economy shop plugin for Bukkit/Spigot/Paper/Purpur with GUI menus, dynamic pricing, price formulas, economy safety guards, campaign scheduling, item conditions, item variants, stock limits and resets, localization, and a built-in web editor.
+A data-driven economy shop plugin for Minecraft 1.21 Bukkit/Spigot servers and Paper/Purpur, with configurable inventory menus, dynamic pricing, stock management, scheduled campaigns, and a built-in web editor.
 
-[View Changelog](https://modrinth.com/plugin/genius-shop/changelog)
-
-## Features
-
-### Flexible Shop System
-- Data-driven shops: create unlimited shop files in `shops/`
-- Buy and sell support with per-item buy/sell control
-- Per-item price mode toggles:
-  - `buy-price-per-item` — price per single item or per configured amount
-  - `sell-price-per-item` — price per single item or per configured amount
-- Price formula rules per item (`buy-price-formula`, `sell-price-formula`) with variables for base price, dynamic price, stock counts, limits, and more
-- Permission-based access for shops and individual items
-- Multi-page GUI support with slot-based item placement
-- Time-restricted shops/items with readable schedule output
-- Dynamic pricing with min/max bounds and price-change rules
-- Player limits and global stock limits
-- Stock reset automation: daily, hourly, minute interval, second interval, weekly, monthly, yearly, once
-- Shop-level and item-level stock behavior controls:
-  - `sell-adds-to-stock`
-  - `allow-sell-stock-overflow`
-- Item requirement guards for selling (name/lore checks)
-- Unstable TNT support
-- Full support for potions, tipped arrows, spawners, and custom enchantments
-
-### Advanced Item Conditions
-- Per-item server-side condition checks enforced on visibility, buy, sell, and bulk sell:
-  - `min-player-level` / `max-player-level`
-  - `required-gamemode`
-  - `allowed-worlds` / `denied-worlds`
-
-### Scheduled Campaigns
-- Item-level campaign windows with configurable start/end times and timezone
-- `campaign-buy-multiplier` and `campaign-sell-multiplier` applied live across GUI display, purchase, sell, and bulk sell flows
-- Campaign keys: `campaign-enabled`, `campaign-name`, `campaign-start`, `campaign-end`, `campaign-timezone`
-
-### Item Variants
-- Stable variant identity via `item-key` and `variant-key`
-- Variant entries inherit base item settings; variant values override inherited ones
-- Variants are materialized as separate runtime `ShopItem` entries with unique keys to avoid stock/limit/dynamic-pricing collisions
-- Optional grouped variant selector menu (`variant-menu: true`) — one slot opens a variant selection inventory
-
-### Economy Safety
-- Max transaction value guard (`economy-safety.max-transaction-value`)
-- Anti-spike pricing rules (`economy-safety.anti-spike.*`) for base-multiplier and step-change protection
-- Per-action cooldowns (`economy-safety.cooldowns.*`) for buy, sell, and bulk sell
-- Optional large-purchase double-confirm flow (`economy-safety.large-purchase-confirmation.*`)
-- Strict pre-transaction checks (NaN, Infinity, negative, overflow values)
-- Server-side price floor/ceiling enforcement against configured min/max bounds
-- Explicit fail-safe handling for withdraw/deposit failures with player-facing error messaging
-- Audit logging for guard/economy failures (reason, shop, item, player, total)
-- Optional in-game admin alerts for failures (`economy-safety.admin-alerts.*`) with configurable permission and rate-limiting
-
-### Modern GUI and Formatting
-- Main menu + shop + purchase + sell + bulk sell interfaces
-- Rich formatting with legacy colors, HEX, and gradients
-- Multi-stop gradient support (`<gradient:#A:#B:#C>...</gradient>`)
-- Proper legacy style compatibility inside gradients (e.g. `&l`)
-- Configurable lore-format pipeline in `menus/gui-settings.yml`
-- Lore placeholders:
-  - `%global-limit%`
-  - `%player-limit%`
-  - `%stock-reset-timer%`
-- Per-item display toggles:
-  - `show-stock`
-  - `show-stock-reset-timer`
-- Live GUI updates while open for stock/price/lore changes
-
-### Web Editor
-- Real-time visual editing and live Minecraft-style item preview (updates as fields are edited)
-- Preview parity mode (`PARITY: ON/OFF`) — expands GUI lore tokens for accurate in-game comparison
-- Main menu editor + shop/item editor + GUI settings editor
-- Section toggles for lore, enchantments, commands, limits, and available-times
-- `run-as` dropdown for command execution context (player/console)
-- **Export tools**:
-  - `Export Item` in the item modal (JSON)
-  - `Export` in the Shop tab for the current shop (YAML/JSON) or entire project (JSON)
-  - Menu import/export (JSON and YAML) for Main Menu, Purchase, and Sell menus
-  - File import format auto-detected from file name/content
-- **Clone actions**: `Clone to Shop` (single target) and `Clone to Multiple` (multi-select) with searchable floating pickers
-- **Import Items**: supports JSON and YAML file uploads with auto ID assignment
-- **Stock Analytics** dashboard (`STOCK` tab): summary cards, shop filter, per-item stock table
-- **Data editor** (`DATA` tab): direct SQLite management for player counts, global counts, and stock resets with row-level add/save/delete/refresh
-- **Economy Safety** panel: presets (`STRICT`, `BALANCED`, `OFF`) and full config save via dedicated API endpoint
-- **Server-side audit + rollback**: all file actions logged to `activity-log.json` with one-click rollback
-- Secure login flow with in-game confirmation for new IPs
-- Built-in REST API for remote management
-
-### Economy, Integrations, and Runtime
-- Vault economy integration
-- Optional SmartSpawner integration
-- Optional Floodgate/Bedrock compatibility improvements
-- Discord webhook transaction notifications
-- SQLite runtime storage (`data.db`) with legacy `data.yml` migration
-- Debug error file logging (`plugins/Genius-Shop/debug/error.log`) for support diagnostics
-- Update checks and in-game update notifications with configurable sound
-- Permission-aware `/shop` tab completion
-- Commands:
-  - `/shop`
-  - `/shop reload`
-  - `/shop editor`
-  - `/shop confirmlogin <token>`
-  - `/shop wiki`
-  - `/shop resetstock all|shop|item`
-  - `/shop validate-prices` — dry-run scanner for risky/invalid price configs
-  - `/shop exportitem` — export held item to a web-editor JSON file
-
-### Developer API
-- Public API for opening menus and querying shop data
-- Custom events for shop open, buy, sell, and transactions
+[Download](https://modrinth.com/plugin/genius-shop) | [Changelog](CHANGELOG.md) | [Wiki](https://github.com/Drallee/Genius-Shop/wiki)
 
 ## Requirements
 
-- Minecraft: 1.21+ (Bukkit, Spigot, Paper, Purpur)
-- Java: 21+
-- Vault: required
-- Economy plugin: any Vault-compatible economy provider (e.g. EssentialsX)
+- Java 21 or newer and a compatible Minecraft 1.21 server. The project compiles against the Paper 1.21.1 API.
+- [Vault](https://www.spigotmc.org/resources/vault.34315/) and a Vault-compatible economy provider, such as [EssentialsX](https://modrinth.com/plugin/essentialsx). Vault itself does not provide player balances.
+- An additional available TCP port for remote web-editor access.
 
-## Dependencies
-
-### Required
-- Vault
-  - Spigot: https://www.spigotmc.org/resources/vault.34315/
-- Economy plugin (Vault-compatible, choose one)
-  - EssentialsX (Spigot): https://www.spigotmc.org/resources/essentialsx.9089/
-  - EssentialsX (Modrinth): https://modrinth.com/plugin/essentialsx
-
-### Optional
-- SmartSpawner (for advanced spawner item integration)
-  - Modrinth: https://modrinth.com/plugin/smartspawner
-- Floodgate (for Bedrock support improvements)
-  - Modrinth: https://modrinth.com/plugin/floodgate
+Optional integrations include [SmartSpawner](https://modrinth.com/plugin/smartspawner) for native spawner items and [Floodgate](https://modrinth.com/plugin/floodgate) for Bedrock compatibility improvements.
 
 ## Quick Start
 
-1. Install Vault and an economy plugin
-2. Drop `Shop-x.x.x.jar` into your plugins folder
-3. Start the server
-4. Configure shops in `plugins/Genius-Shop/shops/`
-5. Configure menus in `plugins/Genius-Shop/menus/`
-6. (Optional) enable web editor API in `config.yml`
-7. Run `/shop reload`
-8. Use `/shop` in game
+1. Install Vault and your economy provider.
+2. Put the Genius-Shop release JAR in the server's `plugins/` folder. Keep only one version installed.
+3. Start the server and check the console for startup errors.
+4. Configure the generated files in `plugins/Genius-Shop/`, including shop prices, menu layouts, language, and permissions.
+5. Review the API settings below. The bundled configuration enables the web editor by default.
+6. Run `/shop reload` after configuration edits, then `/shop validate-prices`.
+7. Test `/shop`, a small purchase, and a sale before opening the shops to players.
 
-## Configuration
+Back up the entire plugin data directory before upgrading. Stop the server, replace the JAR, and restart. Configuration reloads do not install new plugin code.
 
-- Shop files: `plugins/Genius-Shop/shops/*.yml`
-- Menu files: `plugins/Genius-Shop/menus/*.yml`
-- Languages: `plugins/Genius-Shop/languages/*.yml`
-- Web editor/API settings: `config.yml`
+## Features
 
-For detailed schema and examples, see:
-- `wiki/Configuration.md`
-- `wiki/Examples.md`
+### Shops, Items, and Menus
 
-## Permissions
+- Separate YAML shop files with configurable slots, pages, shop/item permissions, and availability schedules.
+- Main, shop, purchase, sell, bulk-sell, and grouped variant menus.
+- Independent buy/sell controls and prices per single item or configured bundle.
+- Dynamic pricing with minimum/maximum bounds, price-change rules, and formula expressions.
+- Player limits, shared stock limits, and scheduled resets: daily, hourly, minute/second intervals, weekly, monthly, yearly, or once.
+- Shop/item controls for whether sales replenish stock and whether stock overflow is allowed.
+- Selling requirements for item names/lore, plus potion, tipped-arrow, spawner, enchantment, and exported item-stack metadata support.
+- Item conditions for player level, game mode, and allowed/denied worlds.
+- Item variants that inherit base settings, with separate runtime identities and optional `variant-menu: true` selection.
+- Configurable lore, legacy colors, HEX colors, multi-stop gradients, stock/reset placeholders, and live GUI updates.
+- Custom commands in `commands.yml` for opening shops/items or selling eligible inventory items. Bundled command examples are disabled by default.
 
-- `geniusshop.use` — open and use shops
-- `geniusshop.sell` — use bulk sell
-- `geniusshop.reload` — reload plugin config
-- `geniusshop.resetstock` — run stock reset commands
-- `geniusshop.wiki` — access `/shop wiki`
-- `geniusshop.validateprices` — use `/shop validate-prices` dry-run scanner
-- `geniusshop.exportitem` — use `/shop exportitem` to export held item
-- `geniusshop.admin` — full admin access
-- `geniusshop.login.ip.bypass` — approve web-editor IP bypass flow
+### Pricing and Campaigns
 
-## Data Storage
+Use `buy-price-per-item` and `sell-price-per-item` to choose unit or bundle pricing. Both default to `true`; when set to `false`, the corresponding total is `price * (selected amount / configured amount)`.
 
-- Runtime counters and state: `plugins/GeniusShop/data.db` (SQLite)
-- Legacy migration: `data.yml` migrates automatically on startup
-- Debug error log: `plugins/Genius-Shop/debug/error.log` (when enabled)
+Per-item `buy-price-formula` and `sell-price-formula` support arithmetic, parentheses, and functions including `min`, `max`, `abs`, `round`, `floor`, `ceil`, and `pow`. Variables include base/dynamic prices, counts, amounts, and limits.
 
-## BStats
+Campaigns can be defined globally in `campaigns.yml` or within a shop, then assigned with `campaign: <key>`. Inline item campaign settings also support start/end times, timezones, and buy/sell multipliers. Active campaigns affect displayed prices, transactions, bulk selling, and best-offer matching.
 
-![BStats Metrics](https://bstats.org/signatures/bukkit/Genius-Shop.svg)
+### Economy Safety
+
+The `economy-safety` configuration provides:
+
+- Transaction-total and unit-price caps.
+- Anti-spike checks against configured base prices and previous successful trades.
+- Buy, sell, and bulk-sell cooldowns.
+- Optional second confirmation for expensive purchases.
+- Invalid-value checks and configured price bounds.
+- Economy failure logging and optional administrator alerts.
+
+Ordinary item purchases check inventory capacity before charging. If delivery fails after withdrawal, the plugin attempts a refund. Use `/shop validate-prices` for a dry-run configuration scan; test transactions as well, especially when using formulas, campaigns, or external command deliveries.
+
+### Web Editor
+
+- Responsive Minecraft inventory previews for shops and menus, with live item tooltips and lore parity previews.
+- Editing for items, transaction menus, GUI settings, economy safety, campaigns, and custom commands.
+- Structured YAML editing that preserves comments, unknown fields, and unchanged language references for supported edits.
+- Draft state, validation, and optional autosave.
+- YAML/JSON import/export, item cloning across shops, and held-item JSON imports.
+- Stock analytics and a data editor for persisted player counts, global counts, and reset tracking.
+- Activity history and file rollback through `activity-log.json`.
+- An alternate React editor at `/react.html`, alongside the classic editor.
+- Authenticated administrative HTTP endpoints and opt-in editor telemetry.
+
+Successful editor saves apply configuration reloads to the live server. File-history rollback restores recorded configuration; it does not restore economy balances or all runtime state.
+
+### Integrations and Developer API
+
+- Vault economy, optional SmartSpawner/Floodgate support, and Discord transaction webhooks.
+- SQLite storage with automatic legacy `data.yml` migration.
+- Localization, update notifications, configurable price formatting, and debug error logging.
+- Java API for opening menus, reading shops, looking up prices, and finding best buy/sell offers.
+- Cancellable shop-open events and successful purchase/sale notification events.
+
+See [Developer API](wiki/Developer-API.md) for Java integration and the editor HTTP API.
+
+## Web Editor Setup
+
+Review the generated `config.yml`:
+
+```yaml
+api:
+  enabled: true
+  port: 8080
+  enable-editor-command: true
+  domain: ""
+  allow-ip-bypass: false
+  ssl:
+    enabled: false
+```
+
+This is an excerpt, not a replacement for the whole file. The plugin generates an API key when the configured key is empty or still the bundled placeholder.
+
+Join as an administrator and run `/shop editor` to obtain a login link/code. Administrative API requests use authenticated sessions; the configured API key alone does not replace login. Different-IP confirmation requires `api.allow-ip-bypass` and `geniusshop.login.ip.bypass`.
+
+Port `8080` is only the default. Choose an available TCP port allocated by your hosting provider, or configure firewall/forwarding rules for your own server. The editor uses a separate port from Minecraft. Set `api.domain` when the generated address is not reachable; this setting advertises an address and does not configure DNS or networking.
+
+Restart after changing API enablement, port, or TLS settings. Native HTTPS supports a configured keystore; an HTTPS reverse proxy is another option. Set `api.enabled: false` when the editor/API is not needed.
+
+See [Web Editor](wiki/Web-Editor.md) for authentication, HTTPS, network troubleshooting, and save behavior.
+
+## Commands and Permissions
+
+| Command | Purpose | Permission |
+| --- | --- | --- |
+| `/shop` | Open the main menu | `geniusshop.use` |
+| `/shop sell` | Open the bulk-sell menu | `geniusshop.sell` |
+| `/shop reload` | Reload configuration and custom commands | `geniusshop.reload` |
+| `/shop editor` | Generate an editor login link/code | `geniusshop.admin` |
+| `/shop confirmlogin <token>` | Confirm an editor login request | IP-bypass workflow described above |
+| `/shop wiki` | Show the configured wiki link | `geniusshop.wiki` |
+| `/shop resetstock all` | Reset global counters across shops | `geniusshop.resetstock` |
+| `/shop resetstock shop <shopKey>` | Reset a shop's global counters | `geniusshop.resetstock` |
+| `/shop resetstock item <shopKey> <slot>` | Reset an item by shop and zero-based slot | `geniusshop.resetstock` |
+| `/shop validate-prices` | Scan price configuration without trading | `geniusshop.validateprices` |
+| `/shop exportitem [file-name]` | Export the held item to JSON | `geniusshop.exportitem` |
+
+Use and bulk-sell permissions default to everyone; administrative permissions default to operators. `geniusshop.admin` includes the declared administrative child permissions. Custom shop/item permissions remain separate.
+
+The protected default shops use `geniusshop.shop.spawners` and `geniusshop.shop.premium`, with parent node `geniusshop.shop`; these are not granted by default. See [Commands and Permissions](wiki/Commands-and-Permissions.md) for access rules and custom-command examples.
+
+## Configuration and Data
+
+Paths below are relative to the plugin data directory, normally `plugins/Genius-Shop/`.
+
+| Path | Purpose |
+| --- | --- |
+| `config.yml` | General settings, economy safety, formatting, and editor/API settings |
+| `shops/*.yml` | Shop definitions and items |
+| `menus/*.yml` | Main, purchase, sell, bulk-sell, and shared GUI settings |
+| `languages/*.yml` | Messages and translated menu text |
+| `campaigns.yml` | Optional global campaign definitions |
+| `commands.yml` | Custom commands and aliases |
+| `discord.yml` | Discord webhook settings |
+| `data.db` | SQLite stock, player counts, and reset state |
+| `item-exports/` | Held-item JSON exports |
+| `activity-log.json` | Editor file-change history |
+| `trusted-ips.yml` | Trusted editor-login addresses |
+| `debug/error.log` | Default error-log path when debug logging is enabled |
+
+Legacy `data.yml` is migrated automatically. Back up the data directory, including `data.db` and any SQLite companion files, while the server is stopped.
+
+`merge-missing-defaults` controls configuration updates. Existing menu files are intentionally not populated with missing default entries. See [Configuration](wiki/Configuration.md), [Examples](wiki/Examples.md), and [Installation](wiki/Installation.md) for details.
+
+## Building from Source
+
+Use JDK 21 or newer and Maven:
+
+```sh
+mvn test
+mvn package
+```
+
+The current test build is `1.7.0-TB.26.10.07` and produces `target/Shop-1.7.0-TB.26.10.07-all.jar`, which bundles runtime dependencies, alongside the unshaded JAR. Install the `-all.jar` when building from source.
+
+The package phase also copies the bundled JAR to `E:\MC Servers\plugins` through the `copy-jar-to-plugins` execution in `pom.xml`. Adjust or remove that local copy execution before packaging on another machine.
+
+## Metrics
+
+Anonymous bStats metrics are enabled by default and can be disabled with `metrics: false` in `config.yml`. Editor telemetry is separate and opt-in.
+
+![bStats Metrics](https://bstats.org/signatures/bukkit/Genius-Shop.svg)
