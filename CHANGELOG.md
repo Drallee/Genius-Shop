@@ -1,4 +1,10 @@
-### Genius Shop v1.7.0 - Custom Items, Sell Wands & SmartSpawner Loot
+### Unreleased
+
+#### Build & CI
+* Moved server JAR copying into the explicitly enabled `dev-server` Maven profile; default builds no longer depend on a local Minecraft server directory.
+* Added `server.plugins.directory` for configuring the copy destination without editing `pom.xml`, defaulting to `target/dev-server/plugins/`.
+* Added GitHub Actions verification for pushes and pull requests, running the Java and web tests before making the shaded JAR available as a downloadable artifact.
+* Made existing Java and web tests trackable alongside CI workflows, and documented local verification and development-server copying.
 
 #### Custom Items & Sell Wands
 * Added `custom-items.yml` for configurable right-click actions: sell container contents, open menus, or run player/console commands.

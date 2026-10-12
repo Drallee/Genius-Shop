@@ -155,16 +155,24 @@ Legacy `data.yml` is migrated automatically. Back up the data directory, includi
 
 ## Building from Source
 
-Use JDK 21 or newer and Maven:
+Use JDK 21 or newer, Maven, and Node.js 24 for the web tests:
 
 ```sh
-mvn test
-mvn package
+node --test src/test/web/*.test.cjs
+mvn clean verify
 ```
 
 The current test build is `1.7.0-TB.26.10.07` and produces `target/Shop-1.7.0-TB.26.10.07-all.jar`, which bundles runtime dependencies, alongside the unshaded JAR. Install the `-all.jar` when building from source.
 
-The package phase also copies the bundled JAR to `E:\MC Servers\plugins` through the `copy-jar-to-plugins` execution in `pom.xml`. Adjust or remove that local copy execution before packaging on another machine.
+Default builds write artifacts to `target/` and do not require a local Minecraft server. To copy the shaded JAR to a development server, explicitly enable the `dev-server` profile and supply the destination:
+
+```sh
+mvn package -Pdev-server "-Dserver.plugins.directory=E:\MC Servers\plugins"
+```
+
+Without a destination override, the profile copies to `target/dev-server/plugins/`. The copy runs after shading and copies only the current build's `-all.jar`.
+
+The **Build and Test** GitHub Actions workflow runs web tests and `mvn clean verify` on pushes and pull requests, and can also be started manually. Test failures fail the workflow. Successful runs provide the shaded JAR in the `Genius-Shop-shaded` artifact on the workflow run page.
 
 ## Metrics
 

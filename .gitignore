@@ -11,6 +11,13 @@
 !src/
 !src/main/
 !src/main/**
+!src/test/
+!src/test/**
+
+# Keep automated verification workflows.
+!.github/
+!.github/workflows/
+!.github/workflows/**
 
 # Keep documentation.
 !wiki/

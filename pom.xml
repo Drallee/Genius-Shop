@@ -7,7 +7,7 @@
 
     <groupId>me.dralle</groupId>
     <artifactId>Shop</artifactId>
-    <version>1.7.0-TB.26.10.07</version>
+    <version>1.7.0-TB.26.10.12</version>
     <packaging>jar</packaging>
 
     <name>Shop</name>
@@ -80,7 +80,6 @@
                 </executions>
             </plugin>
 
-            <!-- Copy plugin to server plugins folder automatically -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -89,29 +88,6 @@
                     <encoding>${project.build.sourceEncoding}</encoding>
                 </configuration>
 
-                <executions>
-                    <execution>
-                        <id>copy-jar-to-plugins</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-
-                        <configuration>
-                            <encoding>${project.build.sourceEncoding}</encoding>
-                            <outputDirectory>E:\MC Servers\plugins</outputDirectory>
-
-                            <resources>
-                                <resource>
-                                    <directory>${project.build.directory}</directory>
-                                    <includes>
-                                        <include>${project.build.finalName}-all.jar</include>
-                                    </includes>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
 
         </plugins>
@@ -124,6 +100,44 @@
         </resources>
 
     </build>
+
+    <profiles>
+        <profile>
+            <id>dev-server</id>
+            <properties>
+                <server.plugins.directory>${project.build.directory}/dev-server/plugins</server.plugins.directory>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-jar-to-plugins</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${server.plugins.directory}</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.build.directory}</directory>
+                                            <filtering>false</filtering>
+                                            <includes>
+                                                <include>${project.build.finalName}-all.jar</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
     <!-- Repositories -->
     <repositories>
