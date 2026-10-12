@@ -848,6 +848,9 @@ Inventory inv = new SellHolder().createInventory(54, title);
 
         removeItems(player, material, spawnerType, spawnerItem, potionType, enchantments, amount, customName, customLore, requireName, requireLore);
 
+        plugin.recordTransaction(player, me.dralle.shop.data.TransactionEntry.Type.SALE,
+                shopKey, itemKey != null ? itemKey : material.name(), amount, total);
+
         // Update counts
         if (itemKey != null) {
             plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), itemKey, amount);

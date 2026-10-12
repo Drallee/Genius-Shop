@@ -936,6 +936,9 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                   return;
               }
 
+        plugin.recordTransaction(player, me.dralle.shop.data.TransactionEntry.Type.PURCHASE,
+                shopKey, itemKey != null ? itemKey : material.name(), amount, total);
+
         // Update counts
         if (itemKey != null) {
             plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), itemKey, amount);

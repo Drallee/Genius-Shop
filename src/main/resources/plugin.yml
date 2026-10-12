@@ -9,9 +9,12 @@ softdepend: [SmartSpawner, SmartSpawners]
 commands:
   shop:
     description: Open the shop menu or reload the plugin
-    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem|giveitem]
+    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem|giveitem|ledger]
 
 permissions:
+  geniusshop.ledger:
+    description: Allows searching completed transactions with /shop ledger
+    default: op
   geniusshop.giveitem:
     description: Allows giving configured custom items to online players
     default: op
@@ -70,6 +73,7 @@ permissions:
     default: op
     children:
       geniusshop.use: true
+      geniusshop.ledger: true
       geniusshop.reload: true
       geniusshop.sell: true
       geniusshop.resetstock: true

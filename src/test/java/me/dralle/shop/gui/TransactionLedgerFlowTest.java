@@ -1,0 +1,149 @@
+package me.dralle.shop.gui;
+
+import me.dralle.shop.ShopPlugin;
+import me.dralle.shop.data.TransactionEntry;
+import me.dralle.shop.economy.EconomyHook;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.HashMap;
+import java.util.List;
+
+import static org.mockito.Mockito.*;
+
+class TransactionLedgerFlowTest {
+    @ParameterizedTest
+    @ValueSource(strings = {"success", "payment-failure", "delivery-failure"})
+    void purchaseRecordsOnlyAfterPaymentAndDelivery(String outcome) throws Exception {
+        ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        Player player = mock(Player.class, RETURNS_DEEP_STUBS);
+        ItemStack template = mock(ItemStack.class);
+        ItemStack delivered = mock(ItemStack.class);
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("economy-safety.enabled", false);
+        when(plugin.getConfig()).thenReturn(config);
+        when(plugin.getEconomy().isReady()).thenReturn(true);
+        when(plugin.getEconomy().getBalance(player)).thenReturn(2000D);
+        when(plugin.getEconomy().tryWithdraw(player, 1000D)).thenReturn(new EconomyHook.EconomyOperationResult(!outcome.equals("payment-failure"), "failure"));
+        when(plugin.getEconomy().tryDeposit(player, 1000D)).thenReturn(new EconomyHook.EconomyOperationResult(true, ""));
+        when(plugin.getMessages().getMessage(anyString())).thenReturn("message %amount% %item% %price%");
+        when(plugin.formatPrice(anyDouble())).thenReturn("money");
+        when(player.getName()).thenReturn("Alice");
+        when(player.getInventory().getStorageContents()).thenReturn(new ItemStack[36]);
+        when(player.getInventory().getMaxStackSize()).thenReturn(64);
+        when(template.getMaxStackSize()).thenReturn(64);
+        when(template.clone()).thenReturn(delivered);
+        when(player.getInventory().addItem(delivered)).thenReturn(new HashMap<>());
+        if (outcome.equals("delivery-failure")) when(player.getInventory().addItem(delivered)).thenThrow(new IllegalStateException("Delivery failed"));
+
+        try (var singleton = mockStatic(ShopPlugin.class); var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS);
+             var menu = mockStatic(PurchaseMenu.class, invocation -> switch (invocation.getMethod().getName()) {
+                 case "open" -> null;
+                 case "createDeliveryTemplate" -> template;
+                 default -> invocation.callRealMethod();
+             })) {
+            singleton.when(ShopPlugin::getInstance).thenReturn(plugin);
+            var finalize = java.util.Arrays.stream(PurchaseMenu.class.getDeclaredMethods())
+                    .filter(method -> method.getName().equals("finalizePurchase")).findFirst().orElseThrow();
+            finalize.setAccessible(true);
+            finalize.invoke(new PurchaseMenu(plugin), player, Material.GOLDEN_APPLE, 4, 1000D, 4,
+                    null, null, null, 0, null, null, null,
+                    false, false, false, false, false, false,
+                    "apples", 0, 0, false, 0D, 0D, 0D, List.of(), "console", false, "");
+
+            if (outcome.equals("success")) {
+                var order = inOrder(player.getInventory(), plugin);
+                order.verify(player.getInventory()).addItem(delivered);
+                order.verify(plugin).recordTransaction(player, TransactionEntry.Type.PURCHASE, null, "apples", 4, 1000D);
+                verify(plugin, times(1)).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
+            } else {
+                verify(plugin, never()).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
+                if (outcome.equals("delivery-failure")) verify(plugin.getEconomy()).tryDeposit(player, 1000D);
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void individualSaleRecordsOnlyAfterSuccessfulDepositAndRemoval(boolean succeeds) throws Exception {
+        ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        Player player = mock(Player.class, RETURNS_DEEP_STUBS);
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("economy-safety.enabled", false);
+        when(plugin.getConfig()).thenReturn(config);
+        when(plugin.getEconomy().isReady()).thenReturn(true);
+        when(plugin.getEconomy().tryDeposit(player, 400D)).thenReturn(new EconomyHook.EconomyOperationResult(succeeds, "failure"));
+        when(plugin.getMessages().getMessage(anyString())).thenReturn("message %amount% %item% %price%");
+        when(plugin.formatCurrency(anyDouble())).thenReturn("money");
+        when(player.getInventory().getSize()).thenReturn(1);
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.GOLDEN_APPLE);
+        when(stack.getAmount()).thenReturn(4);
+        when(player.getInventory().getItem(0)).thenReturn(stack);
+        when(player.getInventory().getContents()).thenReturn(new ItemStack[0]);
+
+        try (var singleton = mockStatic(ShopPlugin.class); var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS);
+             var menu = mockStatic(SellMenu.class, invocation -> invocation.getMethod().getName().equals("open") ? null : invocation.callRealMethod())) {
+            singleton.when(ShopPlugin::getInstance).thenReturn(plugin);
+            var sell = java.util.Arrays.stream(SellMenu.class.getDeclaredMethods())
+                    .filter(method -> method.getName().equals("sellItems")).findFirst().orElseThrow();
+            sell.setAccessible(true);
+            sell.invoke(new SellMenu(plugin), player, Material.GOLDEN_APPLE, null, null, null, null, 4, 4, 400D, 4,
+                    null, null, false, false, false, false, false, "apples", 0, 0, false, 0D, 0D, 0D, null, "");
+            if (succeeds) {
+                var order = inOrder(player.getInventory(), plugin);
+                order.verify(player.getInventory()).setItem(0, null);
+                order.verify(plugin).recordTransaction(player, TransactionEntry.Type.SALE, null, "apples", 4, 400D);
+            } else verify(plugin, never()).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void bulkSaleRecordsOnceAfterInventoryRemoval(boolean succeeds) throws Exception {
+        ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        Player player = mock(Player.class);
+        Inventory inventory = mock(Inventory.class);
+        ItemStack stack = mock(ItemStack.class);
+        var item = mock(me.dralle.shop.model.ShopItem.class);
+        var config = new YamlConfiguration();
+        config.set("economy-safety.enabled", false);
+        when(plugin.getConfig()).thenReturn(config);
+        when(plugin.getMenuManager().getBulkSellMenuConfig().getInt("buttons.confirm.slot", 49)).thenReturn(49);
+        when(plugin.getMessages().getMessage(anyString())).thenReturn("summary %amount% %price%");
+        when(plugin.formatCurrency(anyDouble())).thenReturn("money");
+        when(inventory.getSize()).thenReturn(1);
+        when(inventory.getItem(0)).thenReturn(stack);
+        when(stack.getType()).thenReturn(Material.STONE);
+        when(stack.getAmount()).thenReturn(4);
+        when(item.getUniqueKey()).thenReturn("stone");
+        when(item.getSellPrice()).thenReturn(100D);
+        when(item.getAmount()).thenReturn(4);
+        when(plugin.getShopManager().getBestSellInfo(player, stack)).thenReturn(new me.dralle.shop.ShopManager.SellInfo(item, "blocks"));
+        when(plugin.getEconomy().tryDeposit(player, 100D)).thenReturn(new EconomyHook.EconomyOperationResult(succeeds, "failure"));
+
+        try (var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS); var campaigns = mockStatic(me.dralle.shop.util.CampaignUtil.class)) {
+            campaigns.when(() -> me.dralle.shop.util.CampaignUtil.applySellCampaign(any(), eq(item), anyDouble())).thenAnswer(invocation -> invocation.getArgument(2));
+            var sell = BulkSellMenu.class.getDeclaredMethod("processSell", Player.class, Inventory.class);
+            sell.setAccessible(true);
+            sell.invoke(new BulkSellMenu(plugin), player, inventory);
+            if (succeeds) {
+                var order = inOrder(inventory, plugin);
+                order.verify(inventory).setItem(0, null);
+                order.verify(plugin).recordTransactions(eq(player), eq(TransactionEntry.Type.SALE), argThat(lines ->
+                        lines.size() == 1 && lines.getFirst().quantity() == 4 && lines.getFirst().total() == 100D
+                                && lines.getFirst().shop().equals("blocks") && lines.getFirst().item().equals("stone")));
+                verify(plugin, times(1)).recordTransactions(any(), any(), anyList());
+            } else {
+                verify(plugin, never()).recordTransactions(any(), any(), anyList());
+                verify(inventory, never()).setItem(anyInt(), any());
+            }
+        }
+    }
+}

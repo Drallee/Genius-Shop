@@ -1,11 +1,10 @@
 package me.dralle.shop;
 
-import me.dralle.shop.commands.CustomCommandLoadResult;
-import me.dralle.shop.commands.CustomCommandRegistry;
-import me.dralle.shop.commands.CustomCommandRepository;
-import me.dralle.shop.commands.CustomSellAllService;
+import me.dralle.shop.commands.*;
 import me.dralle.shop.data.DataManager;
 import me.dralle.shop.data.ShopStateRepository;
+import me.dralle.shop.data.TransactionEntry;
+import me.dralle.shop.data.TransactionLedger;
 import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.gui.*;
 import me.dralle.shop.items.CustomItemManager;
@@ -49,6 +48,7 @@ public class ShopPlugin extends JavaPlugin {
     private MessageManager messages;
     private ShopFileManager shopFileManager;
     private DataManager dataManager;
+    private TransactionLedger transactionLedger;
     private ShopManager shopManager;
     private GenericShopGui genericShopGui;
     private BulkSellMenu bulkSellMenu;
@@ -164,6 +164,13 @@ public class ShopPlugin extends JavaPlugin {
         // managers
         this.messages = new MessageManager(this);
         this.dataManager = new DataManager(this);
+        try {
+            this.transactionLedger = new TransactionLedger(new File(getDataFolder(), "transactions.db"));
+        } catch (java.sql.SQLException failure) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Cannot initialize transaction ledger", failure);
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
         startDataFlushTask();
         this.shopFileManager = new ShopFileManager(this); // Initialize before ShopManager
         this.shopManager = new ShopManager(this);
@@ -201,6 +208,11 @@ public class ShopPlugin extends JavaPlugin {
             if (args.length == 0 && !canUseBaseShop(sender)) {
                 sender.sendMessage(getMessages().getMessage("no-permission"));
                 return true;
+            }
+
+            // /shop ledger
+            if (args.length > 0 && args[0].equalsIgnoreCase("ledger")) {
+                return new TransactionLedgerCommand(this).execute(sender, args);
             }
 
             // /shop reload
@@ -644,6 +656,13 @@ public class ShopPlugin extends JavaPlugin {
         if (dataManager != null) {
             dataManager.close();
         }
+        if (transactionLedger != null) {
+            try {
+                transactionLedger.close();
+            } catch (java.sql.SQLException failure) {
+                getLogger().log(java.util.logging.Level.WARNING, "Failed to close transaction ledger", failure);
+            }
+        }
         if (errorFileLogger != null) {
             errorFileLogger.stop();
         }
@@ -942,6 +961,29 @@ public class ShopPlugin extends JavaPlugin {
         return dataManager;
     }
 
+    public TransactionLedger getTransactionLedger() {
+        return transactionLedger;
+    }
+
+    public void recordTransaction(Player player, TransactionEntry.Type type, String shop, String item, int quantity, double total) {
+        recordTransactions(player, type, List.of(new TransactionEntry.Line(shop, item, quantity, total)));
+    }
+
+    public void recordTransactions(Player player, TransactionEntry.Type type, List<TransactionEntry.Line> lines) {
+        java.util.UUID operationId = java.util.UUID.randomUUID();
+        java.time.Instant now = java.time.Instant.now();
+        List<TransactionEntry> entries = lines.stream().map(line -> new TransactionEntry(
+                java.util.UUID.randomUUID(), operationId, now, player.getUniqueId(), player.getName(), type,
+                line.shop() == null ? "" : line.shop(), line.item() == null ? "" : line.item(),
+                line.quantity(), line.total() / line.quantity(), line.total())).toList();
+        try {
+            transactionLedger.append(entries);
+        } catch (java.sql.SQLException failure) {
+            // The trade is already completed; a logging failure must not cause another payment.
+            getLogger().log(java.util.logging.Level.SEVERE, "Could not persist completed transactions: " + entries, failure);
+        }
+    }
+
     public ShopStateRepository getStateRepository() {
         return dataManager;
     }
@@ -1023,10 +1065,14 @@ public class ShopPlugin extends JavaPlugin {
             if (canUseValidatePrices(sender)) options.add("validate-prices");
             if (canUseExportItem(sender)) options.add("exportitem");
             if (sender.hasPermission("geniusshop.giveitem")) options.add("giveitem");
+            if (sender.hasPermission("geniusshop.ledger") || hasAdminAccess(sender)) options.add("ledger");
             return filterByPrefix(options, args[0]);
         }
 
         String sub = args[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("ledger") && (sender.hasPermission("geniusshop.ledger") || hasAdminAccess(sender))) {
+            return filterByPrefix(List.of("player=", "shop=", "item=", "type=PURCHASE", "type=SALE", "type=WAND_SALE", "from=", "to=", "page=1"), args[args.length - 1]);
+        }
         if (sub.equals("giveitem") && sender.hasPermission("geniusshop.giveitem")) {
             if (args.length == 2) return filterByPrefix(getServer().getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
             if (args.length == 3 && customItemManager != null) return filterByPrefix(new ArrayList<>(customItemManager.getIds()), args[2]);
@@ -1309,4 +1355,3 @@ public class ShopPlugin extends JavaPlugin {
         }
     }
 }
-

@@ -124,6 +124,7 @@ See [Web Editor](wiki/Web-Editor.md) for authentication, HTTPS, network troubles
 | `/shop resetstock shop <shopKey>` | Reset a shop's global counters | `geniusshop.resetstock` |
 | `/shop resetstock item <shopKey> <slot>` | Reset an item by shop and zero-based slot | `geniusshop.resetstock` |
 | `/shop validate-prices` | Scan price configuration without trading | `geniusshop.validateprices` |
+| `/shop ledger [filters]` | Search completed purchases, sales, and wand sales | `geniusshop.ledger` |
 | `/shop exportitem [file-name]` | Export the held item to JSON | `geniusshop.exportitem` |
 
 Use and bulk-sell permissions default to everyone; administrative permissions default to operators. `geniusshop.admin` includes the declared administrative child permissions. Custom shop/item permissions remain separate.
@@ -144,12 +145,46 @@ Paths below are relative to the plugin data directory, normally `plugins/Genius-
 | `commands.yml` | Custom commands and aliases |
 | `discord.yml` | Discord webhook settings |
 | `data.db` | SQLite stock, player counts, and reset state |
+| `transactions.db` | Persistent ledger of completed purchases, sales, and wand sales |
 | `item-exports/` | Held-item JSON exports |
 | `activity-log.json` | Editor file-change history |
 | `trusted-ips.yml` | Trusted editor-login addresses |
 | `debug/error.log` | Default error-log path when debug logging is enabled |
 
 Legacy `data.yml` is migrated automatically. Back up the data directory, including `data.db` and any SQLite companion files, while the server is stopped.
+
+### Transaction Ledger
+
+The ledger records completed purchases, individual sales, bulk/command sales, and
+container/spawner wand sales. Rejected payments and purchases refunded after
+delivery failure are excluded. Records include a unique ID, UTC timestamp, player
+UUID/name, transaction type, shop key, item key, quantity, effective unit price,
+and total. Effective unit price is the actual total divided by quantity, including
+bundle pricing, formulas, campaigns, and wand multipliers.
+
+```text
+/shop ledger
+/shop ledger player=Alice shop=weekend_market type=PURCHASE from=2026-10-01 to=2026-10-12
+/shop ledger item=STONE type=WAND_SALE page=2
+```
+
+Filters can be combined: `player` accepts an exact name (case insensitive) or UUID;
+`shop` and `item` accept exact identifiers shown in the results. Types are
+`PURCHASE`, `SALE`, and `WAND_SALE`. Date-only bounds cover complete UTC days;
+ISO timestamps are also accepted, with an inclusive `from` and exclusive `to`.
+Results show ten entries per page, newest first. Access requires
+`geniusshop.ledger` (operator by default); full and legacy admins are supported.
+
+Ledger records are committed immediately to `transactions.db`, including SQLite
+companion files when backing up. Bulk trades have one record per sale-plan line,
+with a shared operation ID linking the lines. Duplicate record IDs cannot create
+duplicate rows, and each bulk batch commits together. The database stays open
+across configuration reloads and closes on shutdown. Bulk-sell completion events
+now run after inventory removal and ledger recording. If the ledger cannot open
+during startup, the plugin disables itself. A runtime write failure logs the full record
+at severe level; it does not repeat or undo an already completed trade. Vault
+payment and the SQLite commit are separate operations, so a process crash between
+them is not protected by a shared transaction.
 
 `merge-missing-defaults` controls configuration updates. Existing menu files are intentionally not populated with missing default entries. See [Configuration](wiki/Configuration.md), [Examples](wiki/Examples.md), and [Installation](wiki/Installation.md) for details.
 

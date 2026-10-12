@@ -1,7 +1,8 @@
 package me.dralle.shop.gui;
 
-import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.ShopManager;
+import me.dralle.shop.ShopPlugin;
+import me.dralle.shop.api.events.ShopSellEvent;
 import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
@@ -9,7 +10,6 @@ import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.util.CampaignUtil;
 import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
-import me.dralle.shop.api.events.ShopSellEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -242,6 +242,20 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
                 return;
             }
 
+            // Finish inventory removal before recording success or notifying event listeners.
+            for (SalePlan plan : plans) {
+                ItemStack original = inv.getItem(plan.slot);
+                if (original == null || original.getType() == Material.AIR) continue;
+                if (plan.soldAmount < original.getAmount()) {
+                    original.setAmount(original.getAmount() - plan.soldAmount);
+                } else {
+                    inv.setItem(plan.slot, null);
+                }
+            }
+            plugin.recordTransactions(player, me.dralle.shop.data.TransactionEntry.Type.SALE,
+                    plans.stream().map(plan -> new me.dralle.shop.data.TransactionEntry.Line(
+                            plan.sellInfo.shopKey, plan.sellInfo.item.getUniqueKey(), plan.soldAmount, plan.earned)).toList());
+
             for (SalePlan plan : plans) {
                 // Fire ShopSellEvent
                 ShopSellEvent sellEvent = new ShopSellEvent(player, plan.sellInfo.item, plan.soldAmount, plan.earned, plan.sellInfo.shopKey);
@@ -270,14 +284,6 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
                                         plan.sellInfo.item.getSellPrice()
                                 )
                 );
-
-                ItemStack original = inv.getItem(plan.slot);
-                if (original == null || original.getType() == Material.AIR) continue;
-                if (plan.soldAmount < original.getAmount()) {
-                    original.setAmount(original.getAmount() - plan.soldAmount);
-                } else {
-                    inv.setItem(plan.slot, null); // Clear from GUI so it's not returned on close
-                }
             }
             
             String msg = plugin.getMessages().getMessage("sell-all-success")

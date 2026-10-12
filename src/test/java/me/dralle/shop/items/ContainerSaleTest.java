@@ -38,7 +38,16 @@ class ContainerSaleTest {
         sale(true, false, 420D);
     }
 
+    @Test
+    void ordinaryContainerSaleUsesSaleType() {
+        sale(true, true, 420D, null);
+    }
+
     private void sale(boolean campaigns, boolean depositSucceeds, double expected) {
+        sale(campaigns, depositSucceeds, expected, "wand");
+    }
+
+    private void sale(boolean campaigns, boolean depositSucceeds, double expected, String wand) {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
         Player player = mock(Player.class);
         Inventory inventory = mock(Inventory.class);
@@ -83,7 +92,7 @@ class ContainerSaleTest {
                     .thenAnswer(invocation -> (double) invocation.getArgument(2) * 2D);
             campaign.when(() -> CampaignUtil.getActiveSellMultiplier(any(), eq(item))).thenReturn(2D);
 
-            assertEquals(depositSucceeds, new CustomSellAllService(plugin).sellContainer(player, inventory, null, 1.5, campaigns, "wand"));
+            assertEquals(depositSucceeds, new CustomSellAllService(plugin).sellContainer(player, inventory, null, 1.5, campaigns, wand));
 
             verify(plugin.getEconomy()).tryDeposit(player, expected);
             if (depositSucceeds) {
@@ -91,12 +100,17 @@ class ContainerSaleTest {
                 verify(plugin.getDataManager()).incrementPlayerCount(player.getUniqueId(), "stone", 2);
                 verify(plugin.getDataManager()).incrementGlobalCount("stone", -2);
                 assertEquals(2, plugin.itemsSold);
+                verify(plugin).recordTransactions(eq(player), eq(wand == null ? me.dralle.shop.data.TransactionEntry.Type.SALE : me.dralle.shop.data.TransactionEntry.Type.WAND_SALE),
+                        argThat(lines -> lines.size() == 1 && lines.getFirst().shop().equals("blocks")
+                                && lines.getFirst().item().equals("stone") && lines.getFirst().quantity() == 2
+                                && lines.getFirst().total() == expected));
             } else {
                 assertSame(original, contents[0]);
                 assertEquals(3, contents[0].getAmount());
                 verify(plugin.getDataManager(), never()).incrementPlayerCount(any(), anyString(), anyInt());
                 verify(plugin.getDataManager(), never()).incrementGlobalCount(anyString(), anyInt());
                 assertEquals(0, plugin.itemsSold);
+                verify(plugin, never()).recordTransactions(any(), any(), anyList());
             }
             verify(player, never()).getInventory();
             if (!campaigns) campaign.verifyNoInteractions();

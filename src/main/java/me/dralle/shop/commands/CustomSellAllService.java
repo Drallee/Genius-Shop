@@ -165,6 +165,11 @@ public class CustomSellAllService {
             return SellAllResult.empty();
         }
 
+        plugin.recordTransactions(player, itemId == null ? me.dralle.shop.data.TransactionEntry.Type.SALE
+                        : me.dralle.shop.data.TransactionEntry.Type.WAND_SALE,
+                plans.stream().map(plan -> new me.dralle.shop.data.TransactionEntry.Line(
+                        plan.sellInfo.shopKey, plan.sellInfo.item.getUniqueKey(), plan.amount, plan.earned)).toList());
+
         for (SalePlan plan : plans) {
             ShopItem item = plan.sellInfo.item;
             plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), item.getUniqueKey(), plan.amount);
