@@ -1,6 +1,7 @@
 package me.dralle.shop.gui;
 
 import me.dralle.shop.ShopPlugin;
+import me.dralle.shop.data.RefundRecovery;
 import me.dralle.shop.data.TransactionEntry;
 import me.dralle.shop.economy.EconomyHook;
 import org.bukkit.Bukkit;
@@ -9,6 +10,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -18,8 +20,9 @@ import java.util.List;
 import static org.mockito.Mockito.*;
 
 class TransactionLedgerFlowTest {
+    @TempDir java.nio.file.Path folder;
     @ParameterizedTest
-    @ValueSource(strings = {"success", "payment-failure", "delivery-failure"})
+    @ValueSource(strings = {"success", "payment-failure", "delivery-failure", "refund-failure", "ambiguous-refund"})
     void purchaseRecordsOnlyAfterPaymentAndDelivery(String outcome) throws Exception {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
         Player player = mock(Player.class, RETURNS_DEEP_STUBS);
@@ -31,24 +34,29 @@ class TransactionLedgerFlowTest {
         when(plugin.getEconomy().isReady()).thenReturn(true);
         when(plugin.getEconomy().getBalance(player)).thenReturn(2000D);
         when(plugin.getEconomy().tryWithdraw(player, 1000D)).thenReturn(new EconomyHook.EconomyOperationResult(!outcome.equals("payment-failure"), "failure"));
-        when(plugin.getEconomy().tryDeposit(player, 1000D)).thenReturn(new EconomyHook.EconomyOperationResult(true, ""));
+        when(plugin.getEconomy().tryDeposit(player, 1000D)).thenReturn(new EconomyHook.EconomyOperationResult(
+                !outcome.equals("refund-failure") && !outcome.equals("ambiguous-refund"), "refund result", outcome.equals("ambiguous-refund")));
         when(plugin.getMessages().getMessage(anyString())).thenReturn("message %amount% %item% %price%");
         when(plugin.formatPrice(anyDouble())).thenReturn("money");
         when(player.getName()).thenReturn("Alice");
+        when(player.getUniqueId()).thenReturn(java.util.UUID.randomUUID());
         when(player.getInventory().getStorageContents()).thenReturn(new ItemStack[36]);
         when(player.getInventory().getMaxStackSize()).thenReturn(64);
         when(template.getMaxStackSize()).thenReturn(64);
         when(template.clone()).thenReturn(delivered);
         when(player.getInventory().addItem(delivered)).thenReturn(new HashMap<>());
-        if (outcome.equals("delivery-failure")) when(player.getInventory().addItem(delivered)).thenThrow(new IllegalStateException("Delivery failed"));
+        if (outcome.equals("delivery-failure") || outcome.contains("refund")) when(player.getInventory().addItem(delivered)).thenThrow(new IllegalStateException("Delivery failed"));
 
-        try (var singleton = mockStatic(ShopPlugin.class); var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS);
+        try (var queue = new RefundRecovery(folder.resolve("refunds.db").toFile());
+             var singleton = mockStatic(ShopPlugin.class); var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS);
              var menu = mockStatic(PurchaseMenu.class, invocation -> switch (invocation.getMethod().getName()) {
                  case "open" -> null;
                  case "createDeliveryTemplate" -> template;
                  default -> invocation.callRealMethod();
              })) {
             singleton.when(ShopPlugin::getInstance).thenReturn(plugin);
+            when(plugin.refundFailedPurchase(any(java.util.UUID.class), eq(player), eq(1000D), anyString())).thenAnswer(invocation ->
+                    queue.automatic(invocation.getArgument(0), player, 1000D, invocation.getArgument(3), plugin.getEconomy()));
             var finalize = java.util.Arrays.stream(PurchaseMenu.class.getDeclaredMethods())
                     .filter(method -> method.getName().equals("finalizePurchase")).findFirst().orElseThrow();
             finalize.setAccessible(true);
@@ -60,11 +68,21 @@ class TransactionLedgerFlowTest {
             if (outcome.equals("success")) {
                 var order = inOrder(player.getInventory(), plugin);
                 order.verify(player.getInventory()).addItem(delivered);
-                order.verify(plugin).recordTransaction(player, TransactionEntry.Type.PURCHASE, null, "apples", 4, 1000D);
-                verify(plugin, times(1)).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
+                order.verify(plugin).recordTransaction(any(java.util.UUID.class), eq(player), eq(TransactionEntry.Type.PURCHASE), isNull(), eq("apples"), eq(4), eq(1000D));
+                verify(plugin, times(1)).recordTransaction(any(java.util.UUID.class), any(), any(), any(), any(), anyInt(), anyDouble());
+                org.junit.jupiter.api.Assertions.assertTrue(queue.list(1).isEmpty());
             } else {
-                verify(plugin, never()).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
-                if (outcome.equals("delivery-failure")) verify(plugin.getEconomy()).tryDeposit(player, 1000D);
+                verify(plugin, never()).recordTransaction(any(java.util.UUID.class), any(), any(), any(), any(), anyInt(), anyDouble());
+                if (!outcome.equals("payment-failure")) {
+                    verify(plugin.getEconomy()).tryDeposit(player, 1000D);
+                    var id = org.mockito.ArgumentCaptor.forClass(java.util.UUID.class);
+                    verify(plugin).refundFailedPurchase(id.capture(), eq(player), eq(1000D), eq("Delivery failed"));
+                    var entry = queue.get(id.getValue());
+                    org.junit.jupiter.api.Assertions.assertEquals(player.getUniqueId(), entry.playerId());
+                    org.junit.jupiter.api.Assertions.assertEquals(1000D, entry.amount());
+                    org.junit.jupiter.api.Assertions.assertEquals(outcome.equals("delivery-failure") ? RefundRecovery.Status.RECOVERED
+                            : outcome.equals("refund-failure") ? RefundRecovery.Status.PENDING : RefundRecovery.Status.REVIEW, entry.status());
+                } else org.junit.jupiter.api.Assertions.assertTrue(queue.list(1).isEmpty());
             }
         }
     }

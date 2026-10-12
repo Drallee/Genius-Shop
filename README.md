@@ -125,6 +125,10 @@ See [Web Editor](wiki/Web-Editor.md) for authentication, HTTPS, network troubles
 | `/shop resetstock item <shopKey> <slot>` | Reset an item by shop and zero-based slot | `geniusshop.resetstock` |
 | `/shop validate-prices` | Scan price configuration without trading | `geniusshop.validateprices` |
 | `/shop ledger [filters]` | Search completed purchases, sales, and wand sales | `geniusshop.ledger` |
+| `/shop refunds list [page]` | List unresolved refunds | `geniusshop.refunds` |
+| `/shop refunds inspect <id>` | Inspect a refund's status, reason, and attempts | `geniusshop.refunds` |
+| `/shop refunds retry <id>` | Retry a pending refund for an online player | `geniusshop.refunds` |
+| `/shop refunds review <id> <paid\|unpaid> <note>` | Record the checked provider outcome of an uncertain refund | `geniusshop.refunds` |
 | `/shop exportitem [file-name]` | Export the held item to JSON | `geniusshop.exportitem` |
 
 Use and bulk-sell permissions default to everyone; administrative permissions default to operators. `geniusshop.admin` includes the declared administrative child permissions. Custom shop/item permissions remain separate.
@@ -146,6 +150,7 @@ Paths below are relative to the plugin data directory, normally `plugins/Genius-
 | `discord.yml` | Discord webhook settings |
 | `data.db` | SQLite stock, player counts, and reset state |
 | `transactions.db` | Persistent ledger of completed purchases, sales, and wand sales |
+| `refunds.db` | Durable purchase-refund recovery cases and completion details |
 | `item-exports/` | Held-item JSON exports |
 | `activity-log.json` | Editor file-change history |
 | `trusted-ips.yml` | Trusted editor-login addresses |
@@ -185,6 +190,45 @@ during startup, the plugin disables itself. A runtime write failure logs the ful
 at severe level; it does not repeat or undo an already completed trade. Vault
 payment and the SQLite commit are separate operations, so a process crash between
 them is not protected by a shared transaction.
+
+### Refund Recovery
+
+When purchase delivery fails, the original transaction ID, player UUID, amount,
+failure reason, timestamps, and status are saved to `refunds.db` before the
+automatic refund is attempted. A successful automatic refund is marked recovered;
+a definitive rejection remains pending. Refunded purchases are not added to the
+successful transaction ledger. A failed refund shows its reference ID to the
+player and logs the error for administrators.
+
+```text
+/shop refunds list
+/shop refunds inspect <transaction-id>
+/shop refunds retry <transaction-id>
+```
+
+Retries use the stored player and amount; the player must be online. Each attempt
+durably claims a pending case before paying. A recovered case cannot be retried,
+and concurrent attempts cannot claim the same case. Recovery records the time
+and the administrator's UUID/name (or console identity).
+
+Null responses, provider exceptions, partial/uncertain payments, and attempts
+interrupted by a restart become `REVIEW` and cannot be retried. Check the economy
+provider's history first, then explicitly record its outcome with a note:
+
+```text
+/shop refunds review <transaction-id> paid Credit confirmed in provider history
+/shop refunds review <transaction-id> unpaid No credit found in provider history
+```
+
+`paid` closes the case without paying again; `unpaid` returns it to pending for an
+explicit retry. Review notes retain the administrator identity and time. Access
+requires `geniusshop.refunds`, granted to operators and full admins by default.
+Back up `refunds.db` and its SQLite companion files with the other plugin data
+while the server is stopped. Configuration reloads leave the recovery store open.
+If a database claim or completion cannot be saved, payment is blocked or the
+attempt is flagged for review; the server log records the persistence failure.
+If even that state update fails, it stays locked as `REFUNDING` until the next
+restart moves it to `REVIEW`. Investigate and restore database access first.
 
 `merge-missing-defaults` controls configuration updates. Existing menu files are intentionally not populated with missing default entries. See [Configuration](wiki/Configuration.md), [Examples](wiki/Examples.md), and [Installation](wiki/Installation.md) for details.
 

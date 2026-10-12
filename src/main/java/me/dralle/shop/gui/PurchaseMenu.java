@@ -866,6 +866,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                   return;
               }
 
+              java.util.UUID transactionId = java.util.UUID.randomUUID();
               EconomyHook.EconomyOperationResult withdrawResult = eco.tryWithdraw(player, total);
               if (!withdrawResult.success()) {
                   TransactionSafetyGuard.auditEconomyFailure(
@@ -918,7 +919,8 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                           total,
                           ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()
                   );
-                  EconomyHook.EconomyOperationResult refundResult = eco.tryDeposit(player, total);
+                  EconomyHook.EconomyOperationResult refundResult = plugin.refundFailedPurchase(transactionId, player, total,
+                          ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
                   if (!refundResult.success()) {
                       TransactionSafetyGuard.auditEconomyFailure(
                               plugin,
@@ -931,12 +933,13 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                               refundResult.errorMessage()
                       );
                       ConsoleLog.error(plugin, "Automatic refund failed for " + player.getName() + ": " + refundResult.errorMessage());
+                      player.sendMessage("Refund reference: " + transactionId);
                   }
                   player.sendMessage(plugin.getMessages().getMessage("purchase-rollback-failed"));
                   return;
               }
 
-        plugin.recordTransaction(player, me.dralle.shop.data.TransactionEntry.Type.PURCHASE,
+        plugin.recordTransaction(transactionId, player, me.dralle.shop.data.TransactionEntry.Type.PURCHASE,
                 shopKey, itemKey != null ? itemKey : material.name(), amount, total);
 
         // Update counts

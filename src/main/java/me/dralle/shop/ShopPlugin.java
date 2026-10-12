@@ -1,10 +1,7 @@
 package me.dralle.shop;
 
 import me.dralle.shop.commands.*;
-import me.dralle.shop.data.DataManager;
-import me.dralle.shop.data.ShopStateRepository;
-import me.dralle.shop.data.TransactionEntry;
-import me.dralle.shop.data.TransactionLedger;
+import me.dralle.shop.data.*;
 import me.dralle.shop.economy.EconomyHook;
 import me.dralle.shop.gui.*;
 import me.dralle.shop.items.CustomItemManager;
@@ -49,6 +46,7 @@ public class ShopPlugin extends JavaPlugin {
     private ShopFileManager shopFileManager;
     private DataManager dataManager;
     private TransactionLedger transactionLedger;
+    private RefundRecovery refundRecovery;
     private ShopManager shopManager;
     private GenericShopGui genericShopGui;
     private BulkSellMenu bulkSellMenu;
@@ -166,8 +164,9 @@ public class ShopPlugin extends JavaPlugin {
         this.dataManager = new DataManager(this);
         try {
             this.transactionLedger = new TransactionLedger(new File(getDataFolder(), "transactions.db"));
+            this.refundRecovery = new RefundRecovery(new File(getDataFolder(), "refunds.db"));
         } catch (java.sql.SQLException failure) {
-            getLogger().log(java.util.logging.Level.SEVERE, "Cannot initialize transaction ledger", failure);
+            getLogger().log(java.util.logging.Level.SEVERE, "Cannot initialize transaction or refund store", failure);
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -210,6 +209,10 @@ public class ShopPlugin extends JavaPlugin {
                 return true;
             }
 
+            // /shop refunds
+            if (args.length > 0 && args[0].equalsIgnoreCase("refunds")) {
+                return new RefundRecoveryCommand(this).execute(sender, args);
+            }
             // /shop ledger
             if (args.length > 0 && args[0].equalsIgnoreCase("ledger")) {
                 return new TransactionLedgerCommand(this).execute(sender, args);
@@ -666,6 +669,13 @@ public class ShopPlugin extends JavaPlugin {
         if (errorFileLogger != null) {
             errorFileLogger.stop();
         }
+        if (refundRecovery != null) {
+            try {
+                refundRecovery.close();
+            } catch (java.sql.SQLException failure) {
+                getLogger().log(java.util.logging.Level.WARNING, "Failed to close refund store", failure);
+            }
+        }
         
         try {
             String lang = getConfig().getString("language", "en_US");
@@ -966,7 +976,24 @@ public class ShopPlugin extends JavaPlugin {
     }
 
     public void recordTransaction(Player player, TransactionEntry.Type type, String shop, String item, int quantity, double total) {
-        recordTransactions(player, type, List.of(new TransactionEntry.Line(shop, item, quantity, total)));
+        recordTransaction(java.util.UUID.randomUUID(), player, type, shop, item, quantity, total);
+    }
+
+    public void recordTransaction(java.util.UUID id, Player player, TransactionEntry.Type type, String shop, String item, int quantity, double total) {
+        persistTransactions(List.of(new TransactionEntry(id, id, java.time.Instant.now(), player.getUniqueId(), player.getName(), type,
+                shop == null ? "" : shop, item == null ? "" : item, quantity, total / quantity, total)));
+    }
+
+    public RefundRecovery getRefundRecovery() { return refundRecovery; }
+
+    public EconomyHook.EconomyOperationResult refundFailedPurchase(java.util.UUID id, Player player, double amount, String reason) {
+        try {
+            return refundRecovery.automatic(id, player, amount, reason, economy);
+        } catch (java.sql.SQLException failure) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Cannot save refund " + id + " for " + player.getUniqueId()
+                    + " amount=" + amount + " reason=" + reason, failure);
+            return new EconomyHook.EconomyOperationResult(false, "Refund persistence failed; inspect server log and case " + id, true);
+        }
     }
 
     public void recordTransactions(Player player, TransactionEntry.Type type, List<TransactionEntry.Line> lines) {
@@ -976,6 +1003,10 @@ public class ShopPlugin extends JavaPlugin {
                 java.util.UUID.randomUUID(), operationId, now, player.getUniqueId(), player.getName(), type,
                 line.shop() == null ? "" : line.shop(), line.item() == null ? "" : line.item(),
                 line.quantity(), line.total() / line.quantity(), line.total())).toList();
+        persistTransactions(entries);
+    }
+
+    private void persistTransactions(List<TransactionEntry> entries) {
         try {
             transactionLedger.append(entries);
         } catch (java.sql.SQLException failure) {
@@ -1066,10 +1097,16 @@ public class ShopPlugin extends JavaPlugin {
             if (canUseExportItem(sender)) options.add("exportitem");
             if (sender.hasPermission("geniusshop.giveitem")) options.add("giveitem");
             if (sender.hasPermission("geniusshop.ledger") || hasAdminAccess(sender)) options.add("ledger");
+            if (sender.hasPermission("geniusshop.refunds") || hasAdminAccess(sender)) options.add("refunds");
             return filterByPrefix(options, args[0]);
         }
 
         String sub = args[0].toLowerCase(Locale.ROOT);
+        if (sub.equals("refunds") && (sender.hasPermission("geniusshop.refunds") || hasAdminAccess(sender))) {
+            if (args.length == 2) return filterByPrefix(List.of("list", "inspect", "retry", "review"), args[1]);
+            if (args.length == 4 && args[1].equalsIgnoreCase("review")) return filterByPrefix(List.of("paid", "unpaid"), args[3]);
+            return Collections.emptyList();
+        }
         if (sub.equals("ledger") && (sender.hasPermission("geniusshop.ledger") || hasAdminAccess(sender))) {
             return filterByPrefix(List.of("player=", "shop=", "item=", "type=PURCHASE", "type=SALE", "type=WAND_SALE", "from=", "to=", "page=1"), args[args.length - 1]);
         }

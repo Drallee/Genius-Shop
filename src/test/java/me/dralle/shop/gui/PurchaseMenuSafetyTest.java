@@ -49,6 +49,8 @@ class PurchaseMenuSafetyTest {
         verify(plugin.getEconomy(), never()).tryWithdraw(any(), anyDouble());
         verify(plugin.getDataManager(), never()).incrementGlobalCount(anyString(), anyInt());
         verify(player, never()).getInventory();
+        verify(plugin, never()).recordTransaction(any(java.util.UUID.class), any(), any(), any(), any(), anyInt(), anyDouble());
+        verify(plugin, never()).refundFailedPurchase(any(), any(), anyDouble(), any());
         verify(plugin, never()).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
     }
 
@@ -90,6 +92,8 @@ class PurchaseMenuSafetyTest {
         verify(plugin.getDataManager(), never()).incrementGlobalCount(anyString(), anyInt());
         verify(plugin.getDataManager(), never()).incrementPlayerCount(any(), anyString(), anyInt());
         verify(player.getInventory(), never()).addItem(any(ItemStack[].class));
+        verify(plugin, never()).recordTransaction(any(java.util.UUID.class), any(), any(), any(), any(), anyInt(), anyDouble());
+        verify(plugin, never()).refundFailedPurchase(any(), any(), anyDouble(), any());
         verify(plugin, never()).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
     }
 
