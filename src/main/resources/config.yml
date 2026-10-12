@@ -44,6 +44,11 @@ debug-error-log:
 # Lower = more precise schedule execution, higher = less overhead.
 stock-reset-check-interval-seconds: 1
 
+# Default timezone for stock reset schedules without an explicit timezone.
+# Use "server" for the server's timezone or an IANA ID such as "Europe/Copenhagen".
+stock-reset:
+  timezone: "server"
+
 # Language file to use (located in languages/ folder)
 # Example: "en_US", "ru_RU"
 language: "en_US"

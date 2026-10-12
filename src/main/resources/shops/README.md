@@ -127,6 +127,11 @@ Available fields:
 - `date`: for `ONCE` (`yyyy-MM-dd HH:mm` or `yyyy-MM-dd'T'HH:mm`)
 - `timezone`: IANA timezone (e.g. `Europe/Copenhagen`) or `server`
 
+Missing or blank schedule timezones use `stock-reset.timezone` from the main
+`config.yml`. Missing or blank values in the main config are filled from the
+bundled default (`server`) on startup and reload. Explicit schedule timezones
+override the main config value, including an explicit `server` value.
+
 Shop-level example (every Monday at 22:00):
 
 ```yaml
