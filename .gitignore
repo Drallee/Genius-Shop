@@ -19,6 +19,12 @@
 !.github/workflows/
 !.github/workflows/**
 
+# Keep local editor performance verification tools.
+!tools/
+!tools/preview-server.cjs
+!tools/editor-rendering-check.cjs
+!tools/editor-rendering.md
+
 # Keep documentation.
 !wiki/
 !wiki/**

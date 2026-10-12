@@ -115,11 +115,11 @@ async function deleteDatabaseEntry(table, payload) {
     return data;
 }
 
-async function loadAllFiles() {
+async function loadAllFiles(isSilent = false) {
     try {
         setEditorState('isLoadingFiles', true);
         console.log('[LOAD] Starting to load files');
-        showToast(t('web-editor.shop.loading'), 'info');
+        if (!isSilent) showToast(t('web-editor.shop.loading'), 'info');
         if (typeof renderSkeletons === 'function') {
             renderSkeletons();
         } else {
@@ -259,7 +259,7 @@ async function loadAllFiles() {
         renderCampaignsTab();
         if (typeof renderCommandsTab === 'function') renderCommandsTab();
 
-        showToast(t('web-editor.modals.loaded'), 'success');
+        if (!isSilent) showToast(t('web-editor.modals.loaded'), 'success');
         if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files' }, true);
         setEditorState('isLoadingFiles', false);
         setUnsavedChanges([]);
@@ -854,5 +854,4 @@ async function handleAutoLogin(token) {
         document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Connection Error</div><div style="font-size: 14px; color: #888;">Could not connect to the API server</div></div>`;
     }
 }
-
 

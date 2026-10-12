@@ -6,6 +6,7 @@ function syncEditorNavigation() {
     const open = document.body.classList.contains('navigation-open');
     const sidebar = document.getElementById('editor-sidebar');
     const toggle = document.getElementById('navigation-toggle');
+    document.documentElement.dataset.navigationCollapsed = String(editorNavigationCollapsed);
     document.body.classList.toggle('navigation-collapsed', editorNavigationCollapsed);
     sidebar.inert = mobile && !open;
     document.getElementById('editor-workspace').inert = mobile && open;

@@ -41,6 +41,14 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-shell .header-top { display: flex; align-items: center; gap: 16px; margin: 0 !important; padding: 0; }
 .editor-shell .desktop-navigation { display: flex; }
 .editor-shell .user-badge { background: #24292d; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; box-shadow: none; font-size: 13px; }
+.editor-shell #user-info { width: 160px; height: 42px; flex-shrink: 0; }
+.editor-shell .user-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-shell .user-avatar-placeholder { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 4px; background: #414a52; }
+.editor-shell .user-avatar, .editor-shell .status-dot { flex-shrink: 0; }
+.editor-shell .fa-solid { display: inline-block; width: 1.25em; flex-shrink: 0; line-height: 1; text-align: center; }
+.editor-shell .btn-icon { display: inline-block; width: 20px; flex: 0 0 20px; line-height: 18px; }
+.editor-shell .header-top > .flex { width: 160px; flex-shrink: 0; }
+.editor-shell #custom-language-selector { width: 100%; }
 .editor-shell .nav-dropdown { background: var(--bg-surface); border-color: var(--border); border-radius: 8px; box-shadow: 0 12px 32px #0006; }
 .editor-shell .editor-sidebar { background: #181b1e; }
 .editor-shell .sidebar-brand { min-height: 68px; }
@@ -137,7 +145,10 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-shell :is(.commands-valid, .commands-error, .commands-warning, .commands-empty, .command-toggle) { border-radius: 6px; }
 
 .editor-shell .minecraft-preview-section { background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 12px 0 32px; margin-bottom: 24px; min-width: 0; }
-.editor-shell .minecraft-gui { width: 100%; max-width: min(800px, max(360px, calc((100dvh - 310px) * 1.5))); min-width: 0; margin: 0 auto; padding: 20px; border: 1px solid #414a52; border-radius: 8px; background: var(--bg-surface); box-shadow: none; }
+.editor-shell .minecraft-gui { width: 100%; max-width: min(680px, max(360px, calc((100dvh - 310px) * 1.1))); min-width: 0; margin: 0 auto; padding: 20px; border: 1px solid #414a52; border-radius: 8px; background: var(--bg-surface); box-shadow: none; }
+.editor-shell .minecraft-gui { container-type: inline-size; }
+/* Keep room for all six supported rows while the configured preview loads. */
+.editor-shell .gui-grid { min-height: calc(100cqw * 2 / 3 + 5px); align-content: start; }
 .editor-shell .gui-title-container { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; margin-bottom: 12px; padding: 10px 4px 14px; min-height: 42px; }
 .editor-shell .gui-title-container .gui-title { background: transparent; border: 0; padding: 0; margin: 0; box-shadow: none; }
 .editor-shell .gui-title { font-size: 16px; font-weight: 600; text-shadow: none; }
@@ -195,7 +206,7 @@ body.login-page .login-container .premium-select { background: #24292d !importan
 .login-page #login-btn { width: 100%; min-height: 42px; font-size: 14px; }
 .login-page .form-group label { font-size: 13px; font-weight: 500; text-transform: none; color: var(--text-main); }
 
-.editor-shell .tab-content { min-width: 0; }
+.editor-shell .tab-content { min-width: 0; min-height: 320px; }
 @media (max-width: 1200px) {
     .editor-shell :is(.stock-table-header, .stock-table-row) { grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) repeat(2, minmax(0, 0.7fr)) minmax(0, 0.8fr); }
 }
@@ -227,12 +238,14 @@ body.login-page .login-container .premium-select { background: #24292d !importan
     .editor-shell .stock-table-row > [data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 12px; }
 }
 @media (max-width: 520px) {
+    .editor-shell .editor-topbar { min-height: 104px; }
     .editor-shell .main-content { scroll-margin-top: 128px; }
     #navigation-current-section { font-size: 14px; }
     .editor-shell .editor-section-heading { gap: 8px; }
-    .editor-shell .header-top { flex: 1 1 auto; justify-content: flex-end; }
+    .editor-shell .header-top { flex: 1 1 100%; justify-content: flex-end; }
+    .editor-shell #user-info { width: 128px; height: 36px; }
     .editor-shell .user-badge { padding: 6px 8px !important; }
-    .editor-shell .user-avatar { display: none; }
+    .editor-shell .user-avatar, .editor-shell .user-avatar-placeholder { display: none; }
     .editor-shell .minecraft-preview-section { padding: 0 0 20px; }
     .editor-shell .minecraft-gui { max-width: 100%; padding: 10px; }
     .editor-shell .slot-amount { font-size: 11px; }

@@ -1,5 +1,23 @@
 // ===== EVENT LISTENERS & HANDLERS =====
 
+function populateUserInfo() {
+    const userInfo = document.getElementById('user-info');
+    if (!userInfo) return;
+    const name = userInfo.querySelector('.user-name');
+    if (name) name.textContent = username || '';
+    userInfo.title = username || '';
+    const placeholder = userInfo.querySelector('.user-avatar-placeholder');
+    if (placeholder) {
+        const avatar = document.createElement('img');
+        avatar.className = 'user-avatar';
+        avatar.width = avatar.height = 24;
+        avatar.alt = '';
+        avatar.onerror = () => { avatar.style.visibility = 'hidden'; };
+        avatar.src = `https://mc-heads.net/avatar/${encodeURIComponent(username || '')}/24`;
+        placeholder.replaceWith(avatar);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('[SHOP EDITOR] DOM Content Loaded');
 
@@ -36,8 +54,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Initial load
-    await loadActivityLog();
-    await loadAllFiles();
+    populateUserInfo();
+    await Promise.all([loadActivityLog(), loadAllFiles(true)]);
     if (typeof updateQuickTips === 'function') {
         updateQuickTips(currentTab || 'mainmenu');
     }
@@ -45,17 +63,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         initCustomSelects();
     }
 
-    // Setup user info display
-    const userInfo = document.getElementById('user-info');
-    if (userInfo) {
-        userInfo.innerHTML = `
-            <img src="https://mc-heads.net/avatar/${username}/24" alt="${username}" class="user-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
-            <span style="display: none;">👤</span>
-            <span class="status-dot"></span>
-            <span>${username}</span>
-            <span style="margin-left: 8px; font-size: 0.8em; opacity: 0.7;">▼</span>
-        `;
-    }
 
     // Setup event listeners for inputs
     setupInputListeners();
@@ -229,4 +236,3 @@ function updateTransactionSettings() {
         updateSellPreview();
     }
 }
-

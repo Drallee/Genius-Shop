@@ -9,7 +9,8 @@ body.editor-shell {
 
 .editor-shell .sticky-footer-actions { transition: left var(--navigation-duration) var(--navigation-easing); }
 
-body.editor-shell.navigation-collapsed { --navigation-width: 72px; }
+body.editor-shell.navigation-collapsed,
+html[data-navigation-collapsed="true"] body.editor-shell { --navigation-width: 72px; }
 
 .editor-shell .editor-workspace {
     width: 100%;
@@ -128,6 +129,11 @@ body.editor-shell.navigation-collapsed { --navigation-width: 72px; }
 .navigation-collapsed .sidebar-tabs { padding: 16px 10px; }
 .navigation-collapsed .tab { gap: 0; padding: 10px 14px; }
 
+html[data-navigation-collapsed="true"] .sidebar-label { max-width: 0; opacity: 0; visibility: hidden; }
+html[data-navigation-collapsed="true"] .sidebar-brand { gap: 0; }
+html[data-navigation-collapsed="true"] .sidebar-tabs { padding: 16px 10px; }
+html[data-navigation-collapsed="true"] .sidebar-tabs .tab { gap: 0; padding: 10px 14px; }
+
 @media (max-width: 900px) {
     body.editor-shell { padding-left: 0; }
     .editor-shell .editor-workspace { padding: 0 12px 16px; }
@@ -140,6 +146,10 @@ body.editor-shell.navigation-collapsed { --navigation-width: 72px; }
     .navigation-collapsed .sidebar-label { max-width: 160px; opacity: 1; transform: none; visibility: visible; }
     .navigation-collapsed .sidebar-brand { gap: 12px; padding: 12px 16px; }
     .navigation-collapsed .tab { gap: 12px; padding: 10px 12px; }
+    html[data-navigation-collapsed="true"] .sidebar-label { max-width: 160px; opacity: 1; visibility: visible; }
+    html[data-navigation-collapsed="true"] .sidebar-brand { gap: 12px; }
+    html[data-navigation-collapsed="true"] .sidebar-tabs { padding: 16px 12px; }
+    html[data-navigation-collapsed="true"] .sidebar-tabs .tab { gap: 12px; padding: 10px 12px; }
     .navigation-backdrop, .navigation-backdrop[hidden] {
         display: block;
         position: fixed;

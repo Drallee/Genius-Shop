@@ -7,11 +7,33 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="navigation.css?v=sidebar-1">
     <link rel="stylesheet" href="editor-design.css?v=workspace-1">
+    <script>
+        try {
+            document.documentElement.dataset.navigationCollapsed = localStorage.getItem('editor-navigation-collapsed') === 'true';
+        } catch (_) {}
+    </script>
+    <script defer src="js/state-store.js"></script>
+    <script defer src="js/core.js?v=menu-placeholders-1"></script>
+    <script defer src="js/schema.js"></script>
+    <script defer src="vendor/yaml.min.js"></script>
+    <script defer src="js/yaml-editor.js"></script>
+    <script defer src="js/telemetry.js"></script>
+    <script defer src="js/database.js?v=menu-placeholders-1"></script>
+    <script defer src="js/modals.js?v=commands-history-1"></script>
+    <script defer src="js/api.js"></script>
+    <script defer src="js/commands.js?v=custom-commands-model-name-4"></script>
+    <script defer src="js/custom-items.js"></script>
+    <script defer src="js/save-dispatcher.js"></script>
+    <script defer src="js/autosave-manager.js"></script>
+    <script defer src="js/ui.js?v=menu-placeholders-1"></script>
+    <script defer src="js/navigation.js?v=sidebar-1"></script>
+    <script defer src="js/events.js"></script>
 </head>
 <body class="editor-shell">
     <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
@@ -52,7 +74,7 @@
 
                 <div id="desktop-nav" class="desktop-navigation flex gap-12 items-center">
                     <div class="nav-dropdown-wrapper">
-                        <div id="user-info" class="user-badge cursor-pointer" onclick="toggleNavDropdown(event)"></div>
+                        <div id="user-info" class="user-badge cursor-pointer" onclick="toggleNavDropdown(event)"><span class="user-avatar-placeholder" aria-hidden="true"></span><span class="status-dot"></span><span class="user-name">...</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></div>
                         <div id="nav-dropdown" class="nav-dropdown">
                             <div class="nav-dropdown-content">
                                 <label class="toggle-switch dropdown-item">
@@ -185,7 +207,7 @@
                         </div>
                         <div class="gui-grid" id="preview-grid"></div>
                         <!-- Page Navigation (Shop only) -->
-                        <div id="page-navigation" class="pagination">
+                        <div id="page-navigation" class="pagination" style="display: none;">
                             <button onclick="changePage(-1)" class="btn page-btn">
                                 <span style="font-size: 1.1em;"></span> <span data-i18n="web-editor.prev">PREV</span>
                             </button>
@@ -724,22 +746,5 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="js/state-store.js"></script>
-    <script src="js/core.js?v=menu-placeholders-1"></script>
-    <script src="js/schema.js"></script>
-    <script src="vendor/yaml.min.js"></script>
-    <script src="js/yaml-editor.js"></script>
-    <script src="js/telemetry.js"></script>
-    <script src="js/database.js?v=menu-placeholders-1"></script>
-    <script src="js/modals.js?v=commands-history-1"></script>
-    <script src="js/api.js"></script>
-    <script src="js/commands.js?v=custom-commands-model-name-4"></script>
-    <script src="js/custom-items.js"></script>
-    <script src="js/save-dispatcher.js"></script>
-    <script src="js/autosave-manager.js"></script>
-    <script src="js/ui.js?v=menu-placeholders-1"></script>
-    <script src="js/navigation.js?v=sidebar-1"></script>
-    <script src="js/events.js"></script>
 </body>
 </html>
-
