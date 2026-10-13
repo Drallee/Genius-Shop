@@ -20,12 +20,16 @@ public class ShopTimeUtil {
      * @return true if shop is available (or no restrictions), false otherwise
      */
     public static boolean isShopAvailable(List<String> restrictions) {
+        return isShopAvailable(restrictions, java.time.ZonedDateTime.now());
+    }
+
+    public static boolean isShopAvailable(List<String> restrictions, java.time.ZonedDateTime at) {
         if (restrictions == null || restrictions.isEmpty()) {
             return true; // No restrictions = always available
         }
 
-        LocalDate now = LocalDate.now();
-        LocalTime timeNow = LocalTime.now();
+        LocalDate now = at.toLocalDate();
+        LocalTime timeNow = at.toLocalTime();
         DayOfWeek dayOfWeek = now.getDayOfWeek();
 
         // All restrictions must pass (AND logic)
@@ -74,6 +78,29 @@ public class ShopTimeUtil {
         }
 
         return true;
+    }
+
+    public static List<java.time.Instant> simulationTimes(List<String> restrictions, java.time.Instant anchor) {
+        java.util.Set<java.time.Instant> times = new java.util.TreeSet<>();
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        LocalDate today = anchor.atZone(zone).toLocalDate();
+        for (int day = 0; day < 8; day++) {
+            LocalDate date = today.plusDays(day);
+            times.add(date.atTime(12, 0).atZone(zone).toInstant());
+            if (restrictions == null) continue;
+            for (String restriction : restrictions) {
+                if (restriction == null) continue;
+                String value = restriction.trim();
+                try {
+                    if (value.matches("\\d{1,2}:\\d{2}(?i)(AM|PM)?-\\d{1,2}:\\d{2}(?i)(AM|PM)?")) {
+                        for (String bound : value.split("-")) times.add(date.atTime(parseTime(bound)).atZone(zone).toInstant());
+                    } else if (value.contains(" to ")) {
+                        for (String bound : value.split(" to ")) times.add(LocalDate.parse(bound.trim()).atTime(12, 0).atZone(zone).toInstant());
+                    }
+                } catch (RuntimeException ignored) { /* Invalid restrictions are reported by catalog validation. */ }
+            }
+        }
+        return List.copyOf(times);
     }
 
     /**

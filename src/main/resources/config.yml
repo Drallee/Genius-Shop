@@ -5,7 +5,7 @@
 # smart updates, debugging, and more.
 # ==========================================================
 
-config-version: 15
+config-version: 16
 
 # When true, missing/outdated config files will automatically be updated
 # by merging new keys from defaults (your custom changes are kept).
@@ -43,6 +43,14 @@ debug-error-log:
 # How often to check scheduled stock reset rules (in seconds).
 # Lower = more precise schedule execution, higher = less overhead.
 stock-reset-check-interval-seconds: 1
+
+# Read-only /shop validate-prices simulation settings.
+price-validation:
+  # Upper bound on trade steps considered per report (1,000 to 5,000,000).
+  max-simulated-units: 1000000
+  # Copy exact route keys from a report to acknowledge intended profitable routes.
+  # Example: "cheap:STONE->premium:STONE"
+  intentional-routes: []
 
 # Language file to use (located in languages/ folder)
 # Example: "en_US", "ru_RU"

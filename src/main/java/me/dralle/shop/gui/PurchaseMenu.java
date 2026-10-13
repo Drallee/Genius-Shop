@@ -1061,7 +1061,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
         }
     }
 
-    private static ItemStack createDeliveryTemplate(Material material,
+    public static ItemStack createDeliveryTemplate(Material material,
                                                     String spawnerType,
                                                     String spawnerItem,
                                                     String potionType,

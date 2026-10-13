@@ -535,7 +535,7 @@ public class ShopPlugin extends JavaPlugin {
                     return true;
                 }
                 runPriceValidation(sender);
-                return true;
+                return new me.dralle.shop.commands.PriceSimulationCommand(this).execute(sender, args);
             }
 
             // /shop (open main menu)
@@ -1309,4 +1309,3 @@ public class ShopPlugin extends JavaPlugin {
         }
     }
 }
-

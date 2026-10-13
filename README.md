@@ -130,6 +130,67 @@ Use and bulk-sell permissions default to everyone; administrative permissions de
 
 The protected default shops use `geniusshop.shop.spawners` and `geniusshop.shop.premium`, with parent node `geniusshop.shop`; these are not granted by default. See [Commands and Permissions](wiki/Commands-and-Permissions.md) for access rules and custom-command examples.
 
+### Price Simulation and Arbitrage
+
+`/shop validate-prices` keeps the existing configuration checks and adds a sampled
+buy/sell simulation. It compares the actual delivered item against each sell
+offer using the normal metadata-matching rules. Counters are copied for every
+scenario; balances, inventories, limits, live stock, and cooldown history are
+never changed. Simulations run off the server thread after item matching and
+optional player eligibility are captured.
+
+```text
+/shop validate-prices
+/shop validate-prices player=Alice quantities=1,4,16 stock=live
+/shop validate-prices at=2026-10-17T12:00:00Z quantities=64 stock=100 mode=sequential
+```
+
+`player` names an online player whose current permissions, conditions, and player
+counts are used. Without it, the audit assumes fresh player counts and reports
+the permissions and world/level/game-mode conditions required for a route.
+Contradictory conditions and unavailable shops/items are excluded. `at` accepts
+an ISO UTC timestamp; without it, samples include now, the next week's opening
+boundaries, date-range endpoints, and configured campaign start/end boundaries.
+
+`quantities` accepts up to eight values from 1 to 1024 (default `1,16,64`). `stock`
+is a used-stock counter: `live`, `zero`, `half`, `depleted`, `all` (default), or an
+explicit nonnegative count. Half/depleted use the configured global limit; items
+without a limit instead sample at least 32/64 previously traded units. Each
+scenario applies global/player limits, stock replenishment and overflow rules,
+formula pricing, campaign precedence, floors/ceilings, and configured safety
+caps. Reset schedules affect the copied global counters during a sequence.
+Counter samples describe assumed starting conditions, not a forecast of future
+player activity or stock before the sampled time.
+
+`mode=batch` models one quantity purchase and one quantity sale using their
+starting prices, matching current GUI transaction behavior. `mode=sequential`
+reprices each individual buy and sale, updates shared counters, and advances
+time between trades using configured cooldowns. Default `both` compares these
+models. The report gives each profitable route's best sampled scenario per mode:
+shop/item keys, quantity, start time, stock counters, cost, revenue, estimated
+profit, and eligibility conditions.
+
+Chat shows a summary and the first results. The complete report is written to
+`price-validation-<id>.txt` in the plugin data directory. Routes are labelled
+`REVIEW` by default. Acknowledged routes remain visible as `INTENTIONAL`:
+
+```yaml
+price-validation:
+  max-simulated-units: 1000000
+  intentional-routes:
+    - "cheap:STONE->premium:STONE"
+```
+
+Copy the exact key from the report, including variant/name suffixes when present.
+These labels acknowledge administrator intent; they do not change trading rules.
+Each route samples at most 64 timestamps. Reports explicitly mark truncated
+work/time sampling as incomplete and identify skipped command-backed purchases,
+external spawner-API deliveries, or unverified item templates. No findings is not
+proof that every possible route is unprofitable. Estimates assume enough capital
+and inventory/storage, any required confirmation, and eligible initial safety
+history; provider rounding, fees, other plugins, and command side effects are not
+simulated.
+
 ## Configuration and Data
 
 Paths below are relative to the plugin data directory, normally `plugins/Genius-Shop/`.
