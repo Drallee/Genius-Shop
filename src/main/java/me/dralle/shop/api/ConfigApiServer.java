@@ -10,6 +10,8 @@ import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import me.dralle.shop.ShopPlugin;
+import me.dralle.shop.config.ConfigurationDraftStore;
+import me.dralle.shop.config.ConfigurationDraftValidator;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.util.YamlUtil;
@@ -35,6 +37,7 @@ import java.util.zip.GZIPOutputStream;
 
 public class ConfigApiServer {
     private final ShopPlugin plugin;
+    private final ConfigurationDraftStore drafts;
     private HttpServer server;
     private final int port;
     private final String apiKey;
@@ -109,6 +112,7 @@ public class ConfigApiServer {
             String keyStoreType
     ) {
         this.plugin = plugin;
+        this.drafts = new ConfigurationDraftStore(plugin.getDataFolder().toPath(), new ConfigurationDraftValidator(plugin)::validate);
         this.port = port;
         this.apiKey = apiKey;
         this.sslEnabled = sslEnabled;
@@ -235,7 +239,7 @@ public class ConfigApiServer {
                     // Handle API requests
                     exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
                     exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token, Cache-Control, Pragma");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token, X-Draft-Revision, Cache-Control, Pragma");
 
                     if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
                         exchange.sendResponseHeaders(204, -1);
@@ -377,6 +381,8 @@ public class ConfigApiServer {
                 } else {
                     sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
                 }
+            } else if (path.equals("/api/draft/review") || path.equals("/api/draft/publish") || path.equals("/api/draft/discard")) {
+                handleDraftAction(exchange, path, method);
             } else if (path.startsWith("/api/file/")) {
                 String fileName = path.substring("/api/file/".length());
                 if (method.equals("GET")) {
@@ -443,6 +449,10 @@ public class ConfigApiServer {
             } else {
                 sendError(exchange, 404, "Endpoint Not Found", "The requested API endpoint does not exist");
             }
+        } catch (ConcurrentModificationException e) {
+            sendError(exchange, 409, "Configuration Conflict", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            sendError(exchange, 400, "Invalid Configuration", e.getMessage());
         } catch (Exception e) {
             me.dralle.shop.util.ConsoleLog.apiError(plugin, method + " " + path + " failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
             plugin.debug("WebEditor API request exception (" + method + " " + path + "): " + e);
@@ -842,41 +852,9 @@ public class ConfigApiServer {
 
     private void handleListFiles(HttpExchange exchange) throws IOException {
         Map<String, Object> response = new HashMap<>();
-        response.put("shops", new HashMap<String, String>());
-
         ensureEditorFilesExist();
-
-        // List shop files
-        File shopsDir = new File(plugin.getDataFolder(), "shops");
-        if (shopsDir.exists() && shopsDir.isDirectory()) {
-            File[] shopFiles = shopsDir.listFiles((dir, name) -> name.endsWith(".yml"));
-            if (shopFiles != null) {
-                Map<String, String> shops = new HashMap<>();
-                for (File file : shopFiles) {
-                    String content = readFileSafely(file);
-                    if (content != null) {
-                        shops.put(file.getName(), content);
-                    }
-                }
-                response.put("shops", shops);
-            }
-        }
-
-        // Menu files
-        File menusDir = new File(plugin.getDataFolder(), "menus");
-        if (menusDir.exists() && menusDir.isDirectory()) {
-            putIfPresent(response, "mainMenu", new File(menusDir, "main-menu.yml"));
-            putIfPresent(response, "purchaseMenu", new File(menusDir, "purchase-menu.yml"));
-            putIfPresent(response, "sellMenu", new File(menusDir, "sell-menu.yml"));
-            putIfPresent(response, "guiSettings", new File(menusDir, "gui-settings.yml"));
-            putIfPresent(response, "bulkSellMenu", new File(menusDir, "bulk-sell-menu.yml"));
-        }
-
-        // discord.yml
-        putIfPresent(response, "discord", new File(plugin.getDataFolder(), "discord.yml"));
-        putIfPresent(response, "campaignsFile", new File(plugin.getDataFolder(), "campaigns.yml"));
-        putIfPresent(response, "commandsFile", new File(plugin.getDataFolder(), "commands.yml"));
-        putIfPresent(response, "customItemsFile", new File(plugin.getDataFolder(), "custom-items.yml"));
+        ConfigurationDraftStore.Workspace snapshot = drafts.workspace(getSessionUsername(exchange));
+        Map<String, String> workspace = snapshot.files();
 
         // Sanitized price format config for web preview (no sensitive config values exposed).
         Map<String, Object> priceFormat = new HashMap<>();
@@ -887,7 +865,15 @@ public class ConfigApiServer {
         grouped.put("maxDecimals", plugin.getConfig().getInt("price-format.grouped.max-decimals", 2));
         priceFormat.put("grouped", grouped);
         response.put("priceFormat", priceFormat);
-        response.put("economySafety", getEconomySafetySettingsMap());
+        response.put("economySafety", getEconomySafetySettingsMap(draftConfig(workspace)));
+        Map<String, String> draftShops = new TreeMap<>();
+        workspace.forEach((name, content) -> { if (name.startsWith("shops/")) draftShops.put(name.substring(6), content); });
+        response.put("shops", draftShops);
+        Map<String, String> menuKeys = Map.of("mainMenu", "menus/main-menu.yml", "purchaseMenu", "menus/purchase-menu.yml",
+                "sellMenu", "menus/sell-menu.yml", "guiSettings", "menus/gui-settings.yml", "bulkSellMenu", "menus/bulk-sell-menu.yml",
+                "discord", "discord.yml", "campaignsFile", "campaigns.yml", "commandsFile", "commands.yml", "customItemsFile", "custom-items.yml");
+        menuKeys.forEach((key, name) -> { response.remove(key); if (workspace.containsKey(name)) response.put(key, workspace.get(name)); });
+        response.put("draft", snapshot.draft());
 
         // Add server info
         Map<String, Object> serverInfo = new HashMap<>();
@@ -962,15 +948,68 @@ public class ConfigApiServer {
         }
         java.util.Collections.sort(materials);
         serverInfo.put("materials", materials);
-        response.put("commandCatalog", buildCommandCatalog());
+        response.put("commandCatalog", buildCommandCatalog(workspace));
         
         response.put("serverInfo", serverInfo);
 
         sendJsonResponse(exchange, 200, response);
     }
 
+    private YamlConfiguration draftConfig(Map<String, String> workspace) throws IOException {
+        YamlConfiguration config = new YamlConfiguration();
+        try { config.loadFromString(workspace.getOrDefault("config.yml", "")); }
+        catch (Exception e) { throw new IOException("Draft config.yml is invalid", e); }
+        return config;
+    }
+
+    private void handleDraftAction(HttpExchange exchange, String path, String method) throws Exception {
+        String user = getSessionUsername(exchange);
+        if (path.equals("/api/draft/review") && method.equals("GET")) {
+            sendJsonResponse(exchange, 200, drafts.review(user));
+            return;
+        }
+        if (!method.equals("POST")) {
+            sendError(exchange, 405, "Method Not Allowed", "Use GET for review and POST for publish or discard");
+            return;
+        }
+        if (path.equals("/api/draft/discard")) {
+            String expected = exchange.getRequestHeaders().getFirst("X-Draft-Revision");
+            if (expected == null) throw new IllegalArgumentException("Draft revision is required to discard");
+            sendJsonResponse(exchange, 200, Map.of("success", true, "draft", drafts.discard(user, expected)));
+            return;
+        }
+        if (!path.equals("/api/draft/publish")) {
+            sendError(exchange, 405, "Method Not Allowed", "Review only accepts GET");
+            return;
+        }
+        JsonObject request = parseJsonObject(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        String token = request != null && request.has("token") ? request.get("token").getAsString() : null;
+        ConfigurationDraftStore.Review published;
+        try {
+            // Install all files and reload in one server task, so no gameplay tick observes half a publish.
+            published = plugin.getServer().getScheduler().callSyncMethod(plugin,
+                    () -> drafts.publish(user, token, plugin::reloadPublishedConfiguration)).get();
+        } catch (java.util.concurrent.ExecutionException e) {
+            if (e.getCause() instanceof Exception cause) {
+                if (cause instanceof ConcurrentModificationException || cause instanceof IllegalArgumentException) throw cause;
+                sendError(exchange, 500, "Publish Failed", cause.getMessage());
+                return;
+            }
+            throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Publish response interrupted. Reload to check its status before retrying.", e);
+        }
+        for (ConfigurationDraftStore.Change change : published.changes()) {
+            try { appendActivityEntry(change.kind().equals("added") ? "created" : change.kind().equals("deleted") ? "deleted" : "updated",
+                    "file", user, change.file(), change.before(), change.after(), Map.of("publishedTogether", true)); }
+            catch (Exception e) { me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Published configuration, but activity logging failed: " + e.getMessage()); }
+        }
+        sendJsonResponse(exchange, 200, Map.of("success", true, "draft", drafts.status(user)));
+    }
+
     private void handleGetEconomySafety(HttpExchange exchange) throws IOException {
-        sendJsonResponse(exchange, 200, getEconomySafetySettingsMap());
+        sendJsonResponse(exchange, 200, getEconomySafetySettingsMap(draftConfig(drafts.files(getSessionUsername(exchange)))));
     }
 
     private void handleGetStockAnalytics(HttpExchange exchange) throws IOException {
@@ -1103,7 +1142,9 @@ public class ConfigApiServer {
             return;
         }
 
-        FileConfiguration cfg = plugin.getConfig();
+        Map<String, String> workspace = drafts.files(getSessionUsername(exchange));
+        FileConfiguration cfg = draftConfig(workspace);
+        String before = cfg.saveToString();
         setBooleanIfPresent(cfg, src, "enabled", "economy-safety.enabled");
         setDoubleIfPresent(cfg, src, "maxTransactionValue", "economy-safety.max-transaction-value");
         setDoubleIfPresent(cfg, src, "maxUnitPrice", "economy-safety.max-unit-price");
@@ -1126,14 +1167,15 @@ public class ConfigApiServer {
         setStringIfPresent(cfg, src, "adminNotifyPermission", "economy-safety.admin-alerts.notify-permission");
         setLongIfPresent(cfg, src, "adminAlertRateLimitMs", "economy-safety.admin-alerts.rate-limit-ms");
 
-        plugin.saveConfig();
-        plugin.reloadPlugin();
-        sendJsonResponse(exchange, 200, Map.of("success", true, "economySafety", getEconomySafetySettingsMap()));
+        String updated = cfg.saveToString();
+        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), "config.yml",
+                updated.equals(before) ? workspace.getOrDefault("config.yml", "") : updated,
+                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        sendJsonResponse(exchange, 200, Map.of("success", true, "economySafety", getEconomySafetySettingsMap(cfg), "draft", status));
     }
 
-    private Map<String, Object> getEconomySafetySettingsMap() {
+    private Map<String, Object> getEconomySafetySettingsMap(FileConfiguration cfg) {
         Map<String, Object> out = new HashMap<>();
-        FileConfiguration cfg = plugin.getConfig();
         out.put("enabled", cfg.getBoolean("economy-safety.enabled", true));
         out.put("maxTransactionValue", cfg.getDouble("economy-safety.max-transaction-value", 0D));
         out.put("maxUnitPrice", cfg.getDouble("economy-safety.max-unit-price", 0D));
@@ -1350,51 +1392,52 @@ public class ConfigApiServer {
         }
     }
 
-    private void putIfPresent(Map<String, Object> response, String key, File file) {
-        String content = readFileSafely(file);
-        if (content != null) {
-            response.put(key, content);
-        }
-    }
-
-    private Map<String, Object> buildCommandCatalog() {
+    private Map<String, Object> buildCommandCatalog(Map<String, String> workspace) {
         Map<String, Object> catalog = new LinkedHashMap<>();
-        if (plugin.getShopManager() == null) return catalog;
-        for (String shopKey : plugin.getShopManager().getShopKeys()) {
-            ShopData shop = plugin.getShopManager().getShop(shopKey);
-            if (shop == null) continue;
-            List<Map<String, Object>> items = new ArrayList<>();
-            for (ShopItem item : shop.getItems()) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("key", item.getUniqueKey());
-                row.put("material", item.getMaterial().name());
-                row.put("name", item.getName() != null ? item.getName() : item.getMaterial().name());
-                row.put("slot", item.getSlot());
-                row.put("canBuy", item.getPrice() > 0D);
-                row.put("canSell", item.getSellPrice() != null && item.getSellPrice() > 0D);
-                items.add(row);
+        Map<String, YamlConfiguration> shops = new TreeMap<>();
+        try {
+            for (var entry : workspace.entrySet()) {
+                if (!entry.getKey().startsWith("shops/")) continue;
+                YamlConfiguration yaml = new YamlConfiguration();
+                yaml.loadFromString(entry.getValue());
+                shops.put(entry.getKey().substring(6, entry.getKey().length() - 4), yaml);
             }
-            Map<String, Object> shopRow = new LinkedHashMap<>();
-            shopRow.put("name", shop.getGuiName());
-            shopRow.put("availableTimes", shop.getAvailableTimes());
-            shopRow.put("items", items);
-            catalog.put(shopKey, shopRow);
+            YamlConfiguration campaigns = new YamlConfiguration();
+            campaigns.loadFromString(workspace.getOrDefault("campaigns.yml", ""));
+            me.dralle.shop.ShopManager proposed = new me.dralle.shop.ShopManager(plugin, shops, campaigns);
+            for (String shopKey : proposed.getShopKeys()) {
+                ShopData shop = proposed.getShop(shopKey);
+                if (shop == null) continue;
+                List<Map<String, Object>> items = new ArrayList<>();
+                for (ShopItem item : shop.getItems()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("key", item.getUniqueKey());
+                    row.put("material", item.getMaterial().name());
+                    row.put("name", item.getName() != null ? item.getName() : item.getMaterial().name());
+                    row.put("slot", item.getSlot());
+                    row.put("canBuy", item.getPrice() > 0D);
+                    row.put("canSell", item.getSellPrice() != null && item.getSellPrice() > 0D);
+                    items.add(row);
+                }
+                Map<String, Object> shopRow = new LinkedHashMap<>();
+                shopRow.put("name", shop.getGuiName());
+                shopRow.put("availableTimes", shop.getAvailableTimes());
+                shopRow.put("items", items);
+                catalog.put(shopKey, shopRow);
+            }
+        } catch (Exception e) {
+            // A partially edited draft must still be loadable; publication reports its validation errors.
+            plugin.debug("Draft command catalog is incomplete: " + e.getMessage());
         }
         return catalog;
     }
 
     private void handleGetFile(HttpExchange exchange, String fileName) throws IOException {
-        File file = resolveFile(fileName);
-
-        if (file == null || !file.exists()) {
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("fileName", fileName);
-            errorData.put("reason", file == null ? "Invalid file path" : "File does not exist");
-            sendError(exchange, 404, "File Not Found", "The requested configuration file could not be found or is not accessible", errorData);
+        String content = drafts.files(getSessionUsername(exchange)).get(fileName);
+        if (!ConfigurationDraftStore.allowed(fileName) || content == null) {
+            sendError(exchange, 404, "File Not Found", "The requested file is not in this draft workspace");
             return;
         }
-
-        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
         Map<String, String> response = new HashMap<>();
         response.put("content", content);
         sendJsonResponse(exchange, 200, response);
@@ -1453,94 +1496,19 @@ public class ConfigApiServer {
             }
         }
 
-        // Create parent directories if needed
-        if (!file.getParentFile().exists()) {
-            boolean created = file.getParentFile().mkdirs();
-            if (!created) {
-                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create directory: " + file.getParentFile());
-            }
-        }
-
-        String previousContent = readFileSafely(file);
-
-        // Save file
-        if (fileName.equals("commands.yml") && plugin.getCustomCommandRepository() != null) {
-            plugin.getCustomCommandRepository().saveValidated(fileContent);
-            plugin.reloadCustomCommands();
-        } else {
-            Files.writeString(file.toPath(), fileContent, StandardCharsets.UTF_8);
-        }
-
-        String username = getSessionUsername(exchange);
-        boolean existedBefore = previousContent != null;
-        if (!existedBefore) {
-            appendActivityEntry("created", "file", username, fileName, null, fileContent, null);
-        } else if (!previousContent.equals(fileContent)) {
-            appendActivityEntry("updated", "file", username, fileName, previousContent, fileContent, null);
-        }
-
-        // Reload plugin configuration
-        plugin.reloadPlugin();
-        
-        sendResponse(exchange, 200, "{\"success\": true}");
+        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, fileContent,
+                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status));
     }
 
     private void handleDeleteFile(HttpExchange exchange, String fileName) throws IOException {
-        File file = resolveFile(fileName);
-
-        if (file == null) {
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("fileName", fileName);
-            sendError(exchange, 400, "Invalid File Name", "The specified file name is invalid or contains illegal characters. File paths cannot contain '..' or reference files outside the allowed directories", errorData);
+        if (!fileName.startsWith("shops/")) {
+            sendError(exchange, 403, "Deletion Forbidden", "Only shop files can be deleted");
             return;
         }
-
-        // Don't allow deletion of main config files or menu files
-        if (fileName.equals("discord.yml") || fileName.equals("config.yml") ||
-            fileName.startsWith("menus/")) {
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("fileName", fileName);
-            errorData.put("fileType", "protected");
-            sendError(exchange, 403, "Deletion Forbidden", "This file is a core configuration file and cannot be deleted through the API. Protected files include: config.yml, discord.yml, and all menu files", errorData);
-            return;
-        }
-
-        if (!file.exists()) {
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("fileName", fileName);
-            sendError(exchange, 404, "File Not Found", "The file you are trying to delete does not exist on the server", errorData);
-            return;
-        }
-
-        String previousContent = readFileSafely(file);
-
-        // Delete the file
-        try {
-            boolean deleted = file.delete();
-            if (!deleted) {
-                Map<String, Object> errorData = new HashMap<>();
-                errorData.put("fileName", fileName);
-                errorData.put("filePath", file.getAbsolutePath());
-                sendError(exchange, 500, "Deletion Failed", "The file could not be deleted. It may be locked by another process or the server may not have sufficient permissions", errorData);
-                return;
-            }
-
-            // Get session info for logging
-            String username = getSessionUsername(exchange);
-
-            me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Admin '" + username + "' deleted '" + fileName + "'");
-            appendActivityEntry("deleted", "file", username, fileName, previousContent, null, null);
-
-            sendResponse(exchange, 200, "{\"success\": true}");
-        } catch (Exception e) {
-            me.dralle.shop.util.ConsoleLog.apiError(plugin, "Delete failed for '" + fileName + "': " + e.getMessage());
-            plugin.debug("WebEditor API delete exception: " + e);
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("fileName", fileName);
-            errorData.put("exception", e.getClass().getSimpleName());
-            errorData.put("exceptionMessage", e.getMessage());
-            sendError(exchange, 500, "Deletion Error", "An unexpected error occurred while attempting to delete the file", errorData);
-        }
+        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, null,
+                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status));
     }
 
     private void handleGetActivityLog(HttpExchange exchange) throws IOException {
@@ -1661,42 +1629,14 @@ public class ConfigApiServer {
             return;
         }
 
-        String currentContent = readFileSafely(file);
-        String restoredContent = null;
-        boolean changed = false;
-
-        if (action.equals("created")) {
-            if (file.exists()) {
-                changed = file.delete();
-            }
-        } else {
-            String beforeContent = extractSnapshotContent(entry.get("beforeData"));
-            if (beforeContent == null) {
-                sendError(exchange, 400, "Rollback Failed", "Rollback entry has no restorable previous content");
-                return;
-            }
-            File parent = file.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
-            }
-            Files.writeString(file.toPath(), beforeContent, StandardCharsets.UTF_8);
-            restoredContent = beforeContent;
-            changed = true;
-        }
-
-        if (!changed) {
-            sendJsonResponse(exchange, 200, Map.of("success", true, "changed", false));
+        String restoredContent = action.equals("created") ? null : extractSnapshotContent(entry.get("beforeData"));
+        if (!action.equals("created") && restoredContent == null) {
+            sendError(exchange, 400, "Rollback Failed", "Rollback entry has no restorable previous content");
             return;
         }
-
-        plugin.reloadPlugin();
-
-        String username = getSessionUsername(exchange);
-        Map<String, Object> extra = new HashMap<>();
-        extra.put("rolledBackEntryId", id);
-        appendActivityEntry("rollback", "file", username, fileName, currentContent, restoredContent, extra);
-
-        sendJsonResponse(exchange, 200, Map.of("success", true, "changed", true));
+        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, restoredContent,
+                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        sendJsonResponse(exchange, 200, Map.of("success", true, "changed", true, "draft", status));
     }
 
     private void handleClearActivityLog(HttpExchange exchange) throws IOException {
@@ -2134,4 +2074,3 @@ public class ConfigApiServer {
         return player;
     }
 }
-

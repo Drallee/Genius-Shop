@@ -66,7 +66,7 @@ Ordinary item purchases check inventory capacity before charging. If delivery fa
 - Responsive Minecraft inventory previews for shops and menus, with live item tooltips and lore parity previews.
 - Editing for items, transaction menus, GUI settings, economy safety, campaigns, and custom commands.
 - Structured YAML editing that preserves comments, unknown fields, and unchanged language references for supported edits.
-- Draft state, validation, and optional autosave.
+- Persistent per-admin drafts, complete-configuration validation, diff review, and explicit publishing. Autosave saves drafts only.
 - YAML/JSON import/export, item cloning across shops, and held-item JSON imports.
 - Stock analytics and a data editor for persisted player counts, global counts, and reset tracking.
 - Activity history and file rollback through `activity-log.json`.
@@ -76,9 +76,13 @@ Ordinary item purchases check inventory capacity before charging. If delivery fa
 
 Editing lessons use temporary practice data in the actual editor controls. Completed tasks advance automatically after a short pause; informational steps wait for Next. Going Back cancels pending advancement, and revisiting a completed task leaves it open for review. Exit and Skip Section remain available. Required field values are highlighted and copyable. Tasks cover preview titles, click-to-edit, materials, prices, lore, dynamic pricing, permissions, commands, local item saves, dragging, adding items, purchase/sell settings, campaigns, custom commands, reusable items, and shared GUI buttons. Touch and keyboard users can move an item through its Slot field instead of dragging. Stock and data lessons remain informational.
 
-Practice blocks API writes, pauses autosave without changing its preference, and restores original drafts and history on exit. Any autosave pending before the tutorial is rescheduled after restoration. The item dialog's Save only applies edits to temporary practice models; Save Tab and Publish All are not practice tasks. Sample items are available even when the real shop is empty. An already-open user edit dialog is never replaced.
+Practice blocks API writes, pauses autosave without changing its preference, and restores original drafts and history on exit. Any autosave pending before the tutorial is rescheduled after restoration. The item dialog's Save only applies edits to temporary practice models; Save Draft and Review & Publish are not practice tasks. Sample items are available even when the real shop is empty. An already-open user edit dialog is never replaced.
 
-Successful editor saves apply configuration reloads to the live server. File-history rollback restores recorded configuration; it does not restore economy balances or all runtime state.
+Save Draft stores the current tab separately from live configuration in `plugins/Genius-Shop/editor-drafts/`. Drafts survive browser reloads, logins, and server restarts, and are isolated by admin username. Creating or deleting a shop and restoring a file-history version also update the draft, not the live server. Unsaved edits in other tabs are included when opening Review & Publish.
+
+Review & Publish saves the complete editor workspace, validates all proposed YAML and cross-file shop, item, campaign, and command references, and shows added, modified, and deleted files with their live/draft contents. Only the explicit Publish button installs the reviewed set and reloads the server. Draft saves and autosave never reload live configuration, even if an older browser preference selected publish autosave. Database counter edits remain live data operations, not configuration drafts.
+
+If the draft changes after review, or live files change after the workspace was loaded, publishing is rejected. Review again for a changed draft; for changed live files, retain any edits you need before discarding the draft and reloading live configuration. A failed write or reload restores the prior live files and reloads them while retaining the draft. A rollback failure is reported explicitly for administrator intervention. Keep normal backups; publishing is a server-thread transaction, not a crash-proof filesystem transaction. File-history restore does not restore economy balances or all runtime state.
 
 ### Integrations and Developer API
 

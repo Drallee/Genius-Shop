@@ -34,14 +34,16 @@ async function saveCurrentTabChanges(isSilent = false) {
     }
 }
 
-async function publishAllChanges() {
+async function saveAllDrafts() {
     const start = Date.now();
-    showToast(t('web-editor.modals.publishing', 'Publishing...'), 'info');
     try {
         if (getEditorState('currentTab') === 'commands') {
             await saveCommandsYaml(true);
         }
         await saveCurrentShop(true);
+        for (const [name, content] of Object.entries(allShops)) {
+            if (name !== currentShopFile) await saveShopFileDirect(name, content, true);
+        }
         await saveCampaignHubDirtyShops(true);
         await saveMainMenuYaml(true);
         await savePurchaseMenuYaml(true);
@@ -55,9 +57,13 @@ async function publishAllChanges() {
         await saveEconomySafetySettings(true);
         await loadDatabaseEditorData(true);
         setUnsavedChanges([]);
-        if (window.EditorTelemetry) window.EditorTelemetry.track('publish_all', { durationMs: Date.now() - start }, true);
+        if (window.EditorTelemetry) window.EditorTelemetry.track('draft_save_all', { durationMs: Date.now() - start }, true);
     } catch (error) {
-        if (window.EditorTelemetry) window.EditorTelemetry.track('publish_all', { durationMs: Date.now() - start, reason: error.message }, false);
+        if (window.EditorTelemetry) window.EditorTelemetry.track('draft_save_all', { durationMs: Date.now() - start, reason: error.message }, false);
         throw error;
     }
+}
+
+async function publishAllChanges() {
+    return EditorDrafts.review();
 }

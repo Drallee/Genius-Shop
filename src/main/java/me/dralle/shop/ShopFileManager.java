@@ -20,6 +20,10 @@ public class ShopFileManager {
     private final Map<String, FileConfiguration> shopConfigs = new LinkedHashMap<>();
 
     public ShopFileManager(ShopPlugin plugin) {
+        this(plugin, true);
+    }
+
+    public ShopFileManager(ShopPlugin plugin, boolean initializeDefaults) {
         this.plugin = plugin;
         this.shopsFolder = new File(plugin.getDataFolder(), "shops");
 
@@ -31,10 +35,10 @@ public class ShopFileManager {
         }
 
         // Check if we need to migrate from old shops.yml
-        migrateFromOldFormat();
+        if (initializeDefaults) migrateFromOldFormat();
 
         // Copy default shop files if shops folder is empty
-        copyDefaultShopFiles();
+        if (initializeDefaults) copyDefaultShopFiles();
 
         // Load all shop files
         loadAllShops();

@@ -57,8 +57,8 @@
             { target: '#modal-name', task: 'gui-name', modal: true, title: 'Edit a shared button', text: 'Change Display Name to Practice back. Shared button names and lore are configured here.' },
             { target: '#edit-modal button[onclick="saveEditModal()"]', task: 'gui-save', modal: true, title: 'Apply the practice button', text: 'Click the dialog\'s Save to apply the temporary name. Your real button will return when you exit the tutorial.' }
         ] },
-        { id: 'saving', revision: 2, title: 'Saving and history', steps: [
-            { target: '.sticky-footer-actions', title: 'Review before saving', text: 'Outside practice, Save Tab saves the current section and Publish All saves across sections. History lists changes. During this tutorial server writes and autosave are blocked; Finish restores your original drafts and preferences.' }
+        { id: 'saving', revision: 3, title: 'Saving and history', steps: [
+            { target: '.sticky-footer-actions', title: 'Review before saving', text: 'Save Draft keeps the current section separate from the live server. Review & Publish saves all sections as a draft, checks references, and shows the changes before you explicitly publish. History versions restore into the draft too. During practice server writes and autosave are blocked; Finish restores your original drafts and preferences.' }
         ] }
     ];
 

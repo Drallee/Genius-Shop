@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="navigation.css?v=sidebar-1">
     <link rel="stylesheet" href="editor-design.css?v=workspace-1">
     <link rel="stylesheet" href="tutorial.css?v=1">
+    <link rel="stylesheet" href="drafts.css?v=1">
 </head>
 <body class="editor-shell">
     <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
@@ -513,13 +514,14 @@
                 </button>
                 <button onclick="manualSave()" class="footer-action-btn btn-primary">
                     <span class="btn-icon"></span>
-                    <span data-i18n="web-editor.save-tab">SAVE TAB</span>
+                    <span>SAVE DRAFT</span>
                 </button>
                 <button onclick="publishChanges()" class="footer-action-btn btn-publish">
                     <span class="btn-icon"></span>
-                    <span data-i18n="web-editor.publish-all">PUBLISH ALL</span>
+                    <span>REVIEW &amp; PUBLISH</span>
                 </button>
             </div>
+            <span id="draft-status" role="status">Draft</span>
         </div>
     </div>
 
@@ -734,12 +736,13 @@
     <script src="js/telemetry.js"></script>
     <script src="js/database.js?v=menu-placeholders-1"></script>
     <script src="js/modals.js?v=commands-history-1"></script>
-    <script src="js/api.js"></script>
+    <script src="js/drafts.js?v=1"></script>
+    <script src="js/api.js?v=drafts-1"></script>
     <script src="js/commands.js?v=custom-commands-model-name-4"></script>
-    <script src="js/custom-items.js"></script>
-    <script src="js/save-dispatcher.js"></script>
-    <script src="js/autosave-manager.js"></script>
-    <script src="js/ui.js?v=menu-placeholders-1"></script>
+    <script src="js/custom-items.js?v=drafts-1"></script>
+    <script src="js/save-dispatcher.js?v=drafts-1"></script>
+    <script src="js/autosave-manager.js?v=drafts-1"></script>
+    <script src="js/ui.js?v=drafts-1"></script>
     <script src="js/navigation.js?v=sidebar-1"></script>
     <script src="js/tutorial-state.js?v=1"></script>
     <script src="js/tutorial-practice.js?v=1"></script>

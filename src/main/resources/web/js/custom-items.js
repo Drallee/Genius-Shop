@@ -142,7 +142,7 @@ function renderCustomItemsTab() {
 async function saveCustomItemsYaml(isSilent = false) {
     if (isLoadingFiles) return;
     const source = customItemsFileRaw;
-    const response = await fetch('api/file/custom-items.yml', {method: 'POST',
+    const response = await EditorDrafts.request('api/file/custom-items.yml', {method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-Session-Token': sessionToken}, body: JSON.stringify({content: source})});
     if (response.status === 401) { logout(); throw new Error('Session expired'); }
     if (!response.ok) {

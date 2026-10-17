@@ -5,7 +5,7 @@ const editorContext = require('./editor-test-context.cjs');
 const resources = path.resolve(__dirname, '../../main/resources');
 const web = path.join(resources, 'web');
 
-function createPreviewServer() {
+function createPreviewServer({ apiHandler } = {}) {
     const read = file => fs.readFileSync(path.join(resources, file), 'utf8');
     const yaml = editorContext();
     yaml.set('languageSource', read('languages/en_US.yml'));
@@ -20,6 +20,7 @@ function createPreviewServer() {
     return http.createServer((request, response) => {
         const url = new URL(request.url, 'http://localhost');
         if (url.pathname.startsWith('/api/')) {
+            if (apiHandler && apiHandler(request, response, url, files)) return;
             // Preview is deliberately read-only. No configuration writes or live server access.
             if (request.method !== 'GET') {
                 response.writeHead(405, { 'Content-Type': 'application/json' });
