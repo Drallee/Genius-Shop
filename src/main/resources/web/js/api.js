@@ -263,6 +263,7 @@ async function loadAllFiles() {
         if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files' }, true);
         setEditorState('isLoadingFiles', false);
         setUnsavedChanges([]);
+        if (window.EditorTutorial) window.EditorTutorial.ready();
     } catch (error) {
         console.error('Failed to load files:', error);
         if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files', reason: error.message }, false);
@@ -854,5 +855,4 @@ async function handleAutoLogin(token) {
         document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Connection Error</div><div style="font-size: 14px; color: #888;">Could not connect to the API server</div></div>`;
     }
 }
-
 

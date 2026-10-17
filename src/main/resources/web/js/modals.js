@@ -701,7 +701,7 @@ function openEditModal(data) {
     refreshModalSidePreview();
 }
 
-function closeEditModal() {
+function closeEditModal(immediate = false) {
     const modal = document.getElementById('edit-modal');
     const modalBox = modal.querySelector('.modal-box');
     const animationsDisabled = document.body.classList.contains('no-animations');
@@ -710,7 +710,7 @@ function closeEditModal() {
     }
 
     // Add fade-out animation (only if animations enabled)
-    if (modalBox && !animationsDisabled) {
+    if (modalBox && !animationsDisabled && !immediate) {
         modalBox.style.animation = 'fadeOut 0.3s ease-out';
         setTimeout(() => {
             modal.style.display = 'none';

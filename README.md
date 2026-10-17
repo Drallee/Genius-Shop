@@ -72,6 +72,11 @@ Ordinary item purchases check inventory capacity before charging. If delivery fa
 - Activity history and file rollback through `activity-log.json`.
 - An alternate React editor at `/react.html`, alongside the classic editor.
 - Authenticated administrative HTTP endpoints and opt-in editor telemetry.
+- Interactive first-run tutorials in the classic editor, with per-section replay from the question-mark Tutorial button. Progress is stored per username in this browser for this server origin. Exit or Skip Section dismisses the relevant onboarding; completed and dismissed sections stay hidden on subsequent visits. New or revised sections appear on later logins unless automatic new-feature tutorials are disabled in Tutorial. Manual replay remains available. Clearing browser storage resets these preferences.
+
+Editing lessons use temporary practice data in the actual editor controls. Completed tasks advance automatically after a short pause; informational steps wait for Next. Going Back cancels pending advancement, and revisiting a completed task leaves it open for review. Exit and Skip Section remain available. Required field values are highlighted and copyable. Tasks cover preview titles, click-to-edit, materials, prices, lore, dynamic pricing, permissions, commands, local item saves, dragging, adding items, purchase/sell settings, campaigns, custom commands, reusable items, and shared GUI buttons. Touch and keyboard users can move an item through its Slot field instead of dragging. Stock and data lessons remain informational.
+
+Practice blocks API writes, pauses autosave without changing its preference, and restores original drafts and history on exit. Any autosave pending before the tutorial is rescheduled after restoration. The item dialog's Save only applies edits to temporary practice models; Save Tab and Publish All are not practice tasks. Sample items are available even when the real shop is empty. An already-open user edit dialog is never replaced.
 
 Successful editor saves apply configuration reloads to the live server. File-history rollback restores recorded configuration; it does not restore economy balances or all runtime state.
 

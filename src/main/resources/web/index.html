@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="navigation.css?v=sidebar-1">
     <link rel="stylesheet" href="editor-design.css?v=workspace-1">
+    <link rel="stylesheet" href="tutorial.css?v=1">
 </head>
 <body class="editor-shell">
     <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
@@ -51,6 +52,7 @@
 
 
                 <div id="desktop-nav" class="desktop-navigation flex gap-12 items-center">
+                    <button type="button" id="editor-tutorial-help" class="navigation-icon-button" title="Tutorial" aria-label="Tutorial" disabled><i class="fa-solid fa-circle-question" aria-hidden="true"></i></button>
                     <div class="nav-dropdown-wrapper">
                         <div id="user-info" class="user-badge cursor-pointer" onclick="toggleNavDropdown(event)"></div>
                         <div id="nav-dropdown" class="nav-dropdown">
@@ -739,7 +741,9 @@
     <script src="js/autosave-manager.js"></script>
     <script src="js/ui.js?v=menu-placeholders-1"></script>
     <script src="js/navigation.js?v=sidebar-1"></script>
+    <script src="js/tutorial-state.js?v=1"></script>
+    <script src="js/tutorial-practice.js?v=1"></script>
+    <script src="js/tutorial.js?v=1"></script>
     <script src="js/events.js"></script>
 </body>
 </html>
-
