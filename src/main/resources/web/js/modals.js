@@ -703,9 +703,18 @@ function openEditModal(data) {
         modalBox.style.animation = 'none';
     }
 
+    if (window.EditorPermissions && !EditorPermissions.can('commands')) {
+        for (const id of ['enableCommands', 'commands', 'runAs']) {
+            const group = document.getElementById(`group-modal-${id}`);
+            if (group) { group.hidden = true; group.inert = true; }
+        }
+        const action = document.getElementById('modal-action');
+        if (action) Array.from(action.options).filter(option => /command/i.test(option.value)).forEach(option => option.remove());
+    }
     initCustomSelects();
     applyModalPreviewCollapsedState(isModalPreviewCollapsed());
     refreshModalSidePreview();
+    if (window.EditorPermissions) EditorPermissions.refresh();
 }
 
 function closeEditModal(immediate = false) {

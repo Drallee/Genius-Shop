@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="editor-design.css?v=workspace-1">
     <link rel="stylesheet" href="tutorial.css?v=1">
     <link rel="stylesheet" href="drafts.css?v=1">
+    <link rel="stylesheet" href="permissions.css?v=1">
 </head>
 <body class="editor-shell">
     <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
@@ -80,6 +81,7 @@
         </header>
 
         <div class="main-content">
+            <p id="editor-permission-notice" role="status" style="grid-column: 1 / -1; overflow-wrap: anywhere;" hidden></p>
             <!-- Unified Editor & Preview Panel -->
             <div class="preview-panel unified-panel">
                 
@@ -277,6 +279,7 @@
                     <div id="items-container" class="grid-list"></div>
                 </div>
 
+                <div id="restricted-tab" class="tab-content" role="status">No editor sections available for your permissions.</div>
                 <!-- CAMPAIGNS TAB -->
                 <div id="campaigns-tab" class="tab-content">
                     <div class="content-header flex justify-between items-center mb-24">
@@ -729,24 +732,25 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script src="js/state-store.js"></script>
-    <script src="js/core.js?v=menu-placeholders-1"></script>
+    <script src="js/permissions.js?v=1"></script>
+    <script src="js/core.js?v=permissions-1"></script>
     <script src="js/schema.js"></script>
     <script src="vendor/yaml.min.js"></script>
     <script src="js/yaml-editor.js"></script>
     <script src="js/telemetry.js"></script>
     <script src="js/database.js?v=menu-placeholders-1"></script>
-    <script src="js/modals.js?v=commands-history-1"></script>
-    <script src="js/drafts.js?v=1"></script>
-    <script src="js/api.js?v=drafts-1"></script>
+    <script src="js/modals.js?v=permissions-1"></script>
+    <script src="js/drafts.js?v=permissions-1"></script>
+    <script src="js/api.js?v=permissions-1"></script>
     <script src="js/commands.js?v=custom-commands-model-name-4"></script>
-    <script src="js/custom-items.js?v=drafts-1"></script>
-    <script src="js/save-dispatcher.js?v=drafts-1"></script>
-    <script src="js/autosave-manager.js?v=drafts-1"></script>
-    <script src="js/ui.js?v=drafts-1"></script>
-    <script src="js/navigation.js?v=sidebar-1"></script>
+    <script src="js/custom-items.js?v=permissions-1"></script>
+    <script src="js/save-dispatcher.js?v=permissions-1"></script>
+    <script src="js/autosave-manager.js?v=permissions-1"></script>
+    <script src="js/ui.js?v=permissions-1"></script>
+    <script src="js/navigation.js?v=permissions-1"></script>
     <script src="js/tutorial-state.js?v=1"></script>
     <script src="js/tutorial-practice.js?v=1"></script>
-    <script src="js/tutorial.js?v=1"></script>
-    <script src="js/events.js"></script>
+    <script src="js/tutorial.js?v=permissions-1"></script>
+    <script src="js/events.js?v=permissions-1"></script>
 </body>
 </html>

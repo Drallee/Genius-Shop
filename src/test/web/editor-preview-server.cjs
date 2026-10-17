@@ -11,6 +11,7 @@ function createPreviewServer({ apiHandler } = {}) {
     yaml.set('languageSource', read('languages/en_US.yml'));
     const language = yaml.run('EditorYaml.parse(languageSource)');
     const files = {
+        permissions: { admin: true, analytics: true, drafts: true, publish: true, commands: true, database: true }, readOnlyFiles: [],
         shops: { 'blocks.yml': read('shops/blocks.yml') },
         mainMenu: read('menus/main-menu.yml'), purchaseMenu: read('menus/purchase-menu.yml'),
         sellMenu: read('menus/sell-menu.yml'), guiSettings: read('menus/gui-settings.yml'),

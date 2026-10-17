@@ -840,6 +840,7 @@ function mergeActivityEntries(primaryEntries, secondaryEntries) {
 }
 
 async function loadActivityLog() {
+    if (window.EditorPermissions && !EditorPermissions.can('admin')) { activityLog = []; return; }
     const localEntries = (Array.isArray(activityLog) ? activityLog : []).filter(isLocalActivityEntry);
     try {
         const response = await fetch(`api/activity-log?t=${Date.now()}`, {

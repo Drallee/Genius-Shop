@@ -646,7 +646,7 @@ web-editor:
     subtitle: "Configuration Editor"
     requirements-title: "Requirements"
     req1: "You must be logged into the Minecraft server"
-    req2: "You need admin permissions (geniusshop.admin or OP)"
+    req2: "You need web editor access (delegated permission, admin, or OP)"
     req3: "Your password is your player UUID (or a login code)"
     username-label: "Minecraft Username"
     username-placeholder: "Your in-game name"
@@ -669,7 +669,6 @@ web-editor:
     issues: "Report Issues"
     made-with: "Made with love by Dralle for the Minecraft community"
     copyright: "Â© 2025 Genius Shop - Open Source Project"
-
 
 
 

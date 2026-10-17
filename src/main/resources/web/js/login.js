@@ -13,7 +13,7 @@
                 "subtitle": "Configuration Editor",
                 "requirements-title": "Requirements",
                 "req1": "You must be logged into the Minecraft server",
-                "req2": "You need admin permissions (geniusshop.admin or OP)",
+                "req2": "You need web editor access (delegated permission, admin, or OP)",
                 "req3": "Use /shop editor in-game and enter the 6-digit code",
                 "tab-uuid": "UUID Login",
                 "tab-code": "Code Login",

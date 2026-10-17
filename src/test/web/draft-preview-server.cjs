@@ -4,7 +4,7 @@ const keys = { mainMenu: 'menus/main-menu.yml', purchaseMenu: 'menus/purchase-me
     sellMenu: 'menus/sell-menu.yml', guiSettings: 'menus/gui-settings.yml', campaignsFile: 'campaigns.yml',
     commandsFile: 'commands.yml', customItemsFile: 'custom-items.yml' };
 
-function createDraftPreviewServer() {
+function createDraftPreviewServer({ permissions = null, readOnlyFiles = [] } = {}) {
     const state = { live: null, workspace: null, version: 0, publishes: 0, errors: [], failPublish: false, requests: [] };
     const changes = () => [...new Set([...Object.keys(state.live), ...Object.keys(state.workspace)])].sort()
         .filter(file => state.live[file] !== state.workspace[file]).map(file => ({ file,
@@ -19,10 +19,21 @@ function createDraftPreviewServer() {
             state.workspace = { ...state.live };
         }
         const send = (code, body) => { response.writeHead(code, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(body)); };
+        const can = key => !permissions || permissions.admin || permissions[key];
+        const fileAllowed = file => file === 'commands.yml' ? can('commands') :
+            file === 'config.yml' || file === 'discord.yml' || file.startsWith('languages/') ? can('admin') : can('drafts');
+        if (url.pathname === '/api/permissions') { send(200, permissions || base.permissions); return true; }
+        const forbidden = url.pathname === '/api/database' && !can('database') ||
+            url.pathname === '/api/stock-analytics' && !can('analytics') ||
+            url.pathname === '/api/activity-log' && !can('admin') ||
+            url.pathname === '/api/economy-safety' && !can('admin') ||
+            url.pathname === '/api/draft/publish' && !can('publish') ||
+            url.pathname.startsWith('/api/file/') && !fileAllowed(decodeURIComponent(url.pathname.slice('/api/file/'.length)));
+        if (forbidden) { send(403, { message: 'Editor permission denied' }); return true; }
         if (url.pathname === '/api/files') {
-            const payload = { ...base, shops: {}, draft: status() };
-            Object.entries(keys).forEach(([key, file]) => { payload[key] = state.workspace[file]; });
-            Object.entries(state.workspace).forEach(([file, content]) => { if (file.startsWith('shops/')) payload.shops[file.slice(6)] = content; });
+            const payload = { ...base, shops: {}, draft: status(), permissions: permissions || base.permissions, readOnlyFiles };
+            Object.entries(keys).forEach(([key, file]) => { if (fileAllowed(file)) payload[key] = state.workspace[file]; else delete payload[key]; });
+            Object.entries(state.workspace).forEach(([file, content]) => { if (file.startsWith('shops/') && fileAllowed(file)) payload.shops[file.slice(6)] = content; });
             if (state.workspace['config.yml']) payload.economySafety = JSON.parse(state.workspace['config.yml']);
             send(200, payload);
             return true;
@@ -64,6 +75,9 @@ function createDraftPreviewServer() {
 
 module.exports = { createDraftPreviewServer };
 if (require.main === module) {
-    createDraftPreviewServer().listen(Number(process.argv[2] || 8799), '127.0.0.1', () =>
+    const role = process.argv[3] || 'admin';
+    if (!['admin', 'analytics', 'drafts', 'commands', 'database', 'publish', 'maintainer'].includes(role)) throw new Error('Unknown preview role: ' + role);
+    const permissions = role === 'maintainer' ? { drafts: true, publish: true } : { [role]: true };
+    createDraftPreviewServer({ permissions }).listen(Number(process.argv[2] || 8799), '127.0.0.1', () =>
         console.log('In-memory draft preview: http://127.0.0.1:' + (process.argv[2] || 8799)));
 }

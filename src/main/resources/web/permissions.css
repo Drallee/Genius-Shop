@@ -1,0 +1,13 @@
+[hidden] { display: none !important; }
+body:not(.permissions-ready) .sidebar-tabs,
+body:not(.permissions-ready) .main-content,
+body:not(.permissions-ready) .sticky-footer-actions { visibility: hidden; }
+.editor-shell #draft-status { margin-left: 12px; align-self: center; flex-shrink: 0; }
+@media (max-width: 600px) {
+    .editor-shell .sticky-footer-actions { display: block; }
+    .editor-shell .footer-actions-container {
+        display: grid;
+        grid-template-columns: repeat(var(--footer-action-count, 4), minmax(0, 1fr));
+    }
+    .editor-shell #draft-status { display: block; margin: 6px 0 0; }
+}

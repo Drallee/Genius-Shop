@@ -1,6 +1,7 @@
 // ===== AUTO-SAVE MANAGER =====
 
 function scheduleEditorAutoSave() {
+    if (window.EditorPermissions && !EditorPermissions.canSaveTab(getEditorState('currentTab'))) return;
     if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
     if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
     if (getEditorState('isLoadingFiles')) return;
@@ -11,6 +12,7 @@ function scheduleEditorAutoSave() {
 
     const timeout = setTimeout(async () => {
         setEditorState('autoSaveTimeout', null);
+        if (window.EditorPermissions && !EditorPermissions.canSaveTab(getEditorState('currentTab'))) return;
         if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
         if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
         try {

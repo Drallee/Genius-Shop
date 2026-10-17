@@ -120,7 +120,8 @@ function renderCustomItemsTab() {
             </div>
             ${customItemTriggers.map(trigger => {
                 const action = item.actions?.[trigger] || {};
-                const types = customItemActions.filter(type => trigger === 'right-click-container' || type !== 'SELL_CONTAINER');
+                const types = customItemActions.filter(type => (trigger === 'right-click-container' || type !== 'SELL_CONTAINER') &&
+                    (type !== 'COMMAND' || !window.EditorPermissions || EditorPermissions.can('commands')));
                 return `<div class="custom-item-action"><div class="command-grid">
                     <div class="setting-item"><label>${escapeHtml(trigger.replaceAll('-', ' '))}<select class="input-base"
                         onchange='setCustomItemAction(${JSON.stringify(id)}, ${JSON.stringify(trigger)}, this.value)'>

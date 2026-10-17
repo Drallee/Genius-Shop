@@ -3,6 +3,7 @@
 async function saveCurrentTabChanges(isSilent = false) {
     const start = Date.now();
     const tab = getEditorState('currentTab');
+    if (window.EditorPermissions && !EditorPermissions.canSaveTab(tab)) return;
     try {
         if (tab === 'shop') {
             await saveCurrentShop(isSilent);
@@ -14,7 +15,7 @@ async function saveCurrentTabChanges(isSilent = false) {
             await saveSellMenuYaml(isSilent);
         } else if (tab === 'campaigns') {
             await saveCampaignsYaml(isSilent);
-            await saveCurrentShop(true);
+            if (!window.EditorPermissions || EditorPermissions.canWriteFile(`shops/${currentShopFile}`)) await saveCurrentShop(true);
             await saveCampaignHubDirtyShops(true);
         } else if (tab === 'commands') {
             await saveCommandsYaml(isSilent);
@@ -36,26 +37,26 @@ async function saveCurrentTabChanges(isSilent = false) {
 
 async function saveAllDrafts() {
     const start = Date.now();
+    const allowed = file => !window.EditorPermissions || EditorPermissions.canWriteFile(file);
     try {
-        if (getEditorState('currentTab') === 'commands') {
+        if (allowed('commands.yml') && getEditorState('currentTab') === 'commands') {
             await saveCommandsYaml(true);
         }
-        await saveCurrentShop(true);
+        if (allowed(`shops/${currentShopFile}`)) await saveCurrentShop(true);
         for (const [name, content] of Object.entries(allShops)) {
-            if (name !== currentShopFile) await saveShopFileDirect(name, content, true);
+            if (name !== currentShopFile && allowed(`shops/${name}`)) await saveShopFileDirect(name, content, true);
         }
-        await saveCampaignHubDirtyShops(true);
-        await saveMainMenuYaml(true);
-        await savePurchaseMenuYaml(true);
-        await saveSellMenuYaml(true);
-        await saveCampaignsYaml(true);
-        await saveCustomItemsYaml(true);
-        if (getEditorState('currentTab') !== 'commands') {
+        if (allowed('campaigns.yml')) await saveCampaignHubDirtyShops(true);
+        if (allowed('menus/main-menu.yml')) await saveMainMenuYaml(true);
+        if (allowed('menus/purchase-menu.yml')) await savePurchaseMenuYaml(true);
+        if (allowed('menus/sell-menu.yml')) await saveSellMenuYaml(true);
+        if (allowed('campaigns.yml')) await saveCampaignsYaml(true);
+        if (allowed('custom-items.yml')) await saveCustomItemsYaml(true);
+        if (allowed('commands.yml') && getEditorState('currentTab') !== 'commands') {
             await saveCommandsYaml(true);
         }
-        await saveGuiSettingsYaml(true);
-        await saveEconomySafetySettings(true);
-        await loadDatabaseEditorData(true);
+        if (allowed('menus/gui-settings.yml')) await saveGuiSettingsYaml(true);
+        if (allowed('config.yml')) await saveEconomySafetySettings(true);
         setUnsavedChanges([]);
         if (window.EditorTelemetry) window.EditorTelemetry.track('draft_save_all', { durationMs: Date.now() - start }, true);
     } catch (error) {

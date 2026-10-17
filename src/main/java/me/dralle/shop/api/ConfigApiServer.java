@@ -375,6 +375,16 @@ public class ConfigApiServer {
                 return;
             }
 
+            EditorPermissions permissions = permissions(exchange);
+            if (!permissions.allows(path, method)) {
+                sendError(exchange, 403, "Forbidden", "Your editor permissions do not allow this operation");
+                return;
+            }
+            if (path.equals("/api/permissions")) {
+                sendJsonResponse(exchange, 200, permissions);
+                return;
+            }
+
             if (path.equals("/api/files")) {
                 if (method.equals("GET")) {
                     handleListFiles(exchange);
@@ -449,6 +459,8 @@ public class ConfigApiServer {
             } else {
                 sendError(exchange, 404, "Endpoint Not Found", "The requested API endpoint does not exist");
             }
+        } catch (SecurityException e) {
+            sendError(exchange, 403, "Forbidden", e.getMessage());
         } catch (ConcurrentModificationException e) {
             sendError(exchange, 409, "Configuration Conflict", e.getMessage());
         } catch (IllegalArgumentException e) {
@@ -482,12 +494,11 @@ public class ConfigApiServer {
         }
 
         // Check admin permission
-        if (!player.hasPermission("geniusshop.admin") && !player.hasPermission("shop.admin") && !player.isOp()) {
+        if (!EditorPermissions.of(player).access()) {
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("username", username);
-            errorData.put("requiredPermissions", new String[]{"geniusshop.admin", "shop.admin", "OP"});
-            sendError(exchange, 403, "Forbidden", "Player does not have admin permission to access the editor", errorData);
-            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Login denied for '" + username + "': missing admin permission");
+            sendError(exchange, 403, "Forbidden", "Player does not have permission to access the editor", errorData);
+            me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Login denied for '" + username + "': missing editor permission");
             return;
         }
 
@@ -708,11 +719,10 @@ public class ConfigApiServer {
         }
 
         // Verify permission
-        if (!player.hasPermission("geniusshop.admin") && !player.hasPermission("shop.admin") && !player.isOp()) {
+        if (!EditorPermissions.of(player).access()) {
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("username", tokenData.username);
-            errorData.put("requiredPermissions", new String[]{"geniusshop.admin", "shop.admin", "OP"});
-            sendError(exchange, 403, "Insufficient Permissions", "Your player no longer has admin permission to access the editor. You need one of: geniusshop.admin, shop.admin, or OP status", errorData);
+            sendError(exchange, 403, "Insufficient Permissions", "Your player no longer has permission to access the editor", errorData);
             autoLoginTokens.remove(token);
             return;
         }
@@ -797,7 +807,7 @@ public class ConfigApiServer {
             return false;
         }
 
-        if (!player.hasPermission("geniusshop.admin") && !player.hasPermission("shop.admin") && !player.isOp()) {
+        if (!EditorPermissions.of(player).access()) {
             sessions.remove(sessionToken);
             return false;
         }
@@ -852,9 +862,17 @@ public class ConfigApiServer {
 
     private void handleListFiles(HttpExchange exchange) throws IOException {
         Map<String, Object> response = new HashMap<>();
-        ensureEditorFilesExist();
-        ConfigurationDraftStore.Workspace snapshot = drafts.workspace(getSessionUsername(exchange));
-        Map<String, String> workspace = snapshot.files();
+        EditorPermissions permissions = permissions(exchange);
+        if (permissions.admin()) ensureEditorFilesExist();
+        ConfigurationDraftStore.Workspace snapshot = permissions.workspace() ? drafts.workspace(getSessionUsername(exchange)) : null;
+        Map<String, String> workspace = new TreeMap<>();
+        if (snapshot != null) snapshot.files().forEach((name, source) -> {
+            if (permissions.canReadFile(name)) workspace.put(name, source);
+        });
+        response.put("permissions", permissions);
+        response.put("readOnlyFiles", workspace.entrySet().stream()
+                .filter(entry -> !permissions.canWriteContent(entry.getKey(), entry.getValue(), entry.getValue()))
+                .map(Map.Entry::getKey).toList());
 
         // Sanitized price format config for web preview (no sensitive config values exposed).
         Map<String, Object> priceFormat = new HashMap<>();
@@ -865,7 +883,7 @@ public class ConfigApiServer {
         grouped.put("maxDecimals", plugin.getConfig().getInt("price-format.grouped.max-decimals", 2));
         priceFormat.put("grouped", grouped);
         response.put("priceFormat", priceFormat);
-        response.put("economySafety", getEconomySafetySettingsMap(draftConfig(workspace)));
+        if (permissions.admin()) response.put("economySafety", getEconomySafetySettingsMap(draftConfig(workspace)));
         Map<String, String> draftShops = new TreeMap<>();
         workspace.forEach((name, content) -> { if (name.startsWith("shops/")) draftShops.put(name.substring(6), content); });
         response.put("shops", draftShops);
@@ -873,7 +891,7 @@ public class ConfigApiServer {
                 "sellMenu", "menus/sell-menu.yml", "guiSettings", "menus/gui-settings.yml", "bulkSellMenu", "menus/bulk-sell-menu.yml",
                 "discord", "discord.yml", "campaignsFile", "campaigns.yml", "commandsFile", "commands.yml", "customItemsFile", "custom-items.yml");
         menuKeys.forEach((key, name) -> { response.remove(key); if (workspace.containsKey(name)) response.put(key, workspace.get(name)); });
-        response.put("draft", snapshot.draft());
+        if (snapshot != null) response.put("draft", snapshot.draft());
 
         // Add server info
         Map<String, Object> serverInfo = new HashMap<>();
@@ -948,7 +966,7 @@ public class ConfigApiServer {
         }
         java.util.Collections.sort(materials);
         serverInfo.put("materials", materials);
-        response.put("commandCatalog", buildCommandCatalog(workspace));
+        response.put("commandCatalog", buildCommandCatalog(permissions.commands() && snapshot != null ? snapshot.files() : workspace));
         
         response.put("serverInfo", serverInfo);
 
@@ -965,7 +983,16 @@ public class ConfigApiServer {
     private void handleDraftAction(HttpExchange exchange, String path, String method) throws Exception {
         String user = getSessionUsername(exchange);
         if (path.equals("/api/draft/review") && method.equals("GET")) {
-            sendJsonResponse(exchange, 200, drafts.review(user));
+            ConfigurationDraftStore.Review review = drafts.review(user);
+            EditorPermissions permissions = permissions(exchange);
+            for (var change : review.changes()) {
+                if (!permissions.canReadFile(change.file())) throw new SecurityException("This draft includes restricted files. Ask an administrator or discard the draft.");
+            }
+            if (!permissions.admin() && !review.errors().isEmpty()) {
+                review = new ConfigurationDraftStore.Review(review.token(), review.draft(), review.changes(),
+                        List.of("Configuration validation failed. Ask an administrator to inspect the server configuration."));
+            }
+            sendJsonResponse(exchange, 200, review);
             return;
         }
         if (!method.equals("POST")) {
@@ -988,10 +1015,25 @@ public class ConfigApiServer {
         try {
             // Install all files and reload in one server task, so no gameplay tick observes half a publish.
             published = plugin.getServer().getScheduler().callSyncMethod(plugin,
-                    () -> drafts.publish(user, token, plugin::reloadPublishedConfiguration)).get();
+                    () -> {
+                        synchronized (drafts) {
+                            // Permission revocation and command-bearing changes must not bypass the final publish guard.
+                            if (!validateSession(exchange)) throw new SecurityException("Your editor session is no longer authorized");
+                            EditorPermissions permissions = permissions(exchange);
+                            if (!permissions.publish()) throw new SecurityException("Publishing requires geniusshop.editor.publish");
+                            ConfigurationDraftStore.Review currentReview = drafts.review(user);
+                            for (var change : currentReview.changes()) {
+                                requireFileWrite(permissions, change.file(), change.before(), change.after());
+                            }
+                            if (!permissions.admin() && !currentReview.errors().isEmpty()) {
+                                throw new IllegalArgumentException("Configuration validation failed. Ask an administrator to inspect the server configuration.");
+                            }
+                            return drafts.publish(user, token, plugin::reloadPublishedConfiguration);
+                        }
+                    }).get();
         } catch (java.util.concurrent.ExecutionException e) {
             if (e.getCause() instanceof Exception cause) {
-                if (cause instanceof ConcurrentModificationException || cause instanceof IllegalArgumentException) throw cause;
+                if (cause instanceof SecurityException || cause instanceof ConcurrentModificationException || cause instanceof IllegalArgumentException) throw cause;
                 sendError(exchange, 500, "Publish Failed", cause.getMessage());
                 return;
             }
@@ -1465,6 +1507,10 @@ public class ConfigApiServer {
             return;
         }
 
+        synchronized (drafts) {
+            requireFileWrite(permissions(exchange), fileName, drafts.files(getSessionUsername(exchange)).get(fileName), fileContent);
+        }
+
         // Validate YAML
         try {
             new YamlConfiguration().loadFromString(fileContent);
@@ -1496,8 +1542,12 @@ public class ConfigApiServer {
             }
         }
 
-        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, fileContent,
-                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        ConfigurationDraftStore.Status status;
+        synchronized (drafts) {
+            requireFileWrite(permissions(exchange), fileName, drafts.files(getSessionUsername(exchange)).get(fileName), fileContent);
+            status = drafts.save(getSessionUsername(exchange), fileName, fileContent,
+                    exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        }
         sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status));
     }
 
@@ -1506,8 +1556,12 @@ public class ConfigApiServer {
             sendError(exchange, 403, "Deletion Forbidden", "Only shop files can be deleted");
             return;
         }
-        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, null,
-                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        ConfigurationDraftStore.Status status;
+        synchronized (drafts) {
+            requireFileWrite(permissions(exchange), fileName, drafts.files(getSessionUsername(exchange)).get(fileName), null);
+            status = drafts.save(getSessionUsername(exchange), fileName, null,
+                    exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
+        }
         sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status));
     }
 
@@ -1710,8 +1764,18 @@ public class ConfigApiServer {
 
     private String getSessionUsername(HttpExchange exchange) {
         String sessionToken = exchange.getRequestHeaders().getFirst("X-Session-Token");
-        SessionData session = sessions.get(sessionToken);
+        SessionData session = sessionToken == null ? null : sessions.get(sessionToken);
         return session != null ? session.username : "unknown";
+    }
+
+    private EditorPermissions permissions(HttpExchange exchange) {
+        return EditorPermissions.of(getPlayerByName(getSessionUsername(exchange)));
+    }
+
+    private static void requireFileWrite(EditorPermissions permissions, String file, String before, String after) {
+        if (!permissions.canWriteContent(file, before, after)) {
+            throw new SecurityException("You cannot modify " + file + ". Command-bearing files also require geniusshop.editor.commands; sensitive configuration requires full admin access.");
+        }
     }
 
     private File getActivityLogFile() {

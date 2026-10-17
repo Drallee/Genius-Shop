@@ -36,8 +36,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Initial load
-    await loadActivityLog();
     await loadAllFiles();
+    await loadActivityLog();
     if (typeof updateQuickTips === 'function') {
         updateQuickTips(currentTab || 'mainmenu');
     }
@@ -229,4 +229,3 @@ function updateTransactionSettings() {
         updateSellPreview();
     }
 }
-
