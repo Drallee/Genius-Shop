@@ -970,17 +970,28 @@ public class ShopPlugin extends JavaPlugin {
     }
 
     public void recordTransactions(Player player, TransactionEntry.Type type, List<TransactionEntry.Line> lines) {
-        java.util.UUID operationId = java.util.UUID.randomUUID();
-        java.time.Instant now = java.time.Instant.now();
-        List<TransactionEntry> entries = lines.stream().map(line -> new TransactionEntry(
-                java.util.UUID.randomUUID(), operationId, now, player.getUniqueId(), player.getName(), type,
-                line.shop() == null ? "" : line.shop(), line.item() == null ? "" : line.item(),
-                line.quantity(), line.total() / line.quantity(), line.total())).toList();
+        recordTransactions(java.util.UUID.randomUUID(), player, type, lines);
+    }
+
+    /** Retrying the same operation requires the same ordered lines; their record IDs stay stable. */
+    public void recordTransactions(java.util.UUID operationId, Player player, TransactionEntry.Type type, List<TransactionEntry.Line> lines) {
+        List<TransactionEntry> entries = new java.util.ArrayList<>();
         try {
+            java.util.Objects.requireNonNull(operationId, "operationId");
+            java.time.Instant now = java.time.Instant.now();
+            for (int index = 0; index < lines.size(); index++) {
+                var line = lines.get(index);
+                var id = java.util.UUID.nameUUIDFromBytes((operationId + ":" + index).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                entries.add(new TransactionEntry(id, operationId, now, player.getUniqueId(), player.getName(), type,
+                        line.shop() == null ? "" : line.shop(), line.item() == null ? "" : line.item(),
+                        line.quantity(), line.total() / line.quantity(), line.total()));
+            }
+            if (transactionLedger == null) throw new IllegalStateException("Transaction ledger is unavailable");
             transactionLedger.append(entries);
-        } catch (java.sql.SQLException failure) {
+        } catch (java.sql.SQLException | RuntimeException failure) {
             // The trade is already completed; a logging failure must not cause another payment.
-            getLogger().log(java.util.logging.Level.SEVERE, "Could not persist completed transactions: " + entries, failure);
+            getLogger().log(java.util.logging.Level.SEVERE, "Could not persist completed transaction operation " + operationId
+                    + "; player=" + player + "; type=" + type + "; source lines=" + lines + "; prepared records=" + entries, failure);
         }
     }
 

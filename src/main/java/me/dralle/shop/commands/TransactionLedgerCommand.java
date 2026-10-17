@@ -22,8 +22,7 @@ public final class TransactionLedgerCommand {
     }
 
     public boolean execute(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("geniusshop.ledger") && !sender.hasPermission("geniusshop.admin")
-                && !sender.hasPermission("shop.admin") && !sender.isOp()) {
+        if (!canRead(sender)) {
             sender.sendMessage(plugin.getMessages().getMessage("no-permission"));
             return true;
         }
@@ -40,10 +39,12 @@ public final class TransactionLedgerCommand {
             try {
                 List<TransactionEntry> entries = plugin.getTransactionLedger().search(query);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (!canRead(sender) || (sender instanceof org.bukkit.entity.Player player && !player.isOnline())) return;
                     sender.sendMessage("Transaction ledger, page " + (query.offset() / 10 + 1) + " (UTC)");
                     if (entries.isEmpty()) sender.sendMessage("No matching transactions.");
                     for (TransactionEntry entry : entries.stream().limit(10).toList()) {
                         sender.sendMessage(entry.id() + " | " + DATE.format(entry.timestamp()) + " | " + entry.type());
+                        sender.sendMessage("Operation: " + entry.operationId());
                         sender.sendMessage(entry.playerName() + " (" + entry.playerId() + ") | " + entry.shop() + " | " + entry.item());
                         sender.sendMessage(entry.quantity() + " x " + plugin.formatCurrency(entry.unitPrice()) + " = " + plugin.formatCurrency(entry.total()));
                     }
@@ -51,10 +52,17 @@ public final class TransactionLedgerCommand {
                 });
             } catch (Exception failure) {
                 plugin.getLogger().log(Level.WARNING, "Failed to search transaction ledger", failure);
-                plugin.getServer().getScheduler().runTask(plugin, () -> sender.sendMessage("Transaction ledger unavailable. Check the server log."));
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (canRead(sender)) sender.sendMessage("Transaction ledger unavailable. Check the server log.");
+                });
             }
         });
         return true;
+    }
+
+    private static boolean canRead(CommandSender sender) {
+        return sender.hasPermission("geniusshop.ledger") || sender.hasPermission("geniusshop.admin")
+                || sender.hasPermission("shop.admin") || sender.isOp();
     }
 
     public static TransactionLedger.Query parse(String[] args) {

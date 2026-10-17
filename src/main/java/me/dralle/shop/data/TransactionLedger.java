@@ -114,6 +114,12 @@ public final class TransactionLedger implements AutoCloseable {
     public record Query(String player, String shop, String item, TransactionEntry.Type type,
                         Instant from, Instant to, int limit, int offset) {
         public Query {
+            try {
+                if (from != null) from.toEpochMilli();
+                if (to != null) to.toEpochMilli();
+            } catch (ArithmeticException failure) {
+                throw new IllegalArgumentException("Ledger dates are outside the supported timestamp range", failure);
+            }
             if (limit < 1 || limit > 100 || offset < 0 || (from != null && to != null && !from.isBefore(to))) {
                 throw new IllegalArgumentException("Invalid ledger date range or pagination");
             }

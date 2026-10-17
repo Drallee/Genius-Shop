@@ -135,4 +135,82 @@ class TransactionLedgerTest {
             assertEquals(1210D, entries.stream().mapToDouble(TransactionEntry::total).sum());
         }
     }
+
+    @Test
+    void operationIdsMakeRecordingRetriesIdempotentAcrossRestarts() throws Exception {
+        Path file = folder.resolve("ledger.db");
+        ShopPlugin plugin = mock(ShopPlugin.class, CALLS_REAL_METHODS);
+        Player buyer = mock(Player.class);
+        when(buyer.getUniqueId()).thenReturn(player);
+        when(buyer.getName()).thenReturn("Alice");
+        UUID operation = UUID.randomUUID();
+        var lines = List.of(new TransactionEntry.Line("market", "apple", 4, 10),
+                new TransactionEntry.Line("market", "apple", 2, 6));
+        List<TransactionEntry> original;
+        var field = ShopPlugin.class.getDeclaredField("transactionLedger");
+        field.setAccessible(true);
+        try (var ledger = new TransactionLedger(file.toFile())) {
+            field.set(plugin, ledger);
+            plugin.recordTransactions(operation, buyer, TransactionEntry.Type.SALE, lines);
+            original = ledger.search(all());
+            assertEquals(2, original.size());
+            assertEquals(2, original.stream().map(TransactionEntry::id).distinct().count());
+            assertTrue(original.stream().allMatch(entry -> entry.operationId().equals(operation)));
+        }
+        try (var ledger = new TransactionLedger(file.toFile())) {
+            field.set(plugin, ledger);
+            plugin.recordTransactions(operation, buyer, TransactionEntry.Type.SALE, lines);
+            assertEquals(original, ledger.search(all()));
+            plugin.recordTransactions(UUID.randomUUID(), buyer, TransactionEntry.Type.SALE, lines);
+            assertEquals(4, ledger.search(all()).size());
+        }
+    }
+
+    @Test
+    void loggingFailuresCannotEscapeBackIntoCompletedTradeHandling() throws Exception {
+        ShopPlugin plugin = mock(ShopPlugin.class, CALLS_REAL_METHODS);
+        TransactionLedger ledger = mock(TransactionLedger.class);
+        var logger = mock(java.util.logging.Logger.class);
+        when(plugin.getLogger()).thenReturn(logger);
+        Player buyer = mock(Player.class);
+        when(buyer.getUniqueId()).thenReturn(player);
+        when(buyer.getName()).thenReturn("Alice");
+        var field = ShopPlugin.class.getDeclaredField("transactionLedger");
+        field.setAccessible(true);
+        field.set(plugin, ledger);
+        UUID operation = UUID.randomUUID();
+        var lines = List.of(new TransactionEntry.Line("market", "apple", 4, 10));
+        doThrow(new java.sql.SQLException("disk full")).when(ledger).append(anyList());
+        assertDoesNotThrow(() -> plugin.recordTransactions(operation, buyer, TransactionEntry.Type.SALE, lines));
+        doThrow(new IllegalStateException("closed adapter")).when(ledger).append(anyList());
+        assertDoesNotThrow(() -> plugin.recordTransactions(operation, buyer, TransactionEntry.Type.SALE, lines));
+        verify(logger, times(2)).log(eq(java.util.logging.Level.SEVERE), contains(operation.toString()), any(Throwable.class));
+    }
+
+    @Test
+    void malformedBatchOrUnavailableLedgerIsLoggedWithoutWritingAPartialOperation() throws Exception {
+        ShopPlugin plugin = mock(ShopPlugin.class, CALLS_REAL_METHODS);
+        TransactionLedger ledger = mock(TransactionLedger.class);
+        var logger = mock(java.util.logging.Logger.class);
+        when(plugin.getLogger()).thenReturn(logger);
+        Player buyer = mock(Player.class);
+        when(buyer.getUniqueId()).thenReturn(player);
+        when(buyer.getName()).thenReturn("Alice");
+        var field = ShopPlugin.class.getDeclaredField("transactionLedger");
+        field.setAccessible(true);
+        field.set(plugin, ledger);
+        var good = new TransactionEntry.Line("market", "apple", 4, 10);
+        var invalid = new TransactionEntry.Line("market", "bad", 0, 10);
+        assertDoesNotThrow(() -> plugin.recordTransactions(buyer, TransactionEntry.Type.SALE, List.of(good, invalid)));
+        verifyNoInteractions(ledger);
+        field.set(plugin, null);
+        assertDoesNotThrow(() -> plugin.recordTransactions(buyer, TransactionEntry.Type.SALE, List.of(good)));
+        verify(logger, times(2)).log(eq(java.util.logging.Level.SEVERE), contains("source lines="), any(Throwable.class));
+    }
+
+    @Test
+    void queriesRejectUnrepresentableTimestampsBeforeTouchingTheDatabase() {
+        assertThrows(IllegalArgumentException.class, () -> new TransactionLedger.Query(null, null, null, null, Instant.MAX, null, 10, 0));
+        assertThrows(IllegalArgumentException.class, () -> new TransactionLedger.Query(null, null, null, null, null, Instant.MIN, 10, 0));
+    }
 }

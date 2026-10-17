@@ -174,6 +174,8 @@ Filters can be combined: `player` accepts an exact name (case insensitive) or UU
 ISO timestamps are also accepted, with an inclusive `from` and exclusive `to`.
 Results show ten entries per page, newest first. Access requires
 `geniusshop.ledger` (operator by default); full and legacy admins are supported.
+Each result displays both its record ID and the operation ID shared by bulk lines.
+Access is checked again before asynchronously queried results are displayed.
 
 Ledger records are committed immediately to `transactions.db`, including SQLite
 companion files when backing up. Bulk trades have one record per sale-plan line,
@@ -182,7 +184,12 @@ duplicate rows, and each bulk batch commits together. The database stays open
 across configuration reloads and closes on shutdown. Bulk-sell completion events
 now run after inventory removal and ledger recording. If the ledger cannot open
 during startup, the plugin disables itself. A runtime write failure logs the full record
-at severe level; it does not repeat or undo an already completed trade. Vault
+at severe level, including the operation and source lines; it does not interrupt,
+repeat, or undo an already completed trade. Integrations can pass a stable operation
+UUID to `recordTransactions(operationId, player, type, lines)` when retrying the same
+completed operation with the same ordered lines. Record IDs are derived from that
+operation and each line's position, so identical retries remain deduplicated after restarts.
+Omitting the operation UUID creates a new operation on each call. Vault
 payment and the SQLite commit are separate operations, so a process crash between
 them is not protected by a shared transaction.
 
