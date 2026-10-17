@@ -149,9 +149,13 @@ class SmartSpawnerSaleStorageTest {
         Fixture f = new Fixture();
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
         ShopItem item = mock(ShopItem.class);
+        org.bukkit.World world = mock(org.bukkit.World.class);
+        when(world.getName()).thenReturn("world");
+        when(f.player.getWorld()).thenReturn(world);
         var config = new org.bukkit.configuration.file.YamlConfiguration();
         config.set("economy-safety.enabled", false);
         when(plugin.getConfig()).thenReturn(config);
+        when(plugin.getEconomy().isReady()).thenReturn(true);
         when(plugin.getMessages().getMessage(anyString())).thenReturn("%amount% %price%");
         when(plugin.formatCurrency(anyDouble())).thenReturn("price");
         when(item.getMaterial()).thenReturn(Material.STONE);

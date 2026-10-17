@@ -6,9 +6,6 @@ import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopCampaign;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.stock.StockResetRule;
-import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.ItemConditionUtil;
-import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
 import me.dralle.shop.util.YamlUtil;
@@ -642,29 +639,13 @@ public class ShopManager {
             if (onlyShopKey != null && !onlyShopKey.isEmpty() && !entry.getKey().equalsIgnoreCase(onlyShopKey)) continue;
             ShopData shop = entry.getValue();
 
-            // Permission check
-            if (player != null && shop.getPermission() != null && !shop.getPermission().isEmpty()) {
-                if (!player.hasPermission(shop.getPermission())) continue;
-            }
+            if (!me.dralle.shop.economy.TransactionService.eligibility(plugin, player, shop, null, null).allowed()) continue;
 
-            // Time restriction check
-            if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) continue;
 
             for (ShopItem si : shop.getItems()) {
                 if (si.getSellPrice() != null && si.getSellPrice() > 0) {
-                    // Item-level permission check
-                    if (player != null && si.getPermission() != null && !si.getPermission().isEmpty()) {
-                        if (!player.hasPermission(si.getPermission())) continue;
-                    }
+                    if (!me.dralle.shop.economy.TransactionService.eligibility(plugin, player, shop, si, null).allowed()) continue;
 
-                    // Item-level time restriction check
-                    if (!ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) continue;
-
-                    // Advanced conditions check
-                    if (player != null) {
-                        ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, si);
-                        if (!condition.allowed()) continue;
-                    }
 
                     if (ShopItemUtil.isSameItem(stack, si)) {
                         matches.add(new SellInfo(si, entry.getKey()));
@@ -679,8 +660,7 @@ public class ShopManager {
     private double currentSellPrice(SellInfo info) {
         if (info == null || info.item == null) return 0D;
         ShopData shop = info.shopKey != null ? getShop(info.shopKey) : null;
-        double candidatePrice = PriceFormulaUtil.resolveSellBasePrice(plugin, info.item);
-        return CampaignUtil.applySellCampaign(shop, info.item, candidatePrice);
+        return me.dralle.shop.economy.TransactionService.price(plugin, shop, info.item, false, true, 1D).unit();
     }
 
     public CompiledShopCatalog getCompiledCatalog() {

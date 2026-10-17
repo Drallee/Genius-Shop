@@ -3,12 +3,10 @@ package me.dralle.shop.commands;
 import me.dralle.shop.ShopManager;
 import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.api.events.ShopSellEvent;
-import me.dralle.shop.economy.EconomyHook;
+import me.dralle.shop.economy.TransactionService;
 import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
-import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.PriceFormulaUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -103,7 +101,7 @@ public class CustomSellAllService {
                 int available = Math.min(remainingStackAmount, Integer.MAX_VALUE - totalItems);
                 if (available <= 0) { partial = true; break; }
 
-                SalePlan plan = createPlan(player, slot, stack, available, sellInfo, plannedByItem,
+                SalePlan plan = createPlan(player, slot, available, sellInfo, plannedByItem,
                         multiplier, useCampaigns, itemId);
                 if (plan == null) {
                     partial = true;
@@ -149,32 +147,23 @@ public class CustomSellAllService {
 
         Map<Integer, Integer> quantities = new HashMap<>();
         for (SalePlan plan : plans) quantities.merge(plan.slot, plan.amount, Integer::sum);
-        if (!inventory.approveSale(quantities, totalEarned)) return SellAllResult.empty();
-        EconomyHook.EconomyOperationResult depositResult;
-        try {
-            if (!inventory.removeItems(snapshot, quantities)) return SellAllResult.empty();
-            depositResult = plugin.getEconomy().tryDeposit(player, totalEarned);
-        } catch (RuntimeException ex) {
-            inventory.restoreItems(snapshot);
-            throw ex;
-        }
-        if (!depositResult.success()) {
-            inventory.restoreItems(snapshot);
-            TransactionSafetyGuard.auditEconomyFailure(plugin, player, "custom-sellall-deposit", shopKey, null, Material.AIR, totalEarned, depositResult.errorMessage());
+        var result = TransactionService.sale(plugin, player, new TransactionService.Context(saleAction(itemId), shopKey, itemId),
+                totalEarned, inventory, snapshot, quantities, () -> {
+                    for (SalePlan plan : plans) {
+                        ShopItem item = plan.sellInfo.item;
+                        ShopData shop = plugin.getShopManager().getShop(plan.sellInfo.shopKey);
+                        TransactionService.updateCounts(plugin, player, item.getUniqueKey(), plan.amount, false,
+                                item.isDynamicPricing(), item.getGlobalLimit(), TransactionService.sellAddsToStock(shop, item));
+                        TransactionSafetyGuard.rememberSuccessfulUnitPrice(saleAction(itemId), saleKey(itemId, item.getUniqueKey()), plan.unitPrice);
+                    }
+                });
+        if (!result.completed()) {
             player.sendMessage(plugin.getMessages().getMessage("custom-command-economy-failure"));
             return SellAllResult.empty();
         }
 
         for (SalePlan plan : plans) {
             ShopItem item = plan.sellInfo.item;
-            plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), item.getUniqueKey(), plan.amount);
-            ShopData shopData = plugin.getShopManager().getShop(plan.sellInfo.shopKey);
-            boolean adjustForStock = item.getGlobalLimit() > 0 && resolveSellAddsToStock(shopData, item);
-            boolean adjustForDynamicOnly = item.isDynamicPricing() && item.getGlobalLimit() <= 0;
-            if (adjustForStock || adjustForDynamicOnly) {
-                plugin.getDataManager().incrementGlobalCount(item.getUniqueKey(), -plan.amount);
-            }
-            TransactionSafetyGuard.rememberSuccessfulUnitPrice(saleAction(itemId), saleKey(itemId, item.getUniqueKey()), plan.unitPrice);
             Bukkit.getPluginManager().callEvent(new ShopSellEvent(player, item, plan.amount, plan.earned, plan.sellInfo.shopKey));
         }
 
@@ -189,42 +178,27 @@ public class CustomSellAllService {
     private SalePlan createPlan(
             Player player,
             int slot,
-            ItemStack stack,
             int maxAmount,
             ShopManager.SellInfo sellInfo,
             Map<String, Integer> plannedByItem,
             double multiplier, boolean useCampaigns, String itemId
     ) {
-        int amountToSell = maxAmount;
         String itemKey = sellInfo.item.getUniqueKey();
-        int alreadyPlanned = plannedByItem.getOrDefault(itemKey, 0);
-        if (sellInfo.item.getLimit() > 0) {
-            int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
-            int remainingLimit = sellInfo.item.getLimit() - current - alreadyPlanned;
-            if (remainingLimit <= 0) return null;
-            amountToSell = Math.min(amountToSell, remainingLimit);
-        }
-
         ShopData shopData = plugin.getShopManager().getShop(sellInfo.shopKey);
-        boolean sellAddsToStock = resolveSellAddsToStock(shopData, sellInfo.item);
-        boolean allowOverflow = resolveAllowSellStockOverflow(shopData, sellInfo.item);
-        if (sellAddsToStock && sellInfo.item.getGlobalLimit() > 0 && !allowOverflow) {
-            int current = plugin.getDataManager().getGlobalCount(itemKey);
-            int maxCanReplenish = Math.max(0, current - alreadyPlanned);
-            if (maxCanReplenish <= 0) return null;
-            amountToSell = Math.min(amountToSell, maxCanReplenish);
-        }
+        if (!TransactionService.eligibility(plugin, player, shopData, sellInfo.item, null).allowed()) return null;
+        int amountToSell = TransactionService.sellCapacity(plugin, player, shopData, sellInfo.item,
+                maxAmount, plannedByItem.getOrDefault(itemKey, 0));
+
 
         if (amountToSell <= 0) return null;
-        double unitPrice = calculateCurrentSellPrice(shopData, sellInfo.item, useCampaigns) * multiplier;
+        var quote = TransactionService.price(plugin, shopData, sellInfo.item, false, useCampaigns, multiplier);
+        double unitPrice = quote.unit();
         double earned = sellInfo.item.calculateSellTotal(unitPrice, amountToSell);
         if (!Double.isFinite(earned) || earned <= 0D) return null;
+        boolean dynamic = quote.dynamic();
+        double min = quote.minimum();
+        double max = quote.maximum();
 
-        boolean dynamic = sellInfo.item.isDynamicPricing()
-                || (sellInfo.item.getSellPriceFormula() != null && !sellInfo.item.getSellPriceFormula().trim().isEmpty());
-        double campaignMultiplier = (useCampaigns ? CampaignUtil.getActiveSellMultiplier(shopData, sellInfo.item) : 1D) * multiplier;
-        double min = sellInfo.item.getMinPrice() > 0D ? sellInfo.item.getMinPrice() * campaignMultiplier : 0D;
-        double max = sellInfo.item.getMaxPrice() > 0D ? sellInfo.item.getMaxPrice() * campaignMultiplier : 0D;
         TransactionSafetyGuard.GuardResult guard = TransactionSafetyGuard.validateTransaction(
                 plugin,
                 player,
@@ -257,20 +231,8 @@ public class CustomSellAllService {
                 .replace("%price%", plugin.formatCurrency(result.earned)));
     }
 
-    private boolean resolveSellAddsToStock(ShopData shop, ShopItem item) {
-        if (item.getSellAddsToStock() != null) return item.getSellAddsToStock();
-        return shop != null && shop.isSellAddsToStock();
-    }
-
-    private boolean resolveAllowSellStockOverflow(ShopData shop, ShopItem item) {
-        if (item.getAllowSellStockOverflow() != null) return item.getAllowSellStockOverflow();
-        return shop != null && shop.isAllowSellStockOverflow();
-    }
-
     private double calculateCurrentSellPrice(ShopData shop, ShopItem item, boolean useCampaigns) {
-        if (item.getSellPrice() == null) return 0D;
-        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, item);
-        return useCampaigns ? CampaignUtil.applySellCampaign(shop, item, currentPrice) : currentPrice;
+        return TransactionService.price(plugin, shop, item, false, useCampaigns, 1D).unit();
     }
 
     private String saleAction(String itemId) {

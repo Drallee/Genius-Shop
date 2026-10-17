@@ -253,13 +253,11 @@ public class ShopItem {
     }
 
     public double calculateBuyTotal(double currentPrice, int quantity) {
-        int unitAmount = Math.max(1, amount);
-        return buyPricePerItem ? currentPrice * quantity : currentPrice * (quantity / (double) unitAmount);
+        return me.dralle.shop.economy.TransactionService.total(currentPrice, quantity, buyPricePerItem, amount);
     }
 
     public double calculateSellTotal(double currentSellPrice, int quantity) {
-        int unitAmount = Math.max(1, amount);
-        return sellPricePerItem ? currentSellPrice * quantity : currentSellPrice * (quantity / (double) unitAmount);
+        return me.dralle.shop.economy.TransactionService.total(currentSellPrice, quantity, sellPricePerItem, amount);
     }
 
     public String getPotionType() {

@@ -40,6 +40,36 @@ Back up the entire plugin data directory before upgrading. Stop the server, repl
 - Configurable lore, legacy colors, HEX colors, multi-stop gradients, stock/reset placeholders, and live GUI updates.
 - Custom commands in `commands.yml` for opening shops/items or selling eligible inventory items. Bundled command examples are disabled by default.
 
+### Transaction Settlement
+
+Purchase, sell, bulk-menu, command sell-all, and container/spawner-wand transactions
+share `TransactionService` for pricing, eligibility, payment/delivery ordering, count
+updates, and compensation. Service results expose a UUID, status, and failure reason.
+Transactions execute on the server thread and reject nested settlement for the same player.
+
+Purchases withdraw before delivery. If delivery throws, the inventory snapshot is restored
+before a refund is attempted. Sales remove validated quantities before paying; failed
+payments restore the source. Failed restoration or refunds return `COMPENSATION_FAILED`
+and log the transaction ID, player UUID, amount, context, and error for manual reconciliation.
+Payments and refunds are not automatically retried. If inventory restoration fails after a
+purchase, the service does not also refund potentially delivered items.
+
+Count-update failures after money/items settle return `COMPLETED_WITH_ERRORS` and are
+logged at severe level. Do not repeat the trade to repair counts: financial settlement is
+already complete, and count updates may be partially applied. Notifications and completed
+trade events remain outside compensation. Arbitrary purchase command effects (permissions,
+other plugins, external state) are not reversible, even if money and inventory are restored.
+Vault providers must report payment outcomes correctly; an external provider that changes a
+balance and then reports failure cannot be made atomic with Bukkit inventories.
+
+Intentional safety changes: selling without a functioning economy no longer removes items;
+normal/bulk sales remove before payment and restore on failure; bulk-menu limits include
+all already-planned stacks and its anti-spike reference uses the executed price;
+execution rechecks shop/item permissions and conditions.
+API price lookups also respect player conditions. Unit/bundle pricing, formulas, campaigns,
+wand multipliers, source-selection rules, and successful-trade messages are preserved.
+See [transaction testing](docs/transaction-testing.md) for the server regression checklist.
+
 ### Pricing and Campaigns
 
 Use `buy-price-per-item` and `sell-price-per-item` to choose unit or bundle pricing. Both default to `true`; when set to `false`, the corresponding total is `price * (selected amount / configured amount)`.

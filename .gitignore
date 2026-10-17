@@ -20,6 +20,8 @@
 !.github/workflows/**
 
 # Keep documentation.
+!docs/
+!docs/transaction-testing.md
 !wiki/
 !wiki/**
 

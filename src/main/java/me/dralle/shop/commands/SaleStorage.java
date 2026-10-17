@@ -11,13 +11,22 @@ public interface SaleStorage {
 
     default boolean approveSale(Map<Integer, Integer> quantities, double payout) { return true; }
 
+    /** Return false only when nothing was removed; throw on a partial mutation so settlement can restore it. */
     boolean removeItems(ItemStack[] expected, Map<Integer, Integer> quantities);
 
     void restoreItems(ItemStack[] snapshot);
 
     static SaleStorage inventory(Inventory inventory) {
+        return inventory(inventory, false);
+    }
+
+    static SaleStorage fullInventory(Inventory inventory) {
+        return inventory(inventory, true);
+    }
+
+    private static SaleStorage inventory(Inventory inventory, boolean fullContents) {
         return new SaleStorage() {
-            public ItemStack[] getStorageContents() { return inventory.getStorageContents(); }
+            public ItemStack[] getStorageContents() { return fullContents ? inventory.getContents() : inventory.getStorageContents(); }
 
             public boolean removeItems(ItemStack[] expected, Map<Integer, Integer> quantities) {
                 for (var entry : quantities.entrySet()) {
@@ -34,7 +43,10 @@ public interface SaleStorage {
                 return true;
             }
 
-            public void restoreItems(ItemStack[] snapshot) { inventory.setStorageContents(snapshot); }
+            public void restoreItems(ItemStack[] snapshot) {
+                if (fullContents) inventory.setContents(snapshot);
+                else inventory.setStorageContents(snapshot);
+            }
         };
     }
 }

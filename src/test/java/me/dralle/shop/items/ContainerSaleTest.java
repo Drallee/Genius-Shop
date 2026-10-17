@@ -50,9 +50,13 @@ class ContainerSaleTest {
         YamlConfiguration config = new YamlConfiguration();
         config.set("economy-safety.enabled", false);
         when(plugin.getConfig()).thenReturn(config);
+        when(plugin.getEconomy().isReady()).thenReturn(true);
         when(plugin.getMessages().getMessage(anyString())).thenReturn("summary %amount% %price%");
         when(plugin.formatCurrency(anyDouble())).thenAnswer(invocation -> String.valueOf((double) invocation.getArgument(0)));
         when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        org.bukkit.World world = mock(org.bukkit.World.class);
+        when(world.getName()).thenReturn("world");
+        when(player.getWorld()).thenReturn(world);
         when(inventory.getStorageContents()).thenAnswer(invocation -> contents.clone());
         when(inventory.getItem(0)).thenAnswer(invocation -> contents[0]);
         doAnswer(invocation -> { contents[0] = invocation.getArgument(1); return null; }).when(inventory).setItem(eq(0), any());
@@ -62,6 +66,7 @@ class ContainerSaleTest {
         doAnswer(invocation -> { amount.set(invocation.getArgument(0)); return null; }).when(stack).setAmount(anyInt());
         when(stack.clone()).thenReturn(original);
         when(original.getAmount()).thenReturn(3);
+        when(original.clone()).thenReturn(original);
         when(stack.isSimilar(original)).thenReturn(true);
         when(item.getMaterial()).thenReturn(Material.STONE);
         when(item.getUniqueKey()).thenReturn("stone");
