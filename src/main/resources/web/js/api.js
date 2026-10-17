@@ -233,7 +233,7 @@ async function loadAllFiles() {
         // Update preview based on current active tab
         const previewSection = document.querySelector('.minecraft-preview-section');
         if (previewSection) {
-            previewSection.style.display = (currentTab === 'guisettings' || currentTab === 'campaigns' || currentTab === 'commands' || currentTab === 'customitems' || currentTab === 'stockanalytics' || currentTab === 'dataeditor') ? 'none' : 'block';
+            previewSection.style.display = (currentTab === 'guisettings' || currentTab === 'campaigns' || currentTab === 'commands' || currentTab === 'customitems' || currentTab === 'stockanalytics' || currentTab === 'salesanalytics' || currentTab === 'dataeditor') ? 'none' : 'block';
         }
 
         if (currentTab === 'mainmenu') {
@@ -244,6 +244,8 @@ async function loadAllFiles() {
             renderCampaignsTab();
         } else if (currentTab === 'commands' && typeof renderCommandsTab === 'function') {
             renderCommandsTab();
+        } else if (currentTab === 'salesanalytics') {
+            await SalesAnalytics.load();
         } else if (currentTab === 'stockanalytics') {
             await loadStockAnalyticsData(true);
         } else if (currentTab === 'dataeditor') {
@@ -854,5 +856,4 @@ async function handleAutoLogin(token) {
         document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Connection Error</div><div style="font-size: 14px; color: #888;">Could not connect to the API server</div></div>`;
     }
 }
-
 

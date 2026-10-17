@@ -349,7 +349,7 @@ function switchTab(tabName) {
     // Toggle preview section visibility
     const previewSection = document.querySelector('.minecraft-preview-section');
     if (previewSection) {
-        previewSection.style.display = (tabName === 'guisettings' || tabName === 'campaigns' || tabName === 'commands' || tabName === 'customitems' || tabName === 'stockanalytics' || tabName === 'dataeditor') ? 'none' : 'block';
+        previewSection.style.display = (tabName === 'guisettings' || tabName === 'campaigns' || tabName === 'commands' || tabName === 'customitems' || tabName === 'stockanalytics' || tabName === 'salesanalytics' || tabName === 'dataeditor') ? 'none' : 'block';
     }
 
     // Toggle preview settings bar content
@@ -361,6 +361,8 @@ function switchTab(tabName) {
     
     const activeTab = document.getElementById(`${tabName}-tab`);
     if (activeTab) activeTab.classList.add('active');
+    const footer = document.querySelector('.sticky-footer-actions');
+    if (footer) footer.hidden = tabName === 'salesanalytics';
 
     // Toggle tab button states
     document.querySelectorAll('.tab').forEach(tab => {
@@ -387,6 +389,8 @@ function switchTab(tabName) {
         renderCommandsTab();
     } else if (tabName === 'customitems') {
         renderCustomItemsTab();
+    } else if (tabName === 'salesanalytics') {
+        SalesAnalytics.load();
     } else if (tabName === 'stockanalytics') {
         loadStockAnalyticsData(true);
     } else if (tabName === 'dataeditor') {
