@@ -820,8 +820,9 @@ function updateStockResetInputUi(prefix = 'modal-stockReset') {
     if (dateGroup) dateGroup.style.display = isOnce ? 'block' : 'none';
 }
 
-function readStockResetFromModal(data, prefix = 'modal-stockReset') {
+function readStockResetFromModal(data, prefix = 'modal-stockReset', original = {}) {
     return sanitizeStockResetRule({
+        ...original,
         enabled: !!data[`${prefix}Enabled`],
         type: data[`${prefix}Type`] || 'daily',
         time: data[`${prefix}Time`] || '00:00',
@@ -947,8 +948,10 @@ function buildShopItemPreviewHtml(baseItem, formData) {
     const unstableTnt = !!formData['modal-unstableTnt'];
     const showStock = !!formData['modal-showStock'];
     const showStockResetTimer = !!formData['modal-showStockResetTimer'];
-    const sellAddsToStock = !!formData['modal-sellAddsToStock'];
-    const allowSellOverflow = !!formData['modal-allowSellStockOverflow'];
+    const sellAddsToStock = formData['modal-sellAddsToStock'] === 'true'
+        || (formData['modal-sellAddsToStock'] === '' && currentShopSettings.sellAddsToStock);
+    const allowSellOverflow = formData['modal-allowSellStockOverflow'] === 'true'
+        || (formData['modal-allowSellStockOverflow'] === '' && currentShopSettings.allowSellStockOverflow);
     const stockResetEnabled = !!formData['modal-stockResetEnabled'];
     const stockResetType = stockResetEnabled ? (formData['modal-stockResetType'] || 'daily') : null;
     const spawnerMode = formData['modal-spawnerMode'] || '';
@@ -1923,13 +1926,7 @@ function openShopItemModal(itemId) {
         || !!String(item.requiredGamemode || '').trim()
         || (Array.isArray(item.allowedWorlds) && item.allowedWorlds.length > 0)
         || (Array.isArray(item.deniedWorlds) && item.deniedWorlds.length > 0);
-    const hasCampaign = !!item.campaignEnabled
-        || !!String(item.campaignName || '').trim()
-        || !!String(item.campaignStart || '').trim()
-        || !!String(item.campaignEnd || '').trim()
-        || !!String(item.campaignTimezone || '').trim()
-        || (parseFloat(item.campaignBuyMultiplier) || 1) !== 1
-        || (parseFloat(item.campaignSellMultiplier) || 1) !== 1;
+    const hasCampaign = !!item.campaignEnabled;
 
     const fields = [
         { id: 'modal-name', label: t('web-editor.modals.fields.display-name'), value: item.name, hint: t('web-editor.modals.fields.display-name-hint') },
@@ -2327,8 +2324,12 @@ function openShopItemModal(itemId) {
     });
     fields.push({ id: 'modal-allowedWorlds', label: 'Allowed Worlds', type: 'textarea', value: (item.allowedWorlds || []).join('\n'), hint: 'One world per line. Leave empty to allow all worlds.', hidden: !hasAdvancedConditions });
     fields.push({ id: 'modal-deniedWorlds', label: 'Denied Worlds', type: 'textarea', value: (item.deniedWorlds || []).join('\n'), hint: 'One world per line. Deny list takes priority over allowed list.', hidden: !hasAdvancedConditions });
-    fields.push({ id: 'modal-sellAddsToStock', label: 'Sell adds back to stock', type: 'checkbox', value: item.sellAddsToStock === true, hint: 'Override shop setting for this item', checkboxGroup: 'Trading Rules' });
-    fields.push({ id: 'modal-allowSellStockOverflow', label: 'Allow sell stock overflow', type: 'checkbox', value: item.allowSellStockOverflow === true, hint: 'If disabled, selling is blocked when stock is already full', checkboxGroup: 'Trading Rules' });
+    for (const [property, label] of [['sellAddsToStock', 'Sell adds back to stock'], ['allowSellStockOverflow', 'Allow sell stock overflow']]) {
+        fields.push({ id: `modal-${property}`, label, type: 'select',
+            value: item[property] == null ? '' : String(item[property]),
+            options: [{ value: '', label: `Inherit shop (${currentShopSettings[property] ? 'Enabled' : 'Disabled'})` },
+                { value: 'true', label: 'Enabled' }, { value: 'false', label: 'Disabled' }] });
+    }
     const itemStockReset = sanitizeStockResetRule(item.stockResetRule);
     fields.push({
         id: 'modal-stockResetEnabled',
@@ -2533,11 +2534,33 @@ function openShopItemModal(itemId) {
                 item.allowedWorlds = [];
                 item.deniedWorlds = [];
             }
-            item.sellAddsToStock = !!data['modal-sellAddsToStock'];
-            item.allowSellStockOverflow = !!data['modal-allowSellStockOverflow'];
-            item.stockResetRule = readStockResetFromModal(data);
+            item.sellAddsToStock = data['modal-sellAddsToStock'] === '' ? null : data['modal-sellAddsToStock'] === 'true';
+            item.allowSellStockOverflow = data['modal-allowSellStockOverflow'] === '' ? null : data['modal-allowSellStockOverflow'] === 'true';
+            item.stockResetRule = readStockResetFromModal(data, 'modal-stockReset', item.stockResetRule);
             item.showStock = !!data['modal-showStock'];
             item.showStockResetTimer = !!data['modal-showStockResetTimer'];
+
+            // Hidden/disabled controls are not an instruction to erase configured options.
+            const changed = id => {
+                const field = fields.find(candidate => candidate.id === id);
+                return field && (field.type === 'checkbox' ? !!data[id] !== !!field.value
+                    : String(data[id] ?? '') !== String(field.value ?? ''));
+            };
+            const preserve = (property, dependencies, materialDependent = false) => {
+                if ((!materialDependent || beforeData.material === item.material) && !dependencies.some(changed)) {
+                    if (Object.hasOwn(beforeData, property)) item[property] = beforeData[property];
+                    else delete item[property];
+                }
+            };
+            for (const property of ['campaignName', 'campaignStart', 'campaignEnd', 'campaignTimezone', 'campaignBuyMultiplier', 'campaignSellMultiplier']) {
+                preserve(property, ['modal-campaignEnabled', `modal-${property}`]);
+            }
+            for (const property of ['commands', 'runAs', 'runCommandOnly']) preserve(property, ['modal-enableCommands', `modal-${property}`]);
+            preserve('lore', ['modal-enableLore', 'modal-lore']);
+            for (const property of ['spawnerType', 'spawnerItem', 'potionType', 'potionLevel', 'headTexture', 'headOwner']) {
+                preserve(property, [`modal-${property}`, 'modal-spawnerMode'], true);
+            }
+            preserve('stockResetRule', fields.filter(field => field.id.startsWith('modal-stockReset')).map(field => field.id));
 
             addActivityEntry('updated', 'shop-item', beforeData, JSON.parse(JSON.stringify(item)), {
                 shopFile: currentShopFile
@@ -2634,7 +2657,7 @@ function openShopSettingsModal() {
             currentShopSettings.availableTimes = data['modal-enableShopTimes'] ? (data['modal-shopTimes'] || '').trim() : '';
             currentShopSettings.sellAddsToStock = !!data['modal-shopSellAddsToStock'];
             currentShopSettings.allowSellStockOverflow = !!data['modal-shopAllowSellStockOverflow'];
-            currentShopSettings.stockResetRule = readStockResetFromModal(data);
+            currentShopSettings.stockResetRule = readStockResetFromModal(data, 'modal-stockReset', currentShopSettings.stockResetRule);
 
             addActivityEntry('updated', 'shop-settings', beforeData, JSON.parse(JSON.stringify(currentShopSettings)), {
                 shopFile: currentShopFile

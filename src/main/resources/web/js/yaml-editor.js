@@ -57,7 +57,9 @@ const EditorYaml = (() => {
         Object.keys(result).forEach(key => {
             const value = data?.[key === 'stockResetRule' ? 'stock-reset' : kebab(key)];
             if (value === undefined) return;
-            if (key === 'stockResetRule') result[key] = sanitizeStockResetRule(decode({ ...createDefaultStockResetRule(), enabled: true }, value));
+            if (key === 'stockResetRule') result[key] = typeof value === 'string'
+                ? sanitizeStockResetRule({ ...createDefaultStockResetRule(), enabled: true, type: value })
+                : sanitizeStockResetRule(decode({ ...createDefaultStockResetRule(), enabled: true }, value));
             else if (Array.isArray(result[key])) result[key] = list(value);
             else if (object(result[key])) result[key] = decode(result[key], value);
             else result[key] = value;
@@ -70,8 +72,25 @@ const EditorYaml = (() => {
         Object.entries(model).forEach(([key, value]) => {
             if (key === 'id' || key === 'key' || key.startsWith('_yaml')) return;
             const yamlKey = key === 'stockResetRule' ? 'stock-reset' : kebab(key);
-            result[yamlKey] = key === 'enchantments' ? clone(value) : object(value) ? encode(value) : value;
+            result[yamlKey] = key === 'stockResetRule' ? resetData(value)
+                : key === 'enchantments' ? clone(value) : object(value) ? encode(value) : value;
         });
+        return result;
+    }
+
+    function resetData(rule) {
+        const safe = sanitizeStockResetRule(rule);
+        // Type is required by the runtime even for an explicitly disabled override.
+        const result = { enabled: safe.enabled, type: safe.type };
+        const interval = ['minute-interval', 'second-interval'].includes(safe.type);
+        if (interval && safe.interval !== 1) result.interval = safe.interval;
+        if (!interval && safe.time !== '00:00') result.time = safe.time;
+        if (safe.type === 'weekly') result['day-of-week'] = safe.dayOfWeek;
+        if (['monthly', 'yearly'].includes(safe.type) && safe.dayOfMonth !== 1) result['day-of-month'] = safe.dayOfMonth;
+        if (safe.type === 'yearly' && safe.month !== 1) result.month = safe.month;
+        if (safe.type === 'once') result.date = safe.date;
+        if (['yearly', 'once'].includes(safe.type) && safe.monthDay) result['month-day'] = safe.monthDay;
+        if (safe.timezone) result.timezone = safe.timezone;
         return result;
     }
 
@@ -217,7 +236,7 @@ const EditorYaml = (() => {
                 const temporary = new library.Document({});
                 temporary.set('item', row);
                 const before = index >= 0 ? state.items[index].data
-                    : { 'stock-reset': encode(createDefaultStockResetRule()) };
+                    : { 'stock-reset': resetData(createDefaultStockResetRule()) };
                 const after = itemData(item);
                 if (index >= 0 && !equal(before['buy-price-per-item'], after['buy-price-per-item'])) {
                     temporary.deleteIn(['item', 'price-per-item']);
