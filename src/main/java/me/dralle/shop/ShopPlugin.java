@@ -51,6 +51,8 @@ public class ShopPlugin extends JavaPlugin {
     private DataManager dataManager;
     private ShopManager shopManager;
     private GenericShopGui genericShopGui;
+    private me.dralle.shop.discovery.ItemDiscoveryService itemDiscovery;
+    private me.dralle.shop.gui.ItemDiscoveryMenu itemDiscoveryMenu;
     private BulkSellMenu bulkSellMenu;
     private EconomyHook economy;
     private MetricsWrapper metricsWrapper;
@@ -170,6 +172,8 @@ public class ShopPlugin extends JavaPlugin {
         logCompileValidationSummary(this.shopManager);
         this.economy = new EconomyHook(this);
         this.genericShopGui = new GenericShopGui(this);
+        this.itemDiscovery = new me.dralle.shop.discovery.ItemDiscoveryService(this);
+        this.itemDiscoveryMenu = new me.dralle.shop.gui.ItemDiscoveryMenu(this, itemDiscovery);
         this.bulkSellMenu = new BulkSellMenu(this);
         this.discordWebhook = new me.dralle.shop.util.DiscordWebhook(this);
         this.stockResetService = new StockResetService(this);
@@ -182,6 +186,7 @@ public class ShopPlugin extends JavaPlugin {
         // listeners
         getServer().getPluginManager().registerEvents(new MainMenu(this), this);
         getServer().getPluginManager().registerEvents(this.genericShopGui, this);
+        getServer().getPluginManager().registerEvents(this.itemDiscoveryMenu, this);
         getServer().getPluginManager().registerEvents(this.bulkSellMenu, this);
         getServer().getPluginManager().registerEvents(new PurchaseMenu(this), this);
         getServer().getPluginManager().registerEvents(new SellMenu(this), this);
@@ -200,6 +205,24 @@ public class ShopPlugin extends JavaPlugin {
             shopCommand.setExecutor((sender, cmd, label, args) -> {
             if (args.length == 0 && !canUseBaseShop(sender)) {
                 sender.sendMessage(getMessages().getMessage("no-permission"));
+                return true;
+            }
+
+            if (args.length > 0 && List.of("search", "favorites", "recent").contains(args[0].toLowerCase(Locale.ROOT))) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(getMessages().getMessage("player-only"));
+                    return true;
+                }
+                if (!canUseBaseShop(sender)) {
+                    sender.sendMessage(getMessages().getMessage("no-permission"));
+                    return true;
+                }
+                String action = args[0].toLowerCase(Locale.ROOT);
+                var mode = action.equals("favorites") ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.FAVORITES
+                        : action.equals("recent") ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.RECENT
+                        : me.dralle.shop.discovery.ItemDiscoveryService.Mode.SEARCH;
+                String query = action.equals("search") && args.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)) : "";
+                itemDiscoveryMenu.open(player, mode, query, 1);
                 return true;
             }
 
@@ -625,6 +648,8 @@ public class ShopPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (itemDiscoveryMenu != null) itemDiscoveryMenu.shutdown();
+        if (itemDiscovery != null) itemDiscovery.shutdown();
         if (dataFlushTaskId != -1) {
             getServer().getScheduler().cancelTask(dataFlushTaskId);
             dataFlushTaskId = -1;
@@ -972,6 +997,9 @@ public class ShopPlugin extends JavaPlugin {
         return genericShopGui;
     }
 
+    public me.dralle.shop.discovery.ItemDiscoveryService getItemDiscovery() { return itemDiscovery; }
+    public me.dralle.shop.gui.ItemDiscoveryMenu getItemDiscoveryMenu() { return itemDiscoveryMenu; }
+
     public BulkSellMenu getBulkSellMenu() {
         return bulkSellMenu;
     }
@@ -1017,6 +1045,7 @@ public class ShopPlugin extends JavaPlugin {
             if (canUseReload(sender)) options.add("reload");
             if (canUseEditor(sender)) options.add("editor");
             if (sender instanceof Player) options.add("confirmlogin");
+            if (sender instanceof Player && canUseBaseShop(sender)) options.addAll(List.of("search", "favorites", "recent"));
             if (canUseSell(sender)) options.add("sell");
             if (canUseWiki(sender)) options.add("wiki");
             if (canUseResetStock(sender)) options.add("resetstock");
@@ -1309,4 +1338,3 @@ public class ShopPlugin extends JavaPlugin {
         }
     }
 }
-

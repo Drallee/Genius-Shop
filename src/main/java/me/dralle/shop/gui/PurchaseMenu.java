@@ -41,6 +41,7 @@ public class PurchaseMenu implements Listener {
     public static void open(Player player, ShopItem item, String shopKey, int shopPage) {
         ShopPlugin plugin = ShopPlugin.getInstance();
         ShopData shop = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
+        if (plugin.getItemDiscovery() != null) plugin.getItemDiscovery().bindTrade(player, "buy", shopKey, item);
 
         if (item.getHeadTexture() != null && !item.getHeadTexture().isEmpty()) {
             player.setMetadata("buy.headTexture", new FixedMetadataValue(plugin, item.getHeadTexture()));
@@ -717,6 +718,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
 
         // Time restriction check
         String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").get(0).asString() : null;
+        if (plugin.getItemDiscovery() != null && !plugin.getItemDiscovery().guardTrade(player, "buy", shopKey, itemKey)) return;
         if (shopKey != null) {
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop != null) {
@@ -730,7 +732,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                 }
                 // Item availability
                 if (itemKey != null) {
-                    ShopItem si = shop.getItemByUniqueKey(itemKey);
+                    ShopItem si = findShopItem(player, shopKey, itemKey);
                     if (si != null && !ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) {
                         player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
                                 .replace("%shop%", si.getName() != null ? ShopItemUtil.color(si.getName()) : si.getMaterial().name())
@@ -771,7 +773,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                   }
               }
 
-              ShopItem matchedItem = findShopItem(shopKey, itemKey);
+              ShopItem matchedItem = findShopItem(player, shopKey, itemKey);
               if (matchedItem != null) {
                   ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, matchedItem);
                   if (!condition.allowed()) {
@@ -947,13 +949,14 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
         TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_BUY, itemKey, effectiveUnitPrice);
 
         plugin.itemsBought += amount;
+        if (plugin.getItemDiscovery() != null) plugin.getItemDiscovery().recordRecent(player, shopKey, matchedItem);
         plugin.debug("Purchase successful: " + player.getName() + " bought " + amount + "x " + material + " for $" + total);
 
         // Fire ShopPurchaseEvent
         if (itemKey != null && shopKey != null) {
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop != null) {
-                ShopItem si = shop.getItemByUniqueKey(itemKey);
+                ShopItem si = findShopItem(player, shopKey, itemKey);
                 if (si != null) {
                     me.dralle.shop.api.events.ShopPurchaseEvent purchaseEvent =
                             new me.dralle.shop.api.events.ShopPurchaseEvent(player, si, amount, total, shopKey);
@@ -992,7 +995,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
             if (shopKey != null) {
                 ShopData shop = plugin.getShopManager().getShop(shopKey);
                 if (shop != null) {
-                    ShopItem si = shop.getItemByUniqueKey(itemKey);
+                    ShopItem si = findShopItem(player, shopKey, itemKey);
                     if (si != null) {
                         nextPrice = calculatePrice(shop, si);
                     }
@@ -1006,7 +1009,8 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
         open(player, material, nextPrice, amount, priceUnitAmount, spawnerType, spawnerItem, potionType, potionLevel, customName, customLore, enchantments, hideAttr, hideAdd, requireName, requireLore, unstableTnt, buyPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, commands, commandRunAs, runCommandOnly, permission);
     }
 
-    private ShopItem findShopItem(String shopKey, String itemKey) {
+    private ShopItem findShopItem(Player player, String shopKey, String itemKey) {
+        if (ShopPlugin.getInstance().getItemDiscovery() != null) return ShopPlugin.getInstance().getItemDiscovery().transactionItem(player, "buy", shopKey, itemKey);
         if (shopKey == null || itemKey == null) return null;
         ShopData shop = ShopPlugin.getInstance().getShopManager().getShop(shopKey);
         if (shop == null) return null;

@@ -1,6 +1,7 @@
 package me.dralle.shop.data;
 
 import me.dralle.shop.ShopPlugin;
+import me.dralle.shop.discovery.ItemReference;
 import me.dralle.shop.util.YamlUtil;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -82,6 +83,11 @@ public class DataManager implements ShopStateRepository {
                   last_run INTEGER NOT NULL DEFAULT 0
                 )
                 """);
+        for (String table : List.of("player_favorites", "player_recent_items")) {
+            executeUpdate("CREATE TABLE IF NOT EXISTS " + table + " (uuid TEXT NOT NULL, shop_key TEXT NOT NULL, "
+                    + "fingerprint TEXT NOT NULL, item_slot INTEGER NOT NULL, used_at INTEGER NOT NULL, "
+                    + "PRIMARY KEY(uuid, shop_key, fingerprint, item_slot))");
+        }
     }
 
     private void migrateLegacyYamlIfNeeded() {
@@ -200,6 +206,102 @@ public class DataManager implements ShopStateRepository {
 
     public synchronized void save() {
         flushDirtyData();
+    }
+
+    public static final int MAX_FAVORITES = 100;
+    public static final int MAX_RECENT_ITEMS = 30;
+
+    public synchronized List<ItemReference> getFavorites(UUID uuid) {
+        return personalItems(uuid, "player_favorites", MAX_FAVORITES);
+    }
+
+    public synchronized List<ItemReference> getRecentItems(UUID uuid) {
+        return personalItems(uuid, "player_recent_items", MAX_RECENT_ITEMS);
+    }
+
+    private List<ItemReference> personalItems(UUID uuid, String table, int limit) {
+        List<ItemReference> items = new ArrayList<>();
+        if (connection == null) return items;
+        try (PreparedStatement ps = connection.prepareStatement("SELECT shop_key, fingerprint, item_slot FROM " + table
+                + " WHERE uuid = ? ORDER BY used_at DESC, rowid DESC LIMIT ?")) {
+            ps.setString(1, uuid.toString());
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    try { items.add(new ItemReference(rs.getString(1), rs.getString(2), rs.getInt(3))); }
+                    catch (IllegalArgumentException ignored) { /* Ignore malformed legacy/manual rows. */ }
+                }
+            }
+        } catch (SQLException e) { plugin.getLogger().log(Level.WARNING, "Failed reading " + table, e); }
+        return items;
+    }
+
+    public synchronized boolean setFavorite(UUID uuid, ItemReference item, boolean favorite) {
+        if (connection == null) return false;
+        try {
+            List<ItemReference> existing = getFavorites(uuid);
+            if (favorite && existing.contains(item)) return true;
+            if (favorite && existing.size() >= MAX_FAVORITES) return false;
+            if (favorite) writePersonalItem(uuid, item, "player_favorites");
+            else try (PreparedStatement ps = connection.prepareStatement("DELETE FROM player_favorites WHERE uuid = ? AND shop_key = ? AND fingerprint = ? AND item_slot = ?")) {
+                bindPersonalItem(ps, uuid, item);
+                ps.executeUpdate();
+            }
+            return true;
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.WARNING, "Failed updating favorites", e);
+            return false;
+        }
+    }
+
+    public synchronized void recordRecentItem(UUID uuid, ItemReference item) {
+        if (connection == null) return;
+        try {
+            connection.setAutoCommit(false);
+            writePersonalItem(uuid, item, "player_recent_items");
+            try (PreparedStatement ps = connection.prepareStatement("DELETE FROM player_recent_items WHERE uuid = ? AND rowid NOT IN "
+                    + "(SELECT rowid FROM player_recent_items WHERE uuid = ? ORDER BY used_at DESC, rowid DESC LIMIT ?)")) {
+                ps.setString(1, uuid.toString());
+                ps.setString(2, uuid.toString());
+                ps.setInt(3, MAX_RECENT_ITEMS);
+                ps.executeUpdate();
+            }
+            connection.commit();
+        } catch (SQLException e) {
+            try { connection.rollback(); } catch (SQLException ignored) { }
+            plugin.getLogger().log(Level.WARNING, "Failed recording recent item", e);
+        } finally {
+            try { connection.setAutoCommit(true); } catch (SQLException e) { plugin.getLogger().log(Level.WARNING, "Failed restoring SQLite transaction mode", e); }
+        }
+    }
+
+    public synchronized boolean clearPersonalItems(UUID uuid, boolean favorites) {
+        if (connection == null) return false;
+        String table = favorites ? "player_favorites" : "player_recent_items";
+        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM " + table + " WHERE uuid = ?")) {
+            ps.setString(1, uuid.toString());
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { plugin.getLogger().log(Level.WARNING, "Failed clearing " + table, e); return false; }
+    }
+
+    private void writePersonalItem(UUID uuid, ItemReference item, String table) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement("INSERT INTO " + table
+                + "(uuid, shop_key, fingerprint, item_slot, used_at) VALUES (?, ?, ?, ?, "
+                + "MAX(?, COALESCE((SELECT MAX(used_at) FROM " + table + " WHERE uuid = ?), 0) + 1)) "
+                + "ON CONFLICT(uuid, shop_key, fingerprint, item_slot) DO UPDATE SET used_at = excluded.used_at")) {
+            bindPersonalItem(ps, uuid, item);
+            ps.setLong(5, System.currentTimeMillis());
+            ps.setString(6, uuid.toString());
+            ps.executeUpdate();
+        }
+    }
+
+    private void bindPersonalItem(PreparedStatement ps, UUID uuid, ItemReference item) throws SQLException {
+        ps.setString(1, uuid.toString());
+        ps.setString(2, item.shopKey());
+        ps.setString(3, item.fingerprint());
+        ps.setInt(4, item.slot());
     }
 
     public synchronized int getPlayerCount(UUID uuid, String itemKey) {

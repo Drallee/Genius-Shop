@@ -73,7 +73,7 @@ public class GenericShopGui implements Listener {
     /**
      * Open a shop page for a player.
      */
-    private ItemStack createGuiItem(Player viewer, ShopItem si, String shopKey, String availableTimesStr, String currency, ShopData shop) {
+    ItemStack createGuiItem(Player viewer, ShopItem si, String shopKey, String availableTimesStr, String currency, ShopData shop) {
         List<String> lore = new ArrayList<>();
         List<String> format = plugin.getMenuManager().getGuiSettingsConfig().getStringList("gui.item-lore.lore-format");
 
@@ -163,6 +163,7 @@ public class GenericShopGui implements Listener {
             }
         }
 
+        if (plugin.getItemDiscovery() != null) lore.add(plugin.getItemDiscovery().text("favorite-hint"));
         ItemStack item = ShopItemUtil.deserializeItemStack(si.getItemStackData());
         if (item != null) {
             item = item.clone();
@@ -293,6 +294,10 @@ public class GenericShopGui implements Listener {
     }
 
     private void handleShopItemAction(Player player, ShopItem item, String shopKey, int page, ClickType clickType) {
+        if (clickType == ClickType.SHIFT_RIGHT && plugin.getItemDiscovery() != null) {
+            plugin.getItemDiscovery().toggleFavorite(player, me.dralle.shop.discovery.ItemReference.of(shopKey, item));
+            return;
+        }
         if (item.getPermission() != null && !item.getPermission().isEmpty()) {
             if (!player.hasPermission(item.getPermission())) {
                 player.sendMessage(plugin.getMessages().getMessage("no-permission"));
@@ -448,6 +453,12 @@ if (backMaterial == null) backMaterial = Material.ENDER_CHEST;
 
 inv.setItem(back, ShopItemUtil.create(backMaterial, 1, backName, backLore));
 
+if (plugin.getItemDiscovery() != null) {
+    inv.setItem(nav, ShopItemUtil.create(Material.COMPASS, 1, plugin.getItemDiscovery().text("search"), List.of()));
+    inv.setItem(nav + 1, ShopItemUtil.create(Material.NETHER_STAR, 1, plugin.getItemDiscovery().text("favorites"), List.of()));
+    inv.setItem(nav + 2, ShopItemUtil.create(Material.CLOCK, 1, plugin.getItemDiscovery().text("recent"), List.of()));
+}
+
 if (page > 1) {
     String prevMaterialStr = guiConfig.getString("gui.prev-button.material", "GRAY_DYE");
     String prevName = plugin.getMessages().resolveConfigString(guiConfig, "gui.prev-button.name", "&e<- Previous");
@@ -481,7 +492,8 @@ if (page < totalPages) {
         ShopData shop = plugin.getShopManager().getShop(shopKey);
         if (shop != null && item != null && item.getSlot() != null) {
             int usableSlots = Math.min(Math.max(shop.getRows(), 1) * 9, 45);
-            int itemPage = Math.max(1, (item.getSlot() / Math.max(1, usableSlots)) + 1);
+            int displaySlot = item.isVariantMenuEnabled() && item.getVariantGroupSlot() != null ? item.getVariantGroupSlot() : item.getSlot();
+            int itemPage = Math.max(1, (displaySlot / Math.max(1, usableSlots)) + 1);
             openShop(player, shopKey, itemPage);
             return;
         }
@@ -525,6 +537,16 @@ if (page < totalPages) {
         int back = nav + 4;
         int next = nav + 5;
         int slot = e.getSlot();
+
+        if (plugin.getItemDiscoveryMenu() != null && slot >= nav && slot <= nav + 2) {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                var mode = slot == nav + 1 ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.FAVORITES
+                        : slot == nav + 2 ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.RECENT
+                        : me.dralle.shop.discovery.ItemDiscoveryService.Mode.SEARCH;
+                plugin.getItemDiscoveryMenu().open(player, mode, "", 1);
+            });
+            return;
+        }
 
         int maxSlot = getDisplayMaxSlot(shop);
         int totalPages = (int) Math.ceil((double) (maxSlot + 1) / (double) usableSlots);

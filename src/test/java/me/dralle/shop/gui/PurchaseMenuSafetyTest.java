@@ -19,6 +19,7 @@ class PurchaseMenuSafetyTest {
     @Test
     void inflatedIronBlockPriceIsBlockedAgainstConfiguredBaseBeforeWithdrawal() throws Exception {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        when(plugin.getItemDiscovery()).thenReturn(null);
         Player player = mock(Player.class, RETURNS_DEEP_STUBS);
         ShopItem item = mock(ShopItem.class);
         ShopData shop = mock(ShopData.class);
@@ -54,6 +55,7 @@ class PurchaseMenuSafetyTest {
     @Test
     void fullInventoryIsRejectedBeforeWithdrawalCommandsAndStockChanges() throws Exception {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        when(plugin.getItemDiscovery()).thenReturn(null);
         Player player = mock(Player.class, RETURNS_DEEP_STUBS);
         ItemStack template = mock(ItemStack.class);
         ItemStack occupied = mock(ItemStack.class);

@@ -1,6 +1,36 @@
 ﻿config-version: 4
 
 messages:
+  discovery:
+    search: '&bSearch Items'
+    favorites: '&eFavorite Items'
+    recent: '&bRecent Items'
+    item-title: '&8Shop Item'
+    empty: '&7No accessible items found'
+    results: '&7%count% results'
+    shop-line: '&7Shop: %shop%'
+    open-hint: '&7Click: item details'
+    favorite-hint: '&7Shift-right-click: toggle favorite'
+    search-hint: '&7Click: enter a name or Minecraft material in chat'
+    favorites-hint: '&7Your saved items'
+    recent-hint: '&7Recently viewed or traded items'
+    clear-hint: '&7Shift-right-click: clear this list'
+    previous: '&ePrevious Page'
+    next: '&eNext Page'
+    main-menu: '&bMain Menu'
+    back: '&eBack to Results'
+    add-favorite: '&eAdd Favorite'
+    remove-favorite: '&eRemove Favorite'
+    open-shop: '&bOpen Shop'
+    buy: '&aBuy'
+    sell: '&6Sell'
+    favorite-added: '&aItem added to favorites.'
+    favorite-removed: '&eItem removed from favorites.'
+    save-failed: '&cCould not save your list. Favorites are limited to 100 items; contact an administrator if it is not full.'
+    unavailable: '&cThis item is unavailable or the shop changed. Reopen it from search or your saved list.'
+    prompt: '&bEnter an item name or material in chat (maximum 64 characters), or type cancel. Search expires in 60 seconds.'
+    search-expired: '&7Item search expired. Your chat messages will be sent normally again.'
+    query-too-long: '&cSearch queries cannot exceed 64 characters.'
   prefix: "&8&l| &cSHOP &8&l| "
   no-permission: "%prefix%&cYou don't have permission to do that."
   player-only: "&cOnly players can use this command."
@@ -669,7 +699,6 @@ web-editor:
     issues: "Report Issues"
     made-with: "Made with love by Dralle for the Minecraft community"
     copyright: "Â© 2025 Genius Shop - Open Source Project"
-
 
 
 

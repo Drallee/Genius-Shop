@@ -105,3 +105,24 @@ items:
     lore:
       - menus.main.items.close.lore
     action: close
+  search:
+    slot: 29
+    material: COMPASS
+    name: discovery.search
+    action: command
+    command: 'shop search'
+    run-as: player
+  favorites:
+    slot: 30
+    material: NETHER_STAR
+    name: discovery.favorites
+    action: command
+    command: 'shop favorites'
+    run-as: player
+  recent:
+    slot: 32
+    material: CLOCK
+    name: discovery.recent
+    action: command
+    command: 'shop recent'
+    run-as: player
