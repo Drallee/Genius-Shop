@@ -1,0 +1,29 @@
+.save-conflict { position: fixed; inset: 0; margin: auto; width: min(1180px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid #52525b; border-radius: 8px; background: #202024; color: #f4f4f5; box-sizing: border-box; overflow: auto; letter-spacing: 0; }
+.save-conflict::backdrop { background: rgba(0, 0, 0, 0.65); }
+.save-conflict header, .save-conflict footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; background: #202024; position: sticky; z-index: 1; }
+.save-conflict header { top: 0; border-bottom: 1px solid #52525b; }
+.save-conflict footer { bottom: 0; border-top: 1px solid #52525b; flex-wrap: wrap; justify-content: flex-end; }
+.save-conflict h2 { font-size: 20px; margin: 0; }
+.save-conflict h3 { font-size: 13px; padding: 10px; margin: 0; border-bottom: 1px solid #52525b; }
+.save-conflict button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; font-size: 13px; letter-spacing: 0; border-radius: 4px; }
+.save-conflict [hidden], #save-conflict-notice[hidden] { display: none !important; }
+.save-conflict .conflict-close { width: 36px; height: 36px; flex: 0 0 36px; padding: 0; }
+.save-conflict button:disabled { opacity: 0.5; cursor: default; }
+.save-conflict :is(button,textarea):focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+.conflict-body { padding: 16px 20px; overflow-wrap: anywhere; }
+.conflict-status { color: #fde68a; font-size: 14px; }
+.conflict-comparison { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #52525b; }
+.conflict-comparison section { min-width: 0; }
+.conflict-comparison section + section { border-left: 1px solid #52525b; }
+.conflict-comparison pre { margin: 0; padding: 12px; max-height: 300px; overflow: auto; font: 12px/1.5 monospace; background: #17171b; color: #e4e4e7; }
+.conflict-comparison section:nth-child(2) h3 { border-top: 3px solid #6ee7b7; }
+.conflict-comparison section:nth-child(3) h3 { border-top: 3px solid #fde68a; }
+.conflict-body label { display: block; margin: 16px 0 8px; font-size: 13px; letter-spacing: 0; text-transform: none; }
+.conflict-merged { width: 100%; min-height: 200px; resize: vertical; box-sizing: border-box; font: 13px/1.5 monospace; background: #17171b; color: #f4f4f5; border: 1px solid #71717a; border-radius: 4px; padding: 12px; }
+#save-conflict-notice { color: #fde68a; border-color: #a16207; grid-column: 1 / -1; }
+@media (max-width: 700px) {
+    .save-conflict header, .save-conflict footer, .conflict-body { padding: 12px; }
+    .conflict-comparison { grid-template-columns: minmax(0, 1fr); }
+    .conflict-comparison section + section { border-left: 0; border-top: 1px solid #52525b; }
+    .conflict-comparison pre { max-height: 160px; }
+}

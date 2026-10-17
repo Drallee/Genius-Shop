@@ -67,6 +67,7 @@ Ordinary item purchases check inventory capacity before charging. If delivery fa
 - Editing for items, transaction menus, GUI settings, economy safety, campaigns, and custom commands.
 - Structured YAML editing that preserves comments, unknown fields, and unchanged language references for supported edits.
 - Draft state, validation, and optional autosave.
+- Revision-checked configuration saves with a conflict comparison, local-edit download, targeted reload, and manual reconciliation.
 - YAML/JSON import/export, item cloning across shops, and held-item JSON imports.
 - Stock analytics and a data editor for persisted player counts, global counts, and reset tracking.
 - Activity history and file rollback through `activity-log.json`.
@@ -74,6 +75,10 @@ Ordinary item purchases check inventory capacity before charging. If delivery fa
 - Authenticated administrative HTTP endpoints and opt-in editor telemetry.
 
 Successful editor saves apply configuration reloads to the live server. File-history rollback restores recorded configuration; it does not restore economy balances or all runtime state.
+
+Configuration reads include content-based file revisions. Every editor save, delete, economy-safety update, and history restore sends the originally loaded revision. A changed file, including one edited outside the browser, produces a conflict instead of overwriting it. The conflict view retains local edits, pauses autosave, and compares the loaded version, latest server version, and local changes. Keep Editing leaves those edits untouched; Download Local exports them; Reload Latest replaces only the affected file after confirmation. Reconcile opens editable YAML (JSON for economy settings), and Save Reconciled checks the latest revision again. A second conflict retains the reconciled text. Other sections' local edits are not discarded by targeted reload or reconciliation.
+
+Older browser pages and API clients without a revision receive HTTP 428 and must reload. API clients should retain `revisions` from `GET /api/files`, or `revision` from `GET /api/file/{path}` / `GET /api/economy-safety`, and send it as `X-File-Revision` on mutations. New files use the explicit revision `missing`; HTTP 409 includes the latest revision and content. Economy conflicts expose only economy settings, not API credentials. Check-and-write operations share one API lock and use atomic file replacement where the filesystem supports it. External edits completed before a save are detected by a SHA-256 content hash; external programs do not participate in the API lock.
 
 ### Integrations and Developer API
 

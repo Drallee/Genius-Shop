@@ -35,6 +35,7 @@ async function saveCurrentTabChanges(isSilent = false) {
 }
 
 async function publishAllChanges() {
+    EditorRevisions.requireResolved();
     const start = Date.now();
     showToast(t('web-editor.modals.publishing', 'Publishing...'), 'info');
     try {

@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="navigation.css?v=sidebar-1">
     <link rel="stylesheet" href="editor-design.css?v=workspace-1">
+    <link rel="stylesheet" href="save-conflicts.css?v=1">
 </head>
 <body class="editor-shell">
     <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
@@ -513,6 +514,9 @@
                     <span class="btn-icon"></span>
                     <span data-i18n="web-editor.save-tab">SAVE TAB</span>
                 </button>
+                <button id="save-conflict-notice" onclick="EditorRevisions.open()" class="footer-action-btn btn-secondary" hidden>
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Resolve conflicts
+                </button>
                 <button onclick="publishChanges()" class="footer-action-btn btn-publish">
                     <span class="btn-icon"></span>
                     <span data-i18n="web-editor.publish-all">PUBLISH ALL</span>
@@ -731,15 +735,15 @@
     <script src="js/yaml-editor.js"></script>
     <script src="js/telemetry.js"></script>
     <script src="js/database.js?v=menu-placeholders-1"></script>
-    <script src="js/modals.js?v=commands-history-1"></script>
-    <script src="js/api.js"></script>
+    <script src="js/save-conflicts.js?v=1"></script>
+    <script src="js/modals.js?v=save-conflicts-1"></script>
+    <script src="js/api.js?v=save-conflicts-1"></script>
     <script src="js/commands.js?v=custom-commands-model-name-4"></script>
-    <script src="js/custom-items.js"></script>
-    <script src="js/save-dispatcher.js"></script>
-    <script src="js/autosave-manager.js"></script>
-    <script src="js/ui.js?v=menu-placeholders-1"></script>
+    <script src="js/custom-items.js?v=save-conflicts-1"></script>
+    <script src="js/save-dispatcher.js?v=save-conflicts-1"></script>
+    <script src="js/autosave-manager.js?v=save-conflicts-1"></script>
+    <script src="js/ui.js?v=save-conflicts-1"></script>
     <script src="js/navigation.js?v=sidebar-1"></script>
     <script src="js/events.js"></script>
 </body>
 </html>
-

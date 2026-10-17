@@ -157,6 +157,7 @@ async function loadAllFiles() {
         const data = await response.json();
         
         // Load server info
+        EditorRevisions.seed(data);
         if (data.serverInfo) {
             serverInfo = data.serverInfo;
             console.log('[LOAD] Server info:', serverInfo);
@@ -285,7 +286,7 @@ async function saveCommandsYaml(isSilent = false) {
         }
 
         const yamlContent = typeof generateCommandsYaml === 'function' ? generateCommandsYaml() : commandsFileRaw;
-        const response = await fetch(`api/file/commands.yml`, {
+        const response = await EditorRevisions.request(`api/file/commands.yml`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -315,6 +316,7 @@ async function saveCommandsYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save commands.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -333,7 +335,8 @@ function loadShopFromData(filename) {
 }
 
 async function saveCurrentShop(isSilent = false) {
-    if (isSaving) return;
+    if (isSaving) throw new Error('A shop save is already in progress. Wait for it to finish.');
+    if (!currentShopFile) return;
 
     if (window.GeniusSchemas) {
         const normalizedSettings = window.GeniusSchemas.normalizeShopSettings(currentShopSettings);
@@ -358,14 +361,16 @@ async function saveCurrentShop(isSilent = false) {
     }
 
     isSaving = true;
+    const savedFile = currentShopFile;
+    const cachedContent = allShops[savedFile];
+    const savedChanges = new Set(unsavedChanges);
     if (!isSilent) showToast(t('web-editor.modals.saving'), 'info');
 
     try {
         updateExport();
         const yamlContent = document.getElementById('export-output').textContent;
         EditorYaml.parse(yamlContent);
-        if (allShops[currentShopFile] === yamlContent) return;
-        const response = await fetch(`api/file/shops/${currentShopFile}`, {
+        const response = await EditorRevisions.request(`api/file/shops/${encodeURIComponent(savedFile)}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -387,10 +392,10 @@ async function saveCurrentShop(isSilent = false) {
 
         const data = await response.json();
         if (data.success) {
-            allShops[currentShopFile] = yamlContent;
+            if (allShops[savedFile] === cachedContent) allShops[savedFile] = yamlContent;
             unsavedChanges = unsavedChanges.filter(c => {
                 if (c.target === 'shop-item' || c.target === 'shop-settings') {
-                    return c.details && c.details.shopFile !== currentShopFile;
+                    return !savedChanges.has(c) || (c.details && c.details.shopFile !== savedFile);
                 }
                 return true;
             });
@@ -401,6 +406,7 @@ async function saveCurrentShop(isSilent = false) {
         }
     } catch (error) {
         console.error('Failed to save shop:', error);
+        if (error.isSaveConflict) throw error;
         if (window.EditorTelemetry) window.EditorTelemetry.track('shop_save', { silent: !!isSilent, shopFile: currentShopFile, reason: error.message }, false);
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
@@ -419,7 +425,7 @@ async function saveMainMenuYaml(isSilent = false) {
     try {
         const yamlContent = EditorYaml.writeMain();
 
-        const response = await fetch(`api/file/menus/main-menu.yml`, {
+        const response = await EditorRevisions.request(`api/file/menus/main-menu.yml`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -437,6 +443,7 @@ async function saveMainMenuYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save main-menu.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -452,7 +459,7 @@ async function savePurchaseMenuYaml(isSilent = false) {
     try {
         const yamlContent = EditorYaml.writeTransaction('purchase');
 
-        const response = await fetch(`api/file/menus/purchase-menu.yml`, {
+        const response = await EditorRevisions.request(`api/file/menus/purchase-menu.yml`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -470,6 +477,7 @@ async function savePurchaseMenuYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save purchase-menu.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -485,7 +493,7 @@ async function saveSellMenuYaml(isSilent = false) {
     try {
         const yamlContent = EditorYaml.writeTransaction('sell');
 
-        const response = await fetch(`api/file/menus/sell-menu.yml`, {
+        const response = await EditorRevisions.request(`api/file/menus/sell-menu.yml`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -503,6 +511,7 @@ async function saveSellMenuYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save sell-menu.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -518,7 +527,7 @@ async function saveGuiSettingsYaml(isSilent = false) {
     try {
         const yamlContent = generateGuiSettingsYaml();
 
-        const response = await fetch(`api/file/menus/gui-settings.yml`, {
+        const response = await EditorRevisions.request(`api/file/menus/gui-settings.yml`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -536,6 +545,7 @@ async function saveGuiSettingsYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save gui-settings.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -546,7 +556,7 @@ async function saveGuiSettingsYaml(isSilent = false) {
 
 async function saveShopFileDirect(shopFile, yamlContent, isSilent = true) {
     EditorYaml.parse(yamlContent);
-    const response = await fetch(`api/file/shops/${shopFile}`, {
+    const response = await EditorRevisions.request(`api/file/shops/${encodeURIComponent(shopFile)}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -599,7 +609,7 @@ async function saveCampaignsYaml(isSilent = false) {
 
     try {
         const yamlContent = generateCampaignsFileYaml();
-        const response = await fetch(`api/file/campaigns.yml`, {
+        const response = await EditorRevisions.request(`api/file/campaigns.yml`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -625,6 +635,7 @@ async function saveCampaignsYaml(isSilent = false) {
         }
     } catch (error) {
         console.error('Failed to save campaigns:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -638,7 +649,7 @@ async function saveEconomySafetySettings(isSilent = false) {
 
     try {
         const payload = { settings: normalizeEconomySafetySettings(economySafetySettings) };
-        const response = await fetch(`api/economy-safety`, {
+        const response = await EditorRevisions.request(`api/economy-safety`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -660,6 +671,7 @@ async function saveEconomySafetySettings(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save economy-safety settings:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -693,13 +705,17 @@ async function confirmSave() {
             showToast(t('web-editor.modals.publish-success'), 'success', t('web-editor.modals.published', 'Published'));
         } catch (error) {
             console.error('Publish failed:', error);
+            if (error.isSaveConflict) return;
             showAlert(t('web-editor.modals.publish-error') + ': ' + error.message, 'error');
             showToast(t('web-editor.modals.publish-error'), 'error');
         }
         return;
     }
 
-    await saveCurrentTabChanges(false);
+    try { await saveCurrentTabChanges(false); }
+    catch (error) {
+        if (!error.isSaveConflict) showAlert(error.message, 'error');
+    }
 }
 
 async function publishChanges() {
@@ -716,6 +732,7 @@ async function createNewShop() {
         }
 
         const initialYaml = `gui-name: '&8New Shop'\nrows: 3\nitems: []`;
+        if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) allShops[currentShopFile] = EditorYaml.writeShop();
         allShops[filename] = initialYaml;
         
         // Add to dropdown
@@ -738,10 +755,11 @@ async function createNewShop() {
 }
 
 async function removeShopFile() {
+    if (EditorRevisions.hasPending()) { EditorRevisions.open(); return; }
     const confirmed = await showConfirm(t('web-editor.modals.remove-file-confirm', {file: currentShopFile}));
     if (confirmed) {
         try {
-            const response = await fetch(`api/file/shops/${currentShopFile}`, {
+            const response = await EditorRevisions.request(`api/file/shops/${encodeURIComponent(currentShopFile)}`, {
                 method: 'DELETE',
                 headers: {
                     'X-Session-Token': sessionToken
@@ -755,6 +773,7 @@ async function removeShopFile() {
             await loadAllFiles();
         } catch (error) {
             console.error('Failed to delete shop:', error);
+            if (error.isSaveConflict) return;
             showAlert(t('web-editor.modals.delete-error', 'Failed to delete') + ': ' + error.message, 'error');
         }
     }
@@ -854,5 +873,3 @@ async function handleAutoLogin(token) {
         document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #fff; font-family: Inter, sans-serif; flex-direction: column; gap: 20px;"><div style="font-size: 24px; color: #ff5555;">Connection Error</div><div style="font-size: 14px; color: #888;">Could not connect to the API server</div></div>`;
     }
 }
-
-

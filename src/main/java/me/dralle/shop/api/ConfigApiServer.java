@@ -35,6 +35,7 @@ import java.util.zip.GZIPOutputStream;
 
 public class ConfigApiServer {
     private final ShopPlugin plugin;
+    private final RevisionedFileStore revisionFiles;
     private HttpServer server;
     private final int port;
     private final String apiKey;
@@ -109,6 +110,7 @@ public class ConfigApiServer {
             String keyStoreType
     ) {
         this.plugin = plugin;
+        this.revisionFiles = new RevisionedFileStore(plugin.getDataFolder());
         this.port = port;
         this.apiKey = apiKey;
         this.sslEnabled = sslEnabled;
@@ -235,7 +237,7 @@ public class ConfigApiServer {
                     // Handle API requests
                     exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
                     exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token, Cache-Control, Pragma");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token, X-File-Revision, Cache-Control, Pragma");
 
                     if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
                         exchange.sendResponseHeaders(204, -1);
@@ -443,6 +445,19 @@ public class ConfigApiServer {
             } else {
                 sendError(exchange, 404, "Endpoint Not Found", "The requested API endpoint does not exist");
             }
+        } catch (RevisionedFileStore.Conflict e) {
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("fileName", e.fileName());
+            details.put("revision", e.latest().revision());
+            details.put("content", e.latest().content());
+            if (e.fileName().equals("config.yml") && path.equals("/api/economy-safety")) {
+                // The browser edits economy settings only; never display API credentials in its conflict view.
+                try { details.put("content", GSON.toJson(getEconomySafetySettingsMap(parseConfiguration(e.latest().content())))); }
+                catch (IllegalArgumentException ignored) { details.put("content", null); }
+            }
+            sendError(exchange, 409, "Save Conflict", e.getMessage(), details);
+        } catch (RevisionedFileStore.RevisionRequired e) {
+            sendError(exchange, 428, "Revision Required", e.getMessage());
         } catch (Exception e) {
             me.dralle.shop.util.ConsoleLog.apiError(plugin, method + " " + path + " failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
             plugin.debug("WebEditor API request exception (" + method + " " + path + "): " + e);
@@ -841,7 +856,13 @@ public class ConfigApiServer {
     }
 
     private void handleListFiles(HttpExchange exchange) throws IOException {
+        synchronized (revisionFiles) { handleListFilesSnapshot(exchange); }
+    }
+
+    private void handleListFilesSnapshot(HttpExchange exchange) throws IOException {
         Map<String, Object> response = new HashMap<>();
+        Map<String, String> revisions = new LinkedHashMap<>();
+        response.put("revisions", revisions);
         response.put("shops", new HashMap<String, String>());
 
         ensureEditorFilesExist();
@@ -853,9 +874,11 @@ public class ConfigApiServer {
             if (shopFiles != null) {
                 Map<String, String> shops = new HashMap<>();
                 for (File file : shopFiles) {
-                    String content = readFileSafely(file);
+                    RevisionedFileStore.Snapshot snapshot = revisionFiles.read(file);
+                    String content = snapshot.content();
                     if (content != null) {
                         shops.put(file.getName(), content);
+                        revisions.put("shops/" + file.getName(), snapshot.revision());
                     }
                 }
                 response.put("shops", shops);
@@ -887,7 +910,9 @@ public class ConfigApiServer {
         grouped.put("maxDecimals", plugin.getConfig().getInt("price-format.grouped.max-decimals", 2));
         priceFormat.put("grouped", grouped);
         response.put("priceFormat", priceFormat);
-        response.put("economySafety", getEconomySafetySettingsMap());
+        RevisionedFileStore.Snapshot config = revisionFiles.read(new File(plugin.getDataFolder(), "config.yml"));
+        revisions.put("config.yml", config.revision());
+        response.put("economySafety", getEconomySafetySettingsMap(parseConfiguration(config.content())));
 
         // Add server info
         Map<String, Object> serverInfo = new HashMap<>();
@@ -970,7 +995,10 @@ public class ConfigApiServer {
     }
 
     private void handleGetEconomySafety(HttpExchange exchange) throws IOException {
-        sendJsonResponse(exchange, 200, getEconomySafetySettingsMap());
+        RevisionedFileStore.Snapshot snapshot = revisionFiles.read(new File(plugin.getDataFolder(), "config.yml"));
+        Map<String, Object> response = getEconomySafetySettingsMap(parseConfiguration(snapshot.content()));
+        response.put("revision", snapshot.revision());
+        sendJsonResponse(exchange, 200, response);
     }
 
     private void handleGetStockAnalytics(HttpExchange exchange) throws IOException {
@@ -1103,7 +1131,14 @@ public class ConfigApiServer {
             return;
         }
 
-        FileConfiguration cfg = plugin.getConfig();
+        RevisionedFileStore.Change change = revisionFiles.update(new File(plugin.getDataFolder(), "config.yml"),
+                expectedRevision(exchange), previous -> updateEconomySettings(previous, src), saved -> plugin.reloadPlugin());
+        sendJsonResponse(exchange, 200, Map.of("success", true, "revision", change.after().revision(),
+                "economySafety", getEconomySafetySettingsMap(parseConfiguration(change.after().content()))));
+    }
+
+    private String updateEconomySettings(String previous, JsonObject src) {
+        FileConfiguration cfg = parseConfiguration(previous);
         setBooleanIfPresent(cfg, src, "enabled", "economy-safety.enabled");
         setDoubleIfPresent(cfg, src, "maxTransactionValue", "economy-safety.max-transaction-value");
         setDoubleIfPresent(cfg, src, "maxUnitPrice", "economy-safety.max-unit-price");
@@ -1126,14 +1161,22 @@ public class ConfigApiServer {
         setStringIfPresent(cfg, src, "adminNotifyPermission", "economy-safety.admin-alerts.notify-permission");
         setLongIfPresent(cfg, src, "adminAlertRateLimitMs", "economy-safety.admin-alerts.rate-limit-ms");
 
-        plugin.saveConfig();
-        plugin.reloadPlugin();
-        sendJsonResponse(exchange, 200, Map.of("success", true, "economySafety", getEconomySafetySettingsMap()));
+        return cfg.saveToString();
     }
 
-    private Map<String, Object> getEconomySafetySettingsMap() {
+    private static String expectedRevision(HttpExchange exchange) {
+        return exchange.getRequestHeaders().getFirst("X-File-Revision");
+    }
+
+    private static YamlConfiguration parseConfiguration(String content) {
+        YamlConfiguration cfg = new YamlConfiguration();
+        try { cfg.loadFromString(content == null ? "" : content); }
+        catch (Exception e) { throw new IllegalArgumentException("Configuration contains invalid YAML", e); }
+        return cfg;
+    }
+
+    private Map<String, Object> getEconomySafetySettingsMap(FileConfiguration cfg) {
         Map<String, Object> out = new HashMap<>();
-        FileConfiguration cfg = plugin.getConfig();
         out.put("enabled", cfg.getBoolean("economy-safety.enabled", true));
         out.put("maxTransactionValue", cfg.getDouble("economy-safety.max-transaction-value", 0D));
         out.put("maxUnitPrice", cfg.getDouble("economy-safety.max-unit-price", 0D));
@@ -1350,11 +1393,15 @@ public class ConfigApiServer {
         }
     }
 
-    private void putIfPresent(Map<String, Object> response, String key, File file) {
-        String content = readFileSafely(file);
+    private void putIfPresent(Map<String, Object> response, String key, File file) throws IOException {
+        RevisionedFileStore.Snapshot snapshot = revisionFiles.read(file);
+        String content = snapshot.content();
         if (content != null) {
             response.put(key, content);
         }
+        @SuppressWarnings("unchecked")
+        Map<String, String> revisions = (Map<String, String>) response.get("revisions");
+        revisions.put(revisionFiles.name(file), snapshot.revision());
     }
 
     private Map<String, Object> buildCommandCatalog() {
@@ -1394,9 +1441,11 @@ public class ConfigApiServer {
             return;
         }
 
-        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        RevisionedFileStore.Snapshot snapshot = revisionFiles.read(file);
+        String content = snapshot.content();
         Map<String, String> response = new HashMap<>();
         response.put("content", content);
+        response.put("revision", snapshot.revision());
         sendJsonResponse(exchange, 200, response);
     }
 
@@ -1453,36 +1502,15 @@ public class ConfigApiServer {
             }
         }
 
-        // Create parent directories if needed
-        if (!file.getParentFile().exists()) {
-            boolean created = file.getParentFile().mkdirs();
-            if (!created) {
-                me.dralle.shop.util.ConsoleLog.apiWarn(plugin, "Failed to create directory: " + file.getParentFile());
+        RevisionedFileStore.Change change = revisionFiles.update(file, expectedRevision(exchange), ignored -> fileContent, saved -> {
+            String previousContent = saved.before().content();
+            if (!Objects.equals(previousContent, fileContent)) {
+                appendActivityEntry(previousContent == null ? "created" : "updated", "file", getSessionUsername(exchange),
+                        fileName, previousContent, fileContent, null);
             }
-        }
-
-        String previousContent = readFileSafely(file);
-
-        // Save file
-        if (fileName.equals("commands.yml") && plugin.getCustomCommandRepository() != null) {
-            plugin.getCustomCommandRepository().saveValidated(fileContent);
-            plugin.reloadCustomCommands();
-        } else {
-            Files.writeString(file.toPath(), fileContent, StandardCharsets.UTF_8);
-        }
-
-        String username = getSessionUsername(exchange);
-        boolean existedBefore = previousContent != null;
-        if (!existedBefore) {
-            appendActivityEntry("created", "file", username, fileName, null, fileContent, null);
-        } else if (!previousContent.equals(fileContent)) {
-            appendActivityEntry("updated", "file", username, fileName, previousContent, fileContent, null);
-        }
-
-        // Reload plugin configuration
-        plugin.reloadPlugin();
-        
-        sendResponse(exchange, 200, "{\"success\": true}");
+            plugin.reloadPlugin();
+        });
+        sendJsonResponse(exchange, 200, Map.of("success", true, "revision", change.after().revision()));
     }
 
     private void handleDeleteFile(HttpExchange exchange, String fileName) throws IOException {
@@ -1505,42 +1533,9 @@ public class ConfigApiServer {
             return;
         }
 
-        if (!file.exists()) {
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("fileName", fileName);
-            sendError(exchange, 404, "File Not Found", "The file you are trying to delete does not exist on the server", errorData);
-            return;
-        }
-
-        String previousContent = readFileSafely(file);
-
-        // Delete the file
-        try {
-            boolean deleted = file.delete();
-            if (!deleted) {
-                Map<String, Object> errorData = new HashMap<>();
-                errorData.put("fileName", fileName);
-                errorData.put("filePath", file.getAbsolutePath());
-                sendError(exchange, 500, "Deletion Failed", "The file could not be deleted. It may be locked by another process or the server may not have sufficient permissions", errorData);
-                return;
-            }
-
-            // Get session info for logging
-            String username = getSessionUsername(exchange);
-
-            me.dralle.shop.util.ConsoleLog.apiInfo(plugin, "Admin '" + username + "' deleted '" + fileName + "'");
-            appendActivityEntry("deleted", "file", username, fileName, previousContent, null, null);
-
-            sendResponse(exchange, 200, "{\"success\": true}");
-        } catch (Exception e) {
-            me.dralle.shop.util.ConsoleLog.apiError(plugin, "Delete failed for '" + fileName + "': " + e.getMessage());
-            plugin.debug("WebEditor API delete exception: " + e);
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("fileName", fileName);
-            errorData.put("exception", e.getClass().getSimpleName());
-            errorData.put("exceptionMessage", e.getMessage());
-            sendError(exchange, 500, "Deletion Error", "An unexpected error occurred while attempting to delete the file", errorData);
-        }
+        RevisionedFileStore.Change change = revisionFiles.update(file, expectedRevision(exchange), ignored -> null, saved ->
+                appendActivityEntry("deleted", "file", getSessionUsername(exchange), fileName, saved.before().content(), null, null));
+        sendJsonResponse(exchange, 200, Map.of("success", true, "revision", change.after().revision()));
     }
 
     private void handleGetActivityLog(HttpExchange exchange) throws IOException {
@@ -1661,42 +1656,22 @@ public class ConfigApiServer {
             return;
         }
 
-        String currentContent = readFileSafely(file);
-        String restoredContent = null;
-        boolean changed = false;
-
-        if (action.equals("created")) {
-            if (file.exists()) {
-                changed = file.delete();
-            }
-        } else {
-            String beforeContent = extractSnapshotContent(entry.get("beforeData"));
-            if (beforeContent == null) {
-                sendError(exchange, 400, "Rollback Failed", "Rollback entry has no restorable previous content");
-                return;
-            }
-            File parent = file.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
-            }
-            Files.writeString(file.toPath(), beforeContent, StandardCharsets.UTF_8);
-            restoredContent = beforeContent;
-            changed = true;
-        }
-
-        if (!changed) {
-            sendJsonResponse(exchange, 200, Map.of("success", true, "changed", false));
+        String restoredContent = action.equals("created") ? null : extractSnapshotContent(entry.get("beforeData"));
+        if (!action.equals("created") && restoredContent == null) {
+            sendError(exchange, 400, "Rollback Failed", "Rollback entry has no restorable previous content");
             return;
         }
-
-        plugin.reloadPlugin();
-
-        String username = getSessionUsername(exchange);
-        Map<String, Object> extra = new HashMap<>();
-        extra.put("rolledBackEntryId", id);
-        appendActivityEntry("rollback", "file", username, fileName, currentContent, restoredContent, extra);
-
-        sendJsonResponse(exchange, 200, Map.of("success", true, "changed", true));
+        if (restoredContent == null && (fileName.equals("config.yml") || fileName.equals("discord.yml") || fileName.startsWith("menus/"))) {
+            sendError(exchange, 403, "Deletion Forbidden", "Core configuration files cannot be deleted by history restore");
+            return;
+        }
+        String restoredFile = fileName;
+        RevisionedFileStore.Change change = revisionFiles.update(file, expectedRevision(exchange), ignored -> restoredContent, saved -> {
+            plugin.reloadPlugin();
+            appendActivityEntry("rollback", "file", getSessionUsername(exchange), restoredFile, saved.before().content(),
+                    restoredContent, Map.of("rolledBackEntryId", id));
+        });
+        sendJsonResponse(exchange, 200, Map.of("success", true, "changed", true, "fileName", fileName, "revision", change.after().revision()));
     }
 
     private void handleClearActivityLog(HttpExchange exchange) throws IOException {
@@ -2134,4 +2109,3 @@ public class ConfigApiServer {
         return player;
     }
 }
-

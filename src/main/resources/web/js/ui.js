@@ -846,6 +846,7 @@ function updateQuickTips(tabName = currentTab) {
 
 function switchShop(filename) {
     if (filename === currentShopFile) return;
+    if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) allShops[currentShopFile] = EditorYaml.writeShop();
     loadShopFromData(filename);
 }
 

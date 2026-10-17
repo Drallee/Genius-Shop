@@ -1,6 +1,7 @@
 // ===== AUTO-SAVE MANAGER =====
 
 function scheduleEditorAutoSave() {
+    if (window.EditorRevisions && window.EditorRevisions.hasPending()) return;
     if (getEditorState('isLoadingFiles')) return;
     if (localStorage.getItem('autoSaveEnabled') === 'false') return;
 
@@ -8,6 +9,8 @@ function scheduleEditorAutoSave() {
     if (existing) clearTimeout(existing);
 
     const timeout = setTimeout(async () => {
+        setEditorState('autoSaveTimeout', null);
+        if (window.EditorRevisions && window.EditorRevisions.hasPending()) return;
         try {
             const mode = (localStorage.getItem('autoSaveMode') || 'draft').toLowerCase();
             if (mode === 'publish') {
