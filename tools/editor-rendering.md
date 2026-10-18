@@ -65,3 +65,77 @@ overflow. The browser check also verifies deferred script loading, navigation
 preferences, mobile navigation, all editing tabs, real item texture loading,
 autosave to the preview API, reload of the saved value, and the standalone preview's
 initial Weekend Market selection. All 31 existing Node web tests passed.
+
+## Follow-up: Asset Priority and Repeat Visits
+
+The embedded server now versions local CSS/JS references in HTML with a SHA-256
+content hash. Matching versioned URLs use `public, max-age=31536000, immutable`.
+HTML and unversioned CSS/JS use `no-cache` with an ETag, allowing conditional
+requests to return 304 without a body. Updating an asset changes its URL and the
+HTML validator, including when a test build reuses the same plugin version.
+API responses remain `no-store`. Gzip responses vary by Accept-Encoding and
+use the same weak validator as the equivalent uncompressed representation.
+
+The editor preconnects to the texture host and preloads the first occupied
+preview slot once its configuration is known. Only the first preview image has
+high fetch priority; other preview images remain eager at normal priority.
+Other item-list images are lazy and low priority so off-screen cards do not
+compete with the visible preview. A list image sharing the primary texture
+remains eager/high priority because it can be the LCP element on mobile.
+No particular material or shop is hardcoded.
+
+Comparison against `d2ffc93` on 2026-10-18, using the same 4x CPU/120ms request
+delay harness (one run per viewport, not a live-server guarantee):
+
+| View | FCP Before | FCP After | LCP Before | LCP After | CLS After |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Desktop | 508 | 384 | 1152 | 884 | 0.055 |
+| Mobile | 408 | 308 | 1112 | 960 | 0.078 |
+| Collapsed sidebar | 424 | 300 | 1164 | 916 | 0.063 |
+
+The grid reserves six rows only while empty. After rendering, its height follows
+the configured one-to-six rows without permanent blank space. This introduces
+a small first-load adjustment compared with the earlier permanently oversized
+grid, while remaining below the CLS 0.10 threshold in all three tested views.
+The workflow check verifies every supported row count ends at the final slot.
+
+The trace harness intercepts requests, which disables the browser cache; these
+numbers do not measure the repeat-visit cache benefit. Java tests separately
+exercise content-hash updates, conditional requests, gzip, HEAD, fallback-file
+updates, unchanged API caching, and a real HTTP request returning an empty 304.
+To reproduce this follow-up baseline, run
+`node tools/editor-rendering-check.cjs before d2ffc93` before the after run.
+
+The three local layout stylesheets stay render-blocking to preserve the stable
+first paint. Deferring them without a complete critical-style extraction would
+risk flashing unstyled content and reintroducing layout shifts. Their presence
+in an audit is not by itself evidence that deferring them improves the result.
+
+The embedded JDK HTTP server still uses HTTP/1.1. HTTP/2 or HTTP/3 requires a
+compatible HTTPS reverse proxy or a different server implementation; adding
+`defer`, caching, or fetch priority does not upgrade the protocol. No proxy,
+TLS, firewall, or deployment setting was changed. Proxy setup must preserve the
+editor's authentication/IP trust behavior and must not cache API responses.
+
+## CSP Verification
+
+No eval, Function-constructor calls, or string-based timers were found in the
+current editor scripts or the bundled YAML parser. The state store uses ordinary
+object access and function callbacks. Its presence, or the filename
+`yaml.min.js`, does not establish that the application requires unsafe-eval.
+
+The Node web-test context disables string code generation. Tests prove that
+eval/Function are rejected while YAML parsing/editing and state subscriptions
+continue to work. Run `node --test src/test/web/*.test.cjs`.
+
+Run `node src/test/web/csp-browser-check.cjs` for Chrome/Firefox desktop/mobile
+checks with `script-src 'self' 'unsafe-inline'` and no unsafe-eval permission.
+This test-only policy preserves the editor's existing inline handlers while
+blocking eval; it is not a claim of compatibility with a self-only script policy
+and is not applied to the production server. The tested load/edit/state workflows
+produce no CSP violations.
+
+The reported live eval violation has not been reproduced. Investigating that
+specific report requires the exact Console message, source file/line or stack,
+and actual response CSP header. Do not add unsafe-eval or replace the parser
+without identifying the blocked execution first.

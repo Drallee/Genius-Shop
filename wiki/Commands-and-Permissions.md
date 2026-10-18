@@ -1,180 +1,101 @@
 # Commands and Permissions
 
-Complete reference for all Genius Shop commands and permission nodes.
+## Built-In Commands
 
-## Commands
+| Command | Purpose | Primary permission |
+| --- | --- | --- |
+| `/shop` | Open the main menu. | `geniusshop.use` |
+| `/shop sell` | Open the bulk-sell menu. | `geniusshop.sell` |
+| `/shop reload` | Reload configuration, shops, messages, and custom commands. | `geniusshop.reload` |
+| `/shop editor` | Create a web-editor login link and code. Player only. | `geniusshop.admin` |
+| `/shop confirmlogin <token>` | Confirm the login requested for your account. Player only. | IP-bypass workflow below |
+| `/shop wiki` | Show the configured wiki link. | `geniusshop.wiki` |
+| `/shop resetstock all` | Reset global counters for all shops. | `geniusshop.resetstock` |
+| `/shop resetstock shop <shopKey>` | Reset global counters for one shop. | `geniusshop.resetstock` |
+| `/shop resetstock item <shopKey> <slot>` | Reset an item identified by its shop and slot. | `geniusshop.resetstock` |
+| `/shop validate-prices` | Scan prices without executing transactions. | `geniusshop.validateprices` |
+| `/shop exportitem [file-name]` | Export the held item to JSON in `item-exports/`. Player only. | `geniusshop.exportitem` |
 
-### Player Commands
+Shop keys are filenames without `.yml`, such as `ores`. Slots are zero-based. `/shop resetstock item ores 10` targets slot 10, not the tenth YAML entry.
 
-#### `/shop`
-Opens the main shop menu.
+The validator reports invalid prices/amounts, dynamic-price bounds, formula issues, and applicable safety-cap problems. A clean scan does not prove every future dynamic price or external command is safe.
 
-**Usage:** `/shop`
-**Permission:** `geniusshop.use`
-**Aliases:** None
+## Permission Defaults
 
-### Admin Commands
+| Permission | Default | Notes |
+| --- | --- | --- |
+| `geniusshop.use` | Everyone | Base `/shop` access. |
+| `geniusshop.sell` | Everyone | Bulk-sell menu access. |
+| `geniusshop.admin` | Operators | Administrative access and children listed below. |
+| `geniusshop.reload` | Operators | Configuration reload. |
+| `geniusshop.resetstock` | Operators | Manual resets. |
+| `geniusshop.wiki` | Operators | Wiki link. |
+| `geniusshop.validateprices` | Operators | Price diagnostics. |
+| `geniusshop.exportitem` | Operators | Held-item export. |
+| `geniusshop.login.ip.bypass` | Operators | Eligible for different-IP editor login confirmation when enabled. |
+| `geniusshop.shop` | Not granted | Parent access node for the default protected shops. |
+| `geniusshop.shop.spawners` | Not granted | Default spawner shop/menu access. |
+| `geniusshop.shop.premium` | Not granted | Default premium shop/menu access. |
+| `geniusshop.spawners`, `geniusshop.premium` | Not granted | Legacy access nodes for those categories. |
 
-#### `/shop reload`
-Reloads all configuration files without restarting the server.
+`geniusshop.admin` grants the built-in use, reload, sell, resetstock, wiki, validateprices, exportitem, and login-IP-bypass child nodes. Legacy `shop.admin` is recognized in several admin checks but is not a declared node; use `geniusshop.admin` for new installations. Custom shop/item permissions are separate settings, not automatically invented children of the admin node.
 
-**Usage:** `/shop reload`
-**Permission:** `geniusshop.reload` or `shop.admin`
-**Note:** Reloads shops, menus, messages, and settings
+`/shop editor` also requires `api.enabled` and `api.enable-editor-command`. A different-IP login requires `api.allow-ip-bypass`, the appropriate permission, and in-game confirmation for an untrusted address. Only confirm login requests you initiated.
 
-#### `/shop editor`
-Generates a clickable auto-login link for the web editor.
+## Shop and Item Access
 
-**Usage:** `/shop editor`
-**Permission:** `geniusshop.admin` or `shop.admin`
-**Note:** Links expire after 5 minutes. Opens directly in browser with one click.
-
-## Permissions
-
-### User Permissions
-
-#### `geniusshop.use`
-**Default:** All players
-**Description:** Basic permission to use shops
-**Grants:**
-- Open main shop menu with `/shop`
-- View available shops
-- Buy and sell items (if prices are set)
-
-### Admin Permissions
-
-#### `geniusshop.admin` or `shop.admin`
-**Default:** Operators
-**Description:** Full admin access
-**Grants:**
-- All user permissions
-- Reload configurations
-- Generate web editor access links
-- Bypass shop restrictions
-
-#### `geniusshop.reload`
-**Default:** Operators
-**Description:** Permission to reload configs
-**Grants:**
-- `/shop reload` command only
-
-### Shop-Specific Permissions
-
-You can set custom permissions for individual shops in the shop YAML file:
+A shop's `permission` controls access to that shop. A main-menu button's `permission` can independently control button access. Items can have their own permission, availability, level, game-mode, and world conditions.
 
 ```yaml
-# In shops/yourshop.yml
-shop:
-  permission: "myserver.vip"
+gui-name: '&dVIP Shop'
+rows: 3
+permission: 'rank.vip'
+items:
+  - material: DIAMOND
+    slot: 10
+    price: 100
+    permission: 'rank.vip.diamonds'
 ```
 
-This requires players to have the `myserver.vip` permission to access the shop.
+Grant the relevant nodes rather than assuming menu visibility alone grants shop access.
 
-**Example:** Make a VIP-only shop that only players with `rank.vip` can access:
+Example LuckPerms commands:
 
-```yaml
-shop:
-  gui-name: "&d&lVIP Shop"
-  rows: 6
-  permission: "rank.vip"
-```
-
-## Permission Setup Examples
-
-### Basic Setup (LuckPerms)
-
-```bash
-# Give all players basic shop access
+```text
 lp group default permission set geniusshop.use true
-
-# Give admins full access
+lp group default permission set geniusshop.sell true
 lp group admin permission set geniusshop.admin true
-
-# Give VIP players access to VIP shop (custom permission)
 lp group vip permission set rank.vip true
+lp group vip permission set rank.vip.diamonds true
 ```
 
-### PermissionsEx
+## Custom Commands
+
+`commands.yml` defines names as mapping keys. Every enabled name and alias must be unique. Avoid existing server/plugin command names, including `shop`. Bundled examples are disabled until configured and enabled.
 
 ```yaml
-groups:
-  default:
-    permissions:
-      - geniusshop.use
-
-  vip:
-    permissions:
-      - geniusshop.use
-      - rank.vip
-
-  admin:
-    permissions:
-      - geniusshop.admin
+commands:
+  blocks-market:
+    enabled: true
+    aliases: [building-market]
+    description: 'Open the building shop'
+    usage: '/blocks-market'
+    permission: 'geniusshop.command.blocks-market'
+    no-permission-message: '&cYou cannot use this command.'
+    shop-bypass-permission: ''
+    action:
+      type: OPEN_SHOP
+      shop: blocks
 ```
 
-## Usage Examples
+| Action | Target | Behavior |
+| --- | --- | --- |
+| `OPEN_SHOP` | `shop` | Open a shop. |
+| `OPEN_ITEM` | `shop`, `item` | Open an item; `menu` is `BOTH`, `BUY`, or `SELL`. |
+| `SELL_ALL` | Optional `shop` | Sell eligible inventory items across accessible shops or one shop. |
 
-### For Players
+Use the item key shown in the editor's selector, not an assumed display name. A material can be ambiguous when several entries share it. Blank command permission means no additional command-specific permission. A configured `shop-bypass-permission` is a separate override checked by custom commands; review it carefully.
 
-```bash
-# Open main shop menu
-/shop
-```
+Save through the editor or use `/shop reload` after manual edits. Invalid definitions are reported during validation. If your server cannot update runtime registration reliably, restart after command-name or alias changes.
 
-### For Admins
-
-```bash
-# Reload after config changes
-/shop reload
-
-# Get web editor access link
-/shop editor
-```
-
-## Tips
-
-💡 **Custom Permissions**: Use any permission node for shop access (e.g., `rank.vip`, `donor.tier1`)
-💡 **Web Editor**: The `/shop editor` command gives a clickable link that auto-logs you in
-💡 **Reload**: Use `/shop reload` after making changes to avoid server restart
-💡 **Multiple Shops**: Create different shops with different permission requirements
-
-## Troubleshooting
-
-### "You don't have permission"
-
-**Problem:** Players can't access shops
-
-**Solutions:**
-- Verify they have `geniusshop.use` permission
-- Check shop-specific permissions in shop YAML file
-- Ensure permission plugin is loaded
-- Reload permissions: `/lp reload` or equivalent
-
-### Admin commands not working
-
-**Problem:** Can't use admin commands
-
-**Solutions:**
-- Verify `geniusshop.admin` or `shop.admin` permission
-- Check if you're OP: `/op YourName`
-- Try `/shop reload` specifically with `geniusshop.reload`
-
-### Web editor access denied
-
-**Problem:** Can't access web editor
-
-**Solutions:**
-- Verify `geniusshop.admin` permission
-- Ensure you're online in-game when using link
-- Check API is enabled in `config.yml`
-- Generate new link: `/shop editor`
-
-## Next Steps
-
-- **[Configuration](Configuration)** - Learn to configure shops
-- **[Web Editor](Web-Editor)** - Use the web interface
-- **[Examples](Examples)** - See configuration examples
-
----
-
-Need help? [Create an issue](https://github.com/Drallee/Genius-Shop/issues) on GitHub!
+[Configuration](Configuration) | [Web Editor](Web-Editor) | [Examples](Examples)

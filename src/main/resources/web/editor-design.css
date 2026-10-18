@@ -147,8 +147,9 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-shell .minecraft-preview-section { background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 12px 0 32px; margin-bottom: 24px; min-width: 0; }
 .editor-shell .minecraft-gui { width: 100%; max-width: min(680px, max(360px, calc((100dvh - 310px) * 1.1))); min-width: 0; margin: 0 auto; padding: 20px; border: 1px solid #414a52; border-radius: 8px; background: var(--bg-surface); box-shadow: none; }
 .editor-shell .minecraft-gui { container-type: inline-size; }
-/* Keep room for all six supported rows while the configured preview loads. */
-.editor-shell .gui-grid { min-height: calc(100cqw * 2 / 3 + 5px); align-content: start; }
+/* Reserve loading space only until the configured slots have been rendered. */
+.editor-shell .gui-grid { min-height: 0; align-content: start; }
+.editor-shell .gui-grid:empty { min-height: calc(100cqw * 2 / 3 + 5px); }
 .editor-shell .gui-title-container { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; margin-bottom: 12px; padding: 10px 4px 14px; min-height: 42px; }
 .editor-shell .gui-title-container .gui-title { background: transparent; border: 0; padding: 0; margin: 0; box-shadow: none; }
 .editor-shell .gui-title { font-size: 16px; font-weight: 600; text-shadow: none; }

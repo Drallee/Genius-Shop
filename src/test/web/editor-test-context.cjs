@@ -13,7 +13,7 @@ module.exports = function editorContext() {
             getElementById: id => id === 'export-output' ? output : null,
             querySelector: () => null, querySelectorAll: () => [], addEventListener: () => {}
         }
-    });
+    }, { codeGeneration: { strings: false, wasm: false } });
     context.window = context;
     const root = path.join(__dirname, '../../main/resources/web');
     for (const file of ['js/state-store.js', 'js/core.js', 'js/schema.js', 'vendor/yaml.min.js',

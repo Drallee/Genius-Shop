@@ -8,7 +8,7 @@ const label = process.argv[2] || 'after';
 const baselineRef = process.argv[3] || 'HEAD';
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'target', 'editor-rendering');
-const baselinePaths = new Set(['index.html', 'style.css', 'navigation.css', 'editor-design.css', 'js/events.js', 'js/api.js', 'js/navigation.js']);
+const baselinePaths = new Set(['index.html', 'style.css', 'navigation.css', 'editor-design.css', 'js/events.js', 'js/api.js', 'js/navigation.js', 'js/ui.js']);
 fs.mkdirSync(output, { recursive: true });
 const server = spawn(process.execPath, [path.join(__dirname, 'preview-server.cjs'), '8796'], { windowsHide: true });
 const ready = new Promise((resolve, reject) => {
@@ -125,6 +125,14 @@ async function measure(browser, viewport, collapsed) {
         assert.ok(cls <= 0.10, `CLS ${cls} exceeds 0.10`);
         assert.ok(metrics.resources.filter(r => r.blocking === 'blocking').every(r => !r.name.includes('/js/')));
         assert.equal(await page.evaluate(() => [...document.querySelectorAll('script[src]')].every(script => script.defer)), true);
+        assert.equal(await page.locator('#preview-grid img[fetchpriority="high"]').count(), 1);
+        assert.equal(await page.locator('#preview-grid img[loading="lazy"]').count(), 0);
+        assert.equal(await page.evaluate(() => document.getElementById('preview-texture-preload')?.fetchPriority), 'high');
+        assert.equal(await page.locator('#mainmenu-shops-container .item-icon img:not([loading="lazy"]):not([fetchpriority="high"])').count(), 0);
+        const primarySource = await page.locator('#preview-grid img[fetchpriority="high"]').getAttribute('src');
+        for (const source of await page.locator('#mainmenu-shops-container .item-icon img[fetchpriority="high"]').evaluateAll(images => images.map(image => image.getAttribute('src')))) {
+            assert.equal(source, primarySource);
+        }
         await verifyWorkflows(page, viewport, collapsed);
         assert.deepEqual(errors, []);
     }
@@ -150,6 +158,21 @@ async function verifyWorkflows(page, viewport, collapsed) {
         switchShop('weekend_market.yml');
     });
     assert.equal(await page.locator('#preview-grid .gui-slot').count(), 36);
+    for (const rows of [1, 2, 3, 4, 5, 6]) {
+        const grid = await page.evaluate(rows => {
+            currentShopSettings.rows = rows;
+            updatePreview();
+            const element = document.getElementById('preview-grid');
+            const style = getComputedStyle(element);
+            const last = element.lastElementChild.getBoundingClientRect();
+            return { slots: element.children.length,
+                unused: element.getBoundingClientRect().bottom - last.bottom
+                    - parseFloat(style.paddingBottom) - parseFloat(style.borderBottomWidth) };
+        }, rows);
+        assert.equal(grid.slots, rows * 9);
+        assert.ok(Math.abs(grid.unused) < 2, `${rows} rows leave ${grid.unused}px below the last slot`);
+    }
+    await page.evaluate(() => { currentShopSettings.rows = 4; updatePreview(); });
     const post = page.waitForRequest(request => request.method() === 'POST' && request.url().includes('/api/file/shops/weekend_market.yml'));
     const title = `&aRendering check ${viewport.width} ${collapsed}`;
     await page.evaluate(title => {

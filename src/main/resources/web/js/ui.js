@@ -1046,7 +1046,32 @@ function handleItemSort() {
     }
 }
 
+function prioritizePreviewTexture(source) {
+    if (!source || !document.head) return;
+    let preload = document.getElementById('preview-texture-preload');
+    if (!preload) {
+        preload = document.createElement('link');
+        preload.id = 'preview-texture-preload';
+        preload.rel = 'preload';
+        preload.as = 'image';
+        preload.fetchPriority = 'high';
+        document.head.appendChild(preload);
+    }
+    if (preload.getAttribute('href') !== source) preload.href = source;
+}
+
+function listImageLoadingAttributes(source) {
+    const primary = document.getElementById('preview-texture-preload')?.getAttribute('href') === source;
+    return primary ? 'loading="eager" fetchpriority="high"' : 'loading="lazy" fetchpriority="low"';
+}
+
 function renderItems() {
+    if (currentTab === 'shop') {
+        const pageSize = Math.max(1, (currentShopSettings.rows || 3) * 9);
+        const start = currentPreviewPage * pageSize;
+        const first = [...items].sort((a, b) => a.slot - b.slot).find(item => item.slot >= start && item.slot < start + pageSize);
+        if (first) prioritizePreviewTexture(getShopItemIconUrl(first));
+    }
     const container = document.getElementById('items-container');
     if (!container) {
         // Update item count badge
@@ -1179,7 +1204,7 @@ function renderItems() {
         itemEl.innerHTML = `
             <div class="item-header">
                 <div class="item-icon">
-                    <img alt="" src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'">
+                    <img alt="" ${listImageLoadingAttributes(getShopItemIconUrl(item))} decoding="async" width="32" height="32" src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'">
                 </div>
                 <div class="flex-1">
                     <div class="item-title">${parseMinecraftColors(item.name)}</div>
@@ -1985,6 +2010,7 @@ function updatePreview() {
     // Handle paging visibility
     updatePaginationVisibility(totalPages);
 
+    let priorityImageAssigned = false;
     for (let i = 0; i < rows * 9; i++) {
         const slot = document.createElement('div');
         slot.className = 'gui-slot';
@@ -2005,7 +2031,8 @@ function updatePreview() {
             slot.ondragstart = (e) => handleDragStart(e, i, 'shop');
             slot.classList.add('filled');
             
-            slot.innerHTML = `<div class="item-icon"><img alt="" src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'"></div>`;
+            slot.innerHTML = `<div class="item-icon"><img alt="" width="32" height="32" fetchpriority="${priorityImageAssigned ? 'auto' : 'high'}" src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'"></div>`;
+            priorityImageAssigned = true;
             if (item.amount > 1) {
                 slot.innerHTML += `<div class="slot-amount">${item.amount}</div>`;
             }
@@ -2732,6 +2759,11 @@ function openGuiButtonModal(buttonKey, title) {
 }
 
 function renderMainMenuShops() {
+    if (currentTab === 'mainmenu') {
+        const first = [...loadedGuiShops].sort((a, b) => a.slot - b.slot)
+            .find(item => item.slot >= 0 && item.slot < mainMenuSettings.rows * 9);
+        if (first) prioritizePreviewTexture(`${TEXTURE_API}${first.material.toLowerCase()}.png`);
+    }
     const container = document.getElementById('mainmenu-shops-container');
     if (!container) {
         if (document.getElementById('mainmenu-title-display')) {
@@ -2788,7 +2820,7 @@ function renderMainMenuShops() {
         el.innerHTML = `
             <div class="item-header">
                 <div class="item-icon">
-                    <img alt="" src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'">
+                    <img alt="" ${listImageLoadingAttributes(`${TEXTURE_API}${shop.material.toLowerCase()}.png`)} decoding="async" width="32" height="32" src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'">
                 </div>
                 <div class="flex-1">
                     <div class="item-title">${parseMinecraftColors(shop.name)}</div>
@@ -2844,6 +2876,7 @@ function updateGuiPreview() {
     const rowsInput = document.getElementById('mainmenu-rows-input');
     if (rowsInput) rowsInput.value = mainMenuSettings.rows;
 
+    let priorityImageAssigned = false;
     for (let i = 0; i < mainMenuSettings.rows * 9; i++) {
         const slot = document.createElement('div');
         slot.className = 'gui-slot';
@@ -2862,7 +2895,8 @@ function updateGuiPreview() {
             slot.ondragstart = (e) => handleDragStart(e, i, 'mainmenu');
             slot.classList.add('filled');
             
-            slot.innerHTML = `<div class="item-icon"><img alt="" src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'"></div>`;
+            slot.innerHTML = `<div class="item-icon"><img alt="" width="32" height="32" fetchpriority="${priorityImageAssigned ? 'auto' : 'high'}" src="${TEXTURE_API}${shop.material.toLowerCase()}.png" onerror="this.src='${TEXTURE_API}chest.png'"></div>`;
+            priorityImageAssigned = true;
             
             slot.onclick = () => openMainMenuShopModal(loadedGuiShops.indexOf(shop));
 

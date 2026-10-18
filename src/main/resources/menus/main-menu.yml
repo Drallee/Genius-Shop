@@ -43,7 +43,6 @@ items:
       - menus.main.items.spawners.lore
     shop-key: spawners
     permission: geniusshop.shop.spawners
-    hide-attributes: false
     hide-additional: true
   farming:
     slot: 13
@@ -52,6 +51,7 @@ items:
     lore:
       - menus.main.items.farming.lore
     shop-key: farming
+    hide-attributes: true
   misc:
     slot: 14
     material: REDSTONE
@@ -73,6 +73,7 @@ items:
     lore:
       - menus.main.items.special.lore
     shop-key: special
+    hide-attributes: true
   weekend_market:
     slot: 23
     material: NETHER_STAR

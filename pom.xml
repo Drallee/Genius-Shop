@@ -7,7 +7,7 @@
 
     <groupId>me.dralle</groupId>
     <artifactId>Shop</artifactId>
-    <version>1.7.0-TB.26.10.12</version>
+    <version>1.7.0-TB.26.10.18</version>
     <packaging>jar</packaging>
 
     <name>Shop</name>
