@@ -48,6 +48,14 @@ public class CustomCommandRepository {
     }
 
     private CustomCommandLoadResult parse(YamlConfiguration config, boolean runtimeValidation) {
+        return parse(config, runtimeValidation, key -> plugin.getShopManager() != null ? plugin.getShopManager().getShop(key) : null);
+    }
+
+    public CustomCommandLoadResult parse(YamlConfiguration config, java.util.function.Function<String, ShopData> shops) {
+        return parse(config, true, shops);
+    }
+
+    private CustomCommandLoadResult parse(YamlConfiguration config, boolean runtimeValidation, java.util.function.Function<String, ShopData> shops) {
         List<CustomCommandDefinition> commands = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         int disabled = 0;
@@ -97,7 +105,7 @@ public class CustomCommandRepository {
                 aliases.add(alias);
             }
 
-            CustomCommandAction action = parseAction(name, section.getConfigurationSection("action"), runtimeValidation && enabled, commandErrors);
+            CustomCommandAction action = parseAction(name, section.getConfigurationSection("action"), runtimeValidation && enabled, commandErrors, shops);
             errors.addAll(commandErrors);
             if (!runtimeValidation || !enabled || commandErrors.isEmpty()) {
                 commands.add(new CustomCommandDefinition(
@@ -155,7 +163,8 @@ public class CustomCommandRepository {
         }
     }
 
-    private CustomCommandAction parseAction(String commandName, ConfigurationSection section, boolean validateReferences, List<String> errors) {
+    private CustomCommandAction parseAction(String commandName, ConfigurationSection section, boolean validateReferences, List<String> errors,
+                                          java.util.function.Function<String, ShopData> shops) {
         if (section == null) {
             errors.add("Command '" + commandName + "' is missing action section.");
             return null;
@@ -184,7 +193,7 @@ public class CustomCommandRepository {
         }
 
         if (validateReferences && !shopKey.isEmpty()) {
-            ShopData shop = plugin.getShopManager() != null ? plugin.getShopManager().getShop(shopKey) : null;
+            ShopData shop = shops.apply(shopKey);
             if (shop == null) {
                 errors.add("Command '" + commandName + "' references missing shop '" + shopKey + "'.");
             } else if (type == CustomCommandActionType.OPEN_ITEM && shop.getItemByUniqueKey(itemKey) == null) {

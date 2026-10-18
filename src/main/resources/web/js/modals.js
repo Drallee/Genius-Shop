@@ -217,6 +217,7 @@ function submitPromptModal() {
 }
 
 function openSaveConfirmationModal(mode = 'tab') {
+    if (mode === 'publish') return EditorDrafts.review();
     setEditorState('activeSaveMode', mode);
     const modal = document.getElementById('save-confirmation-modal');
     const content = document.getElementById('save-confirmation-content');
@@ -235,6 +236,12 @@ function openSaveConfirmationModal(mode = 'tab') {
         if (modalTitleText) modalTitleText.textContent = 'Confirm Save';
         if (confirmBtn) confirmBtn.innerHTML = '<span>💾 SAVE CURRENT TAB</span>';
     }
+
+    if (modalTitleText) {
+        modalTitleText.removeAttribute('data-i18n');
+        modalTitleText.textContent = 'Save Draft';
+    }
+    if (confirmBtn) confirmBtn.innerHTML = '<span>SAVE CURRENT TAB DRAFT</span>';
 
     // Helper to determine if a change belongs to the current tab
     const isChangeForCurrentTab = (change) => {
@@ -840,7 +847,7 @@ function openEditModal(data) {
     refreshModalSidePreview();
 }
 
-function closeEditModal() {
+function closeEditModal(immediate = false) {
     finishModalLayoutChange();
     modalScrollSpace?.dispose();
     modalScrollSpace = null;
@@ -852,7 +859,7 @@ function closeEditModal() {
     }
 
     // Add fade-out animation (only if animations enabled)
-    if (modalBox && !animationsDisabled) {
+    if (modalBox && !animationsDisabled && !immediate) {
         modalBox.style.animation = 'fadeOut 0.3s ease-out';
         setTimeout(() => {
             modal.style.display = 'none';
@@ -3504,7 +3511,7 @@ async function rollbackChange() {
     if (!confirmed) return;
 
     try {
-        const response = await fetch(`api/activity-log/rollback`, {
+        const response = await EditorDrafts.request(`api/activity-log/rollback`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3524,7 +3531,7 @@ async function rollbackChange() {
         closeActivityDetailModal();
         closeActivityLogModal();
         refreshActivityLog();
-        showToast(t('web-editor.modals.rollback-success', 'Action rolled back successfully'), 'success');
+        showToast('History version restored to draft', 'success');
     } catch (error) {
         console.error('Rollback failed:', error);
         showAlert(t('web-editor.modals.rollback-failed', 'Rollback failed') + ': ' + error.message, 'error');

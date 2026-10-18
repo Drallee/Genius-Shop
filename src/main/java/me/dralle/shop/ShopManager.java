@@ -38,19 +38,37 @@ public class ShopManager {
     private CompiledShopCatalog compiledCatalog;
 
     public ShopManager(ShopPlugin plugin) {
+        this(plugin, shopConfigurations(plugin.getShopFileManager()), campaignConfiguration(plugin), true);
+    }
+
+    private static Map<String, FileConfiguration> shopConfigurations(ShopFileManager files) {
+        Map<String, FileConfiguration> configurations = new LinkedHashMap<>();
+        for (String key : files.getShopKeys()) configurations.put(key, files.getShopConfig(key));
+        return configurations;
+    }
+
+    private static FileConfiguration campaignConfiguration(ShopPlugin plugin) {
+        File file = new File(plugin.getDataFolder(), "campaigns.yml");
+        return file.exists() ? YamlUtil.loadUtf8(file) : new org.bukkit.configuration.file.YamlConfiguration();
+    }
+
+    public ShopManager(ShopPlugin plugin, Map<String, ? extends FileConfiguration> configurations, FileConfiguration campaignConfig) {
+        this(plugin, configurations, campaignConfig, false);
+    }
+
+    private ShopManager(ShopPlugin plugin, Map<String, ? extends FileConfiguration> configurations, FileConfiguration campaignConfig, boolean logMessages) {
         this.plugin = plugin;
         populateTimezone();
         this.validationMessages.clear();
-        ShopFileManager fileManager = plugin.getShopFileManager();
-        loadGlobalCampaigns();
+        loadGlobalCampaigns(campaignConfig);
 
-        if (fileManager.getShopKeys().isEmpty()) {
-            me.dralle.shop.util.ConsoleLog.warn(plugin, "No shops found in shops/ folder!");
+        if (configurations.isEmpty()) {
+            if (logMessages) me.dralle.shop.util.ConsoleLog.warn(plugin, "No shops found in shops/ folder!");
             return;
         }
 
-        for (String shopKey : fileManager.getShopKeys()) {
-            FileConfiguration shopConfig = fileManager.getShopConfig(shopKey);
+        for (String shopKey : configurations.keySet()) {
+            FileConfiguration shopConfig = configurations.get(shopKey);
             if (shopConfig == null) continue;
 
             String guiName = shopConfig.getString("gui-name", "&8Shop");
@@ -70,7 +88,7 @@ public class ShopManager {
                         "shop:" + shopKey + ".available-times",
                         "Invalid time restriction: " + invalid
                 ));
-                me.dralle.shop.util.ConsoleLog.warn(plugin, "Invalid 'available-times' in shop '" + shopKey + "': " + invalid);
+                if (logMessages) me.dralle.shop.util.ConsoleLog.warn(plugin, "Invalid 'available-times' in shop '" + shopKey + "': " + invalid);
             }
 
             // ----------------------------------------------------------
@@ -102,7 +120,7 @@ public class ShopManager {
         }
         runPostCompileValidation();
         this.compiledCatalog = new CompiledShopCatalog(shops, validationMessages, Instant.now());
-        if (!validationMessages.isEmpty()) {
+        if (logMessages && !validationMessages.isEmpty()) {
             long errors = validationMessages.stream().filter(m -> m.severity() == ValidationMessage.Severity.ERROR).count();
             long warns = validationMessages.stream().filter(m -> m.severity() == ValidationMessage.Severity.WARNING).count();
             String summary = "Shop compile completed with " + warns + " warning(s) and " + errors + " error(s).";
@@ -386,11 +404,8 @@ public class ShopManager {
         return out;
     }
 
-    private void loadGlobalCampaigns() {
+    private void loadGlobalCampaigns(FileConfiguration cfg) {
         globalCampaigns.clear();
-        File file = new File(plugin.getDataFolder(), "campaigns.yml");
-        if (!file.exists()) return;
-        FileConfiguration cfg = YamlUtil.loadUtf8(file);
         List<Map<?, ?>> raw = cfg.getMapList("campaigns");
         if (raw == null) return;
         for (Map<?, ?> entry : raw) {

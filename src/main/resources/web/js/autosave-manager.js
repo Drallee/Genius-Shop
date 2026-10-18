@@ -1,6 +1,8 @@
 // ===== AUTO-SAVE MANAGER =====
 
 function scheduleEditorAutoSave() {
+    if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
+    if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
     if (getEditorState('isLoadingFiles')) return;
     if (localStorage.getItem('autoSaveEnabled') === 'false') return;
 
@@ -8,14 +10,11 @@ function scheduleEditorAutoSave() {
     if (existing) clearTimeout(existing);
 
     const timeout = setTimeout(async () => {
+        setEditorState('autoSaveTimeout', null);
+        if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
+        if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
         try {
-            const mode = (localStorage.getItem('autoSaveMode') || 'draft').toLowerCase();
-            if (mode === 'publish') {
-                await publishAllChanges();
-                showToast(t('web-editor.modals.publish-success'), 'success', t('web-editor.modals.published', 'Published'));
-            } else {
-                await saveCurrentTabChanges(true);
-            }
+            await saveCurrentTabChanges(true);
         } catch (error) {
             console.error('Auto-save failed:', error);
         }

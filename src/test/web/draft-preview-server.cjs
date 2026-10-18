@@ -1,0 +1,69 @@
+// In-memory publishing demo. Never writes project files or contacts a Minecraft server.
+const { createPreviewServer } = require('./editor-preview-server.cjs');
+const keys = { mainMenu: 'menus/main-menu.yml', purchaseMenu: 'menus/purchase-menu.yml',
+    sellMenu: 'menus/sell-menu.yml', guiSettings: 'menus/gui-settings.yml', campaignsFile: 'campaigns.yml',
+    commandsFile: 'commands.yml', customItemsFile: 'custom-items.yml' };
+
+function createDraftPreviewServer() {
+    const state = { live: null, workspace: null, version: 0, publishes: 0, errors: [], failPublish: false, requests: [] };
+    const changes = () => [...new Set([...Object.keys(state.live), ...Object.keys(state.workspace)])].sort()
+        .filter(file => state.live[file] !== state.workspace[file]).map(file => ({ file,
+            kind: state.workspace[file] == null ? 'deleted' : state.live[file] == null ? 'added' : 'modified',
+            before: state.live[file] ?? null, after: state.workspace[file] ?? null }));
+    const status = () => ({ revision: String(state.version), changedFiles: changes().length });
+    const review = () => ({ token: String(state.version), draft: status(), changes: changes(), errors: state.errors });
+    const server = createPreviewServer({ apiHandler(request, response, url, base) {
+        if (!state.live) {
+            state.live = Object.fromEntries(Object.entries(keys).map(([key, file]) => [file, base[key]]));
+            Object.entries(base.shops).forEach(([file, source]) => { state.live['shops/' + file] = source; });
+            state.workspace = { ...state.live };
+        }
+        const send = (code, body) => { response.writeHead(code, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(body)); };
+        if (url.pathname === '/api/files') {
+            const payload = { ...base, shops: {}, draft: status() };
+            Object.entries(keys).forEach(([key, file]) => { payload[key] = state.workspace[file]; });
+            Object.entries(state.workspace).forEach(([file, content]) => { if (file.startsWith('shops/')) payload.shops[file.slice(6)] = content; });
+            if (state.workspace['config.yml']) payload.economySafety = JSON.parse(state.workspace['config.yml']);
+            send(200, payload);
+            return true;
+        }
+        if (url.pathname === '/api/draft/review') { send(200, review()); return true; }
+        if (request.method === 'GET') return false;
+        state.requests.push(url.pathname);
+        let body = '';
+        request.on('data', part => { body += part; });
+        request.on('end', () => {
+            try {
+                const input = body ? JSON.parse(body) : {};
+                const expected = request.headers['x-draft-revision'];
+                if (expected != null && expected !== String(state.version)) return send(409, { message: 'Draft changed in another tab' });
+                if (url.pathname.startsWith('/api/file/')) {
+                    const file = decodeURIComponent(url.pathname.slice('/api/file/'.length));
+                    if (request.method === 'DELETE') delete state.workspace[file];
+                    else state.workspace[file] = input.content;
+                } else if (url.pathname === '/api/economy-safety') {
+                    state.workspace['config.yml'] = JSON.stringify(input.settings);
+                } else if (url.pathname === '/api/draft/publish') {
+                    if (input.token !== String(state.version)) return send(409, { message: 'The reviewed configuration changed. Review it again.' });
+                    if (state.failPublish) return send(500, { message: 'Publish failed. The previous live configuration was restored; your draft is retained.' });
+                    if (state.errors.length) return send(400, { message: state.errors.join('; ') });
+                    state.live = { ...state.workspace };
+                    state.publishes++;
+                } else if (url.pathname === '/api/draft/discard') {
+                    state.workspace = { ...state.live };
+                } else return send(405, { message: 'Unsupported preview action' });
+                state.version++;
+                send(200, { success: true, draft: status(), economySafety: input.settings });
+            } catch (error) { send(400, { message: error.message }); }
+        });
+        return true;
+    } });
+    server.draftState = state;
+    return server;
+}
+
+module.exports = { createDraftPreviewServer };
+if (require.main === module) {
+    createDraftPreviewServer().listen(Number(process.argv[2] || 8799), '127.0.0.1', () =>
+        console.log('In-memory draft preview: http://127.0.0.1:' + (process.argv[2] || 8799)));
+}

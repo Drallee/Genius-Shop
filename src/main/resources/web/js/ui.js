@@ -851,6 +851,7 @@ function updateQuickTips(tabName = currentTab) {
 
 function switchShop(filename) {
     if (filename === currentShopFile) return;
+    if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) allShops[currentShopFile] = EditorYaml.writeShop();
     loadShopFromData(filename);
 }
 
@@ -1856,8 +1857,9 @@ function createCustomDropdown(select) {
     function getDisplayText(option) {
         if (!option) return 'Select...';
         let text = option.textContent;
-        if (select.id === 'shop-file-selector') {
-            const filename = option.value;
+            if (select.id === 'shop-file-selector') {
+                const filename = option.value;
+                if (!filename) return option.textContent;
             let hasPerm = false;
             
             if (filename === currentShopFile) {

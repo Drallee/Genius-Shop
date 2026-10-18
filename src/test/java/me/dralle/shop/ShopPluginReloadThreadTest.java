@@ -22,11 +22,13 @@ class ShopPluginReloadThreadTest {
         when(scheduler.callSyncMethod(eq(plugin), any(Callable.class))).thenReturn(CompletableFuture.completedFuture(null));
         doCallRealMethod().when(plugin).reloadPlugin();
         doCallRealMethod().when(plugin).reloadCustomCommands();
+        doCallRealMethod().when(plugin).reloadPublishedConfiguration();
 
         plugin.reloadPlugin();
         plugin.reloadCustomCommands();
+        plugin.reloadPublishedConfiguration();
 
-        verify(scheduler, times(2)).callSyncMethod(eq(plugin), any(Callable.class));
+        verify(scheduler, times(3)).callSyncMethod(eq(plugin), any(Callable.class));
         verify(plugin, never()).reloadConfig();
         verify(plugin, never()).getCustomCommandRepository();
     }

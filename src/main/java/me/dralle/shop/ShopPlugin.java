@@ -699,12 +699,20 @@ public class ShopPlugin extends JavaPlugin {
      * and rebuild managers so already-registered GUIs see new data.
      */
     public void reloadPlugin() {
+        reloadPlugin(false);
+    }
+
+    public void reloadPublishedConfiguration() {
+        reloadPlugin(true);
+    }
+
+    private void reloadPlugin(boolean publishing) {
         if (!getServer().isPrimaryThread()) {
-            awaitServerThreadReload(this::reloadPlugin);
+            awaitServerThreadReload(() -> reloadPlugin(publishing));
             return;
         }
         // smart updater
-        ConfigUpdater.update(this, "config.yml");
+        if (!publishing) ConfigUpdater.update(this, "config.yml");
         reloadConfig();
         if (this.errorFileLogger == null) {
             this.errorFileLogger = new ErrorFileLogger(this);
@@ -713,8 +721,10 @@ public class ShopPlugin extends JavaPlugin {
         startDataFlushTask();
         
         String lang = getConfig().getString("language", "en_US");
-        ConfigUpdater.update(this, "languages/" + lang + ".yml");
-        ConfigUpdater.update(this, "discord.yml");
+        if (!publishing) {
+            ConfigUpdater.update(this, "languages/" + lang + ".yml");
+            ConfigUpdater.update(this, "discord.yml");
+        }
 
         // Reload menu configurations
         this.menuManager.reload();
@@ -725,7 +735,7 @@ public class ShopPlugin extends JavaPlugin {
 
         // rebuild managers
         this.messages = new MessageManager(this);
-        this.shopFileManager = new ShopFileManager(this); // Reload shop files
+        this.shopFileManager = new ShopFileManager(this, !publishing);
         this.shopManager = new ShopManager(this);
         logCompileValidationSummary(this.shopManager);
 
