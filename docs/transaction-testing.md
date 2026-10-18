@@ -8,12 +8,19 @@ the economy provider before testing. Never use production balances to simulate f
 ```text
 mvn -B verify
 node --test src/test/web/*.test.cjs
+node src/test/web/sales-browser-check.cjs
 ```
 
 `TransactionServiceTest` covers payment, delivery, compensation, thread/reentrancy guards,
 price formulas, campaigns, bundles, planned limits, and stock directions. Menu and storage
 tests cover full inventories, partial delivery, metadata matching, physical containers,
 and supported SmartSpawner storage/locking. These are mocked tests, not a live server run.
+
+Run the Sales browser check after Maven verification, with Playwright installed under
+`target/rendering-tools/node_modules`. It serves `target/classes` to exercise the built
+resources used by the plugin. `PackagedWebAssetsTest` checks that web assets are copied
+without Maven filtering, which would otherwise replace JavaScript templates such as
+`${id}` with build properties. Only `plugin.yml` needs build-version filtering.
 
 ## Server Matrix
 
@@ -38,7 +45,7 @@ amount, and context. Do not retry a payment to repair an uncertain provider outc
 
 ## Combined Branch Testing
 
-The issue #27 branch integrates #23 and #35. Built-in purchase, sale, bulk-sale, command,
+The issue #27 branch integrates #23, #34, and #35. Built-in purchase, sale, bulk-sale, command,
 and wand entry points pass ledger lines into the shared settlement context. The service
 records them once after payment and delivery, using the result ID as the ledger operation
 ID, before stock updates or success notifications. Financially completed trades remain
@@ -46,8 +53,12 @@ recorded if a stock update fails; rejected or compensated trades are not recorde
 Ledger storage failures are logged without retrying payment. Tests cover shared IDs,
 multi-shop wand sales, payment/delivery/compensation failures, and stock failures.
 
-When integrating analytics from #34, use the same settlement result and operation ID.
-Re-run ledger and analytics tests, including a bulk transaction spanning shops.
+The Sales tab from #34 aggregates the completed ledger using these operation IDs.
+Verify date/shop/item filters, separate purchase/sale/wand totals, player money flow,
+popular items, and buy/sell price history against known trades. Failed attempts must
+not change completed-sales metrics. Recheck totals after a full server restart,
+including a bulk transaction spanning shops. Purchases are money leaving player
+balances; sales and wand sales are money entering them.
 
 Test editor branches together separately for save conflicts, drafts, permissions, tutorial,
 and rendering behavior. Passing standalone feature tests does not establish merged behavior.

@@ -5,7 +5,7 @@
 # smart updates, debugging, and more.
 # ==========================================================
 
-config-version: 15
+config-version: 16
 
 # When true, missing/outdated config files will automatically be updated
 # by merging new keys from defaults (your custom changes are kept).
@@ -32,6 +32,10 @@ updates:
 #        purchase/sell transactions, player balances, etc.
 # Useful for troubleshooting issues.
 debug: false
+
+debug-log:
+  enabled: true
+  file: "debug/debug.log"
 
 # File logger for errors/exceptions (for support diagnostics).
 # This only works while 'debug' is true.

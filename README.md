@@ -187,8 +187,17 @@ Paths below are relative to the plugin data directory, normally `plugins/Genius-
 | `activity-log.json` | Editor file-change history |
 | `trusted-ips.yml` | Trusted editor-login addresses |
 | `debug/error.log` | Default error-log path when debug logging is enabled |
+| `debug/debug.log` | Plugin debug, info, warning, and error messages when debug logging is enabled |
 
 Legacy `data.yml` is migrated automatically. Back up the data directory, including `data.db` and any SQLite companion files, while the server is stopped.
+
+With `debug: true`, `debug/debug.log` captures plugin logging, including purchase
+attempts and routine rejections such as insufficient funds. `debug/error.log` keeps
+warnings and errors, including failed payments, refunds, and restoration failures.
+Exceptions include their stack traces. Both files append across reloads/restarts.
+Configure them independently using `debug-log.enabled` / `debug-log.file` and
+`debug-error-log.enabled` / `debug-error-log.file`, then run `/shop reload`.
+The completed-transaction ledger remains separate from these diagnostic logs.
 
 ### Transaction Ledger
 
@@ -235,6 +244,10 @@ ISO timestamps are also accepted, with an inclusive `from` and exclusive `to`.
 Results show ten entries per page, newest first. Access requires
 `geniusshop.ledger` (operator by default); full and legacy admins are supported.
 Each result displays both its record ID and the operation ID shared by bulk lines.
+In-game entries use gold for purchases, green for sales, and aqua for wand sales.
+Hover an entry for full record/operation IDs, player UUID, and exact item/shop keys;
+click it to copy the record ID. Chat shows compact summaries with a short record ID,
+while console output retains the full identifiers.
 Access is checked again before asynchronously queried results are displayed.
 
 Ledger records are committed immediately to `transactions.db`, including SQLite

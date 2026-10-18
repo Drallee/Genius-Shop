@@ -3,7 +3,13 @@ package me.dralle.shop.commands;
 import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.data.TransactionEntry;
 import me.dralle.shop.data.TransactionLedger;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Text;
+import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,6 +21,7 @@ import java.util.logging.Level;
 public final class TransactionLedgerCommand {
     private static final Set<String> FILTERS = Set.of("player", "shop", "item", "type", "from", "to", "page");
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss 'UTC'").withZone(ZoneOffset.UTC);
+    private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd MMM HH:mm:ss 'UTC'", Locale.ENGLISH).withZone(ZoneOffset.UTC);
     private final ShopPlugin plugin;
 
     public TransactionLedgerCommand(ShopPlugin plugin) {
@@ -30,8 +37,8 @@ public final class TransactionLedgerCommand {
         try {
             query = parse(args);
         } catch (IllegalArgumentException failure) {
-            sender.sendMessage("Invalid ledger filter: " + failure.getMessage());
-            sender.sendMessage("/shop ledger [player=name-or-uuid] [shop=key] [item=key] [type=PURCHASE|SALE|WAND_SALE] [from=YYYY-MM-DD] [to=YYYY-MM-DD] [page=1]");
+            sender.sendMessage(color("&cInvalid ledger filter: &f" + failure.getMessage()));
+            sender.sendMessage(color("&7/shop ledger [player=name-or-uuid] [shop=key] [item=key] [type=PURCHASE|SALE|WAND_SALE] [from=YYYY-MM-DD] [to=YYYY-MM-DD] [page=1]"));
             return true;
         }
         // SQLite queries run off the server thread; messages return to the server thread.
@@ -40,24 +47,65 @@ public final class TransactionLedgerCommand {
                 List<TransactionEntry> entries = plugin.getTransactionLedger().search(query);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     if (!canRead(sender) || (sender instanceof org.bukkit.entity.Player player && !player.isOnline())) return;
-                    sender.sendMessage("Transaction ledger, page " + (query.offset() / 10 + 1) + " (UTC)");
-                    if (entries.isEmpty()) sender.sendMessage("No matching transactions.");
+                    sender.sendMessage(color("&8----- &6&lTransaction Ledger &8| &7Page &f" + (query.offset() / 10 + 1) + " &8-----"));
+                    if (entries.isEmpty()) sender.sendMessage(color("&7No matching transactions."));
+                    else if (sender instanceof Player) sender.sendMessage(color("&7Hover for full details. Click to copy the record ID."));
                     for (TransactionEntry entry : entries.stream().limit(10).toList()) {
-                        sender.sendMessage(entry.id() + " | " + DATE.format(entry.timestamp()) + " | " + entry.type());
-                        sender.sendMessage("Operation: " + entry.operationId());
-                        sender.sendMessage(entry.playerName() + " (" + entry.playerId() + ") | " + entry.shop() + " | " + entry.item());
-                        sender.sendMessage(entry.quantity() + " x " + plugin.formatCurrency(entry.unitPrice()) + " = " + plugin.formatCurrency(entry.total()));
+                        displayEntry(sender, entry);
                     }
-                    if (entries.size() > 10) sender.sendMessage("More results: repeat the filters with page=" + (query.offset() / 10 + 2));
+                    if (entries.size() > 10) sender.sendMessage(color("&eMore results: &7repeat the filters with &fpage=" + (query.offset() / 10 + 2)));
                 });
             } catch (Exception failure) {
                 plugin.getLogger().log(Level.WARNING, "Failed to search transaction ledger", failure);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    if (canRead(sender)) sender.sendMessage("Transaction ledger unavailable. Check the server log.");
+                    if (canRead(sender)) sender.sendMessage(color("&cTransaction ledger unavailable. &7Check the server log."));
                 });
             }
         });
         return true;
+    }
+
+    private void displayEntry(CommandSender sender, TransactionEntry entry) {
+        String type = switch (entry.type()) {
+            case PURCHASE -> "&6BUY";
+            case SALE -> "&aSELL";
+            case WAND_SALE -> "&bWAND SALE";
+        };
+        String summary = color(type + " &8| &f" + entry.playerName() + " &8| &e" + entry.quantity()
+                + "x &f" + compact(entry.item()) + "\n"
+                + "  &a" + plugin.formatCurrency(entry.total()) + " &7total &8| &7"
+                + plugin.formatCurrency(entry.unitPrice()) + " each\n"
+                + "  &7" + (entry.shop().isEmpty() ? "No shop" : compact(entry.shop())) + " &8| &7"
+                + SHORT_DATE.format(entry.timestamp()) + " &8| #" + entry.id().toString().substring(0, 8));
+        String details = color("&6Transaction details\n&7Type: &f" + entry.type()
+                + "\n&7Player: &f" + entry.playerName() + "\n&7Player UUID: &f" + entry.playerId()
+                + "\n&7Shop: &f" + entry.shop() + "\n&7Item: &f" + entry.item()
+                + "\n&7Quantity: &e" + entry.quantity()
+                + "\n&7Unit price: &a" + plugin.formatCurrency(entry.unitPrice())
+                + "\n&7Total: &a" + plugin.formatCurrency(entry.total())
+                + "\n&7Time: &f" + DATE.format(entry.timestamp())
+                + "\n&7Record ID: &f" + entry.id() + "\n&7Operation ID: &f" + entry.operationId()
+                + "\n\n&eClick to copy the record ID.");
+        if (sender instanceof Player player) {
+            TextComponent message = new TextComponent(TextComponent.fromLegacyText(summary));
+            message.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(details)));
+            message.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, entry.id().toString()));
+            player.spigot().sendMessage(message);
+        } else {
+            sender.sendMessage(summary);
+            sender.sendMessage(color("  &8Record: " + entry.id() + " | Operation: " + entry.operationId()
+                    + "\n  Player UUID: " + entry.playerId() + " | Shop: " + entry.shop() + " | Item: " + entry.item()
+                    + " | Time: " + DATE.format(entry.timestamp())));
+        }
+        sender.sendMessage("");
+    }
+
+    private static String compact(String value) {
+        return value.length() > 28 ? value.substring(0, 25) + "..." : value;
+    }
+
+    private static String color(String value) {
+        return ChatColor.translateAlternateColorCodes('&', value);
     }
 
     private static boolean canRead(CommandSender sender) {

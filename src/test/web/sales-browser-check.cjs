@@ -6,7 +6,7 @@ const { start, report } = require('./sales-preview-server.cjs');
 
 async function check(browserType, name, viewport) {
     const browser = await browserType.launch({ headless: true, ...(name === 'chrome' ? { channel: 'chrome' } : {}) });
-    const server = await start();
+    const server = await start(0, path.resolve(__dirname, '../../../target/classes'));
     const page = await browser.newPage({ viewport });
     const failures = [];
     page.on('pageerror', error => failures.push(error.message));

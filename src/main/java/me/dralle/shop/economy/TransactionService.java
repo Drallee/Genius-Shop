@@ -194,6 +194,7 @@ public final class TransactionService {
                 // Money and items are settled. Retrying or refunding now could duplicate the trade.
                 return result(plugin, audit, id, COMPLETED_WITH_ERRORS, STOCK_UPDATE_FAILED, failure.toString());
             }
+            plugin.debug("Transaction " + id + " " + audit + " " + COMPLETED);
             return new TransactionResult(id, COMPLETED, NONE, null);
         } finally {
             RUNNING.remove(player.getUniqueId());

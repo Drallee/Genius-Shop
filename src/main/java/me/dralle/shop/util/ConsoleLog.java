@@ -3,6 +3,7 @@ package me.dralle.shop.util;
 import me.dralle.shop.ShopPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+import java.util.logging.Level;
 
 public final class ConsoleLog {
 
@@ -22,14 +23,17 @@ public final class ConsoleLog {
             return;
         }
         send("&8[&bGeniusShop&8] &7" + message);
+        writeMessageFile(plugin, Level.INFO, "CONSOLE", message);
     }
 
     public static void success(JavaPlugin plugin, String message) {
         send("&8[&bGeniusShop&8] &a" + message);
+        writeMessageFile(plugin, Level.INFO, "CONSOLE", message);
     }
 
     public static void warn(JavaPlugin plugin, String message) {
         send("&8[&bGeniusShop&8] &e" + message);
+        writeMessageFile(plugin, Level.WARNING, "CONSOLE", message);
     }
 
     public static void error(JavaPlugin plugin, String message) {
@@ -44,14 +48,17 @@ public final class ConsoleLog {
 
     public static void apiInfo(JavaPlugin plugin, String message) {
         send("&8[&bGeniusShop&8] &3[API] &7" + message);
+        writeMessageFile(plugin, Level.INFO, "API", message);
     }
 
     public static void apiSuccess(JavaPlugin plugin, String message) {
         send("&8[&bGeniusShop&8] &3[API] &a" + message);
+        writeMessageFile(plugin, Level.INFO, "API", message);
     }
 
     public static void apiWarn(JavaPlugin plugin, String message) {
         send("&8[&bGeniusShop&8] &3[API] &e" + message);
+        writeMessageFile(plugin, Level.WARNING, "API", message);
     }
 
     public static void apiError(JavaPlugin plugin, String message) {
@@ -62,6 +69,12 @@ public final class ConsoleLog {
     public static void apiError(JavaPlugin plugin, String message, Throwable throwable) {
         send("&8[&bGeniusShop&8] &3[API] &c" + message);
         writeErrorFile(plugin, "API", message, throwable);
+    }
+
+    private static void writeMessageFile(JavaPlugin plugin, Level level, String source, String message) {
+        if (plugin instanceof ShopPlugin shopPlugin && shopPlugin.getErrorFileLogger() != null) {
+            shopPlugin.getErrorFileLogger().logMessage(level, source, message);
+        }
     }
 
     private static void writeErrorFile(JavaPlugin plugin, String source, String message, Throwable throwable) {

@@ -1,9 +1,6 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const root = path.resolve(__dirname, '../../main/resources/web');
-const resources = path.resolve(root, '..');
-const read = file => fs.readFileSync(path.join(resources, file), 'utf8');
 
 function report(query) {
     const now = new Date();
@@ -57,7 +54,9 @@ function report(query) {
         prices: [...priceGroups.values()].map(price => ({ ...price, average: price.total / price.quantity })).sort((a, b) => a.day.localeCompare(b.day) || a.direction.localeCompare(b.direction)) };
 }
 
-function start(port = 0) {
+function start(port = 0, resources = path.resolve(__dirname, '../../main/resources')) {
+    const root = path.join(resources, 'web');
+    const read = file => fs.readFileSync(path.join(resources, file), 'utf8');
     const server = http.createServer((request, response) => {
         const url = new URL(request.url, 'http://localhost');
         const json = (value, status = 200) => { response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); };

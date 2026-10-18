@@ -80,7 +80,7 @@ class TransactionLedgerCommandTest {
         verify(plugin.getTransactionLedger()).search(argThat(query -> query.shop().equals("market") && query.offset() == 10));
         verify(scheduler).runTaskAsynchronously(eq(plugin), any(Runnable.class));
         verify(scheduler).runTask(eq(plugin), any(Runnable.class));
-        verify(sender).sendMessage("No matching transactions.");
+        verify(sender).sendMessage(org.bukkit.ChatColor.GRAY + "No matching transactions.");
     }
 
     @Test
@@ -117,6 +117,54 @@ class TransactionLedgerCommandTest {
         when(plugin.getTransactionLedger().search(any())).thenReturn(java.util.List.of(entry));
         new TransactionLedgerCommand(plugin).execute(sender, new String[]{"ledger"});
         verify(sender).sendMessage(contains(id.toString()));
-        verify(sender).sendMessage("Operation: " + operation);
+        verify(sender).sendMessage(contains("Operation: " + operation));
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(TransactionEntry.Type.class)
+    void playerEntriesKeepFullIdentifiersInHoverAndCopyTheRecordId(TransactionEntry.Type type) throws Exception {
+        ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        var player = mock(org.bukkit.entity.Player.class, RETURNS_DEEP_STUBS);
+        when(player.isOp()).thenReturn(true);
+        when(player.isOnline()).thenReturn(true);
+        when(plugin.formatCurrency(2.5)).thenReturn("$2.50");
+        when(plugin.formatCurrency(10)).thenReturn("$10.00");
+        var scheduler = plugin.getServer().getScheduler();
+        doAnswer(call -> { ((Runnable) call.getArgument(1)).run(); return null; }).when(scheduler).runTaskAsynchronously(eq(plugin), any(Runnable.class));
+        doAnswer(call -> { ((Runnable) call.getArgument(1)).run(); return null; }).when(scheduler).runTask(eq(plugin), any(Runnable.class));
+        var entry = new TransactionEntry(java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
+                Instant.parse("2026-10-18T15:03:47Z"), java.util.UUID.randomUUID(), "Alice", type,
+                "market", "a_very_long_item_identifier_that_should_not_fill_chat", 4, 2.5, 10);
+        when(plugin.getTransactionLedger().search(any())).thenReturn(java.util.List.of(entry));
+
+        new TransactionLedgerCommand(plugin).execute(player, new String[]{"ledger"});
+
+        var captured = org.mockito.ArgumentCaptor.forClass(net.md_5.bungee.api.chat.BaseComponent.class);
+        verify(player.spigot()).sendMessage(captured.capture());
+        var message = captured.getValue();
+        String visible = message.toPlainText();
+        assertTrue(visible.contains("Alice"));
+        assertTrue(visible.contains("4x"));
+        assertTrue(visible.contains("$10.00"));
+        assertTrue(visible.contains("$2.50 each"));
+        assertTrue(visible.contains("18 Oct 15:03:47 UTC"));
+        assertFalse(visible.contains(entry.id().toString()));
+        assertFalse(visible.contains(entry.operationId().toString()));
+        assertFalse(visible.contains(entry.playerId().toString()));
+        assertFalse(visible.contains(entry.item()));
+        String expectedColor = switch (type) {
+            case PURCHASE -> "\u00a76";
+            case SALE -> "\u00a7a";
+            case WAND_SALE -> "\u00a7b";
+        };
+        assertTrue(message.toLegacyText().contains(expectedColor));
+        var hover = (net.md_5.bungee.api.chat.hover.content.Text) message.getHoverEvent().getContents().getFirst();
+        String details = hover.getValue().toString();
+        assertTrue(details.contains(entry.id().toString()));
+        assertTrue(details.contains(entry.operationId().toString()));
+        assertTrue(details.contains(entry.playerId().toString()));
+        assertTrue(details.contains(entry.item()));
+        assertEquals(net.md_5.bungee.api.chat.ClickEvent.Action.COPY_TO_CLIPBOARD, message.getClickEvent().getAction());
+        assertEquals(entry.id().toString(), message.getClickEvent().getValue());
     }
 }

@@ -115,6 +115,7 @@ class TransactionServiceTest {
         assertEquals(NONE, result.failureReason());
         assertTrue(result.completed());
         assertNotNull(result.id());
+        verify(plugin).debug(contains("Transaction " + result.id()));
         var order = inOrder(economy, delivery, stock);
         order.verify(economy).tryWithdraw(player, 100D);
         order.verify(delivery).run();
