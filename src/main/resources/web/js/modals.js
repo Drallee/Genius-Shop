@@ -221,194 +221,67 @@ function openSaveConfirmationModal(mode = 'tab') {
     setEditorState('activeSaveMode', mode);
     const modal = document.getElementById('save-confirmation-modal');
     const content = document.getElementById('save-confirmation-content');
-    
-    // Update modal header and button based on mode
-    const modalTitleIcon = modal.querySelector('.modal-header .modal-title span:first-child');
-    const modalTitleText = modal.querySelector('.modal-header .modal-title span:last-child');
-    const confirmBtn = modal.querySelector('.modal-footer .btn-success');
-
-    if (mode === 'publish') {
-        if (modalTitleIcon) modalTitleIcon.textContent = '🚀';
-        if (modalTitleText) modalTitleText.textContent = 'Confirm Publish';
-        if (confirmBtn) confirmBtn.innerHTML = '<span>🚀 PUBLISH ALL CHANGES</span>';
-    } else {
-        if (modalTitleIcon) modalTitleIcon.textContent = '💾';
-        if (modalTitleText) modalTitleText.textContent = 'Confirm Save';
-        if (confirmBtn) confirmBtn.innerHTML = '<span>💾 SAVE CURRENT TAB</span>';
+    modal.querySelector('.modal-title').textContent = 'Save draft';
+    modal.querySelector('.modal-footer .btn-success').textContent = 'SAVE DRAFT';
+    content.replaceChildren();
+    const shopScope = currentTab === 'shop';
+    const files = shopScope ? ['shops/' + currentShopFile] : ({
+        mainmenu: ['menus/main-menu.yml'], purchase: ['menus/purchase-menu.yml'], sell: ['menus/sell-menu.yml'],
+        campaigns: ['campaigns.yml', 'shops/' + currentShopFile, ...Array.from(campaignHubDirtyShopFiles, file => 'shops/' + file)],
+        commands: ['commands.yml'], customitems: ['custom-items.yml'], guisettings: ['menus/gui-settings.yml', 'config.yml', ...(window.GuiLayout && GuiLayout.isShopScope() ? ['shops/' + currentShopFile] : [])]
+    })[currentTab] || [];
+    let changes;
+    try { changes = EditorRevisions.pendingChanges(); }
+    catch (error) { showAlert('Cannot preview this draft: ' + error.message, 'error'); return; }
+    const now = changes.filter(change => files.includes(change.file));
+    const later = changes.filter(change => !files.includes(change.file));
+    const timer = getEditorState('autoSaveTimeout');
+    if (timer) clearTimeout(timer);
+    setEditorState('autoSaveTimeout', null);
+    const note = document.createElement('p');
+    note.className = 'change-context';
+    note.textContent = shopScope ? 'Shop: ' + currentShopFile.replace(/\.yml$/, '') : currentTab;
+    content.append(note);
+    function group(title, changes, deferred) {
+        const section = document.createElement('section');
+        section.className = deferred ? 'draft-save-deferred' : 'draft-save-current';
+        const heading = document.createElement('h3');
+        heading.textContent = title + ' (' + changes.length + ')';
+        section.append(heading);
+        for (const change of changes) {
+            const row = document.createElement('details');
+            row.className = 'draft-file';
+            row.open = !deferred;
+            const summary = document.createElement('summary');
+            const kind = document.createElement('span');
+            kind.className = 'draft-kind ' + change.action;
+            kind.textContent = change.action;
+            const description = document.createElement('span');
+            description.textContent = change.file;
+            summary.append(kind, description);
+            row.append(summary);
+            const before = change.before == null ? null : { fileName: change.file, content: change.before };
+            const after = change.after == null ? null : { fileName: change.file, content: change.after };
+            const display = activityComparisonData(before, after, 'file');
+            row.append(EditorChangeView.metadata(EditorChangeView.context({ beforeData: before, afterData: after }), display.before, display.after),
+                EditorChangeView.comparison(display.before, display.after, 'Saved draft', 'Your changes'));
+            section.append(row);
+        }
+        content.append(section);
     }
-
-    if (modalTitleText) {
-        modalTitleText.removeAttribute('data-i18n');
-        modalTitleText.textContent = 'Save Draft';
+    if (now.length) group('Saving now', now, false);
+    else {
+        const empty = document.createElement('p');
+        empty.className = 'draft-valid';
+        empty.textContent = 'No unsaved changes in this section. Autosave may already have saved them; use Review & Publish to compare your saved draft with live.';
+        content.append(empty);
     }
-    if (confirmBtn) confirmBtn.innerHTML = '<span>SAVE CURRENT TAB DRAFT</span>';
-
-    // Helper to determine if a change belongs to the current tab
-    const isChangeForCurrentTab = (change) => {
-        if (currentTab === 'shop') {
-            return (change.target === 'shop-item' || change.target === 'shop-settings') && 
-                   (!change.details || change.details.shopFile === currentShopFile);
-        }
-        if (currentTab === 'mainmenu') {
-            return change.target === 'main-menu-button' || change.target === 'main-menu-settings';
-        }
-        if (currentTab === 'purchase') {
-            return change.target === 'purchase-menu-button' || change.target === 'purchase-menu-settings';
-        }
-        if (currentTab === 'sell') {
-            return change.target === 'sell-menu-button' || change.target === 'sell-menu-settings';
-        }
-        if (currentTab === 'campaigns') {
-            return change.target === 'campaign-settings' ||
-                (change.target === 'shop-settings' && (
-                    !change.details ||
-                    change.details.shopFile === currentShopFile ||
-                    change.details.campaignHub === true
-                )) ||
-                (change.target === 'shop-item' && change.details && change.details.campaignHub === true);
-        }
-        if (currentTab === 'commands') {
-            return change.target === 'custom-command';
-        }
-        if (currentTab === 'customitems') {
-            return change.target === 'custom-item';
-        }
-        if (currentTab === 'guisettings') {
-            return change.target === 'gui-settings' || change.target === 'config-settings';
-        }
-        return false;
-    };
-
-    // Helper to render a change item
-    const renderChangeItem = (change, isDimmed = false) => {
-        const icon = change.action === 'created' ? '➕' : change.action === 'updated' ? '✏️' : '🗑️';
-        const color = change.action === 'created' ? 'rgba(0, 230, 118, 0.15)' : change.action === 'updated' ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 107, 107, 0.15)';
-        const borderColor = change.action === 'created' ? 'rgba(0, 230, 118, 0.25)' : change.action === 'updated' ? 'rgba(255, 215, 0, 0.25)' : 'rgba(255, 107, 107, 0.25)';
-
-        return `
-            <div style="background: ${color}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; ${isDimmed ? 'opacity: 0.6; filter: grayscale(0.3);' : ''}">
-                <span style="font-size: 1.2em; flex-shrink: 0;">${icon}</span>
-                <div style="flex: 1; min-width: 0;">
-                    <div style="color: rgba(220, 230, 245, 0.95); font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(change.description)}">
-                        ${escapeHtml(change.description)}
-                    </div>
-                </div>
-            </div>
-        `;
-    };
-
-    let html = '';
-
-    if (mode === 'publish') {
-        if (unsavedChanges.length > 0) {
-            html += `
-                <div style="margin-bottom: 24px;">
-                    <div style="display: flex; align-items: center; gap: 8px; color: #00e676; margin-bottom: 12px; padding-left: 4px;">
-                        <span style="font-size: 1.1em;">🚀</span>
-                        <span style="font-size: 0.85em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Publishing All Changes (${unsavedChanges.length})</span>
-                    </div>
-                    <div style="max-height: 350px; overflow-y: auto; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 14px; border: 1px solid rgba(0, 230, 118, 0.2);">
-                        ${unsavedChanges.map(change => renderChangeItem(change)).join('')}
-                    </div>
-                </div>
-                <div style="background: rgba(0, 230, 118, 0.05); border: 1px solid rgba(0, 230, 118, 0.15); border-radius: 12px; padding: 14px; margin-top: 20px; display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 1.2em;">🛰️</span>
-                    <span style="font-size: 0.85em; color: rgba(255,255,255,0.8);">All configurations will be saved and the plugin will be reloaded on the server.</span>
-                </div>
-            `;
-        } else {
-            html = `
-                <div style="text-align: center; padding: 40px 20px;">
-                    <div style="font-size: 3em; margin-bottom: 16px; opacity: 0.7;">🚀</div>
-                    <p style="color: rgba(220, 230, 245, 0.95); margin: 0; font-size: 1.1em;">
-                        Publish <strong>all configurations</strong> to the server?
-                    </p>
-                    <p style="color: rgba(180, 190, 210, 0.7); margin: 12px 0 0 0; font-size: 0.9em;">
-                        No tracked changes detected, but you can still force a full publish and reload.
-                    </p>
-                </div>
-            `;
-        }
-    } else {
-        const savingNow = unsavedChanges.filter(isChangeForCurrentTab);
-        const savingLater = unsavedChanges.filter(c => !isChangeForCurrentTab(c));
-
-        if (unsavedChanges.length > 0) {
-            // Saving Now Section
-            if (savingNow.length > 0) {
-                html += `
-                    <div style="margin-bottom: 24px;">
-                        <div style="display: flex; align-items: center; gap: 8px; color: #55ff55; margin-bottom: 12px; padding-left: 4px;">
-                            <span style="font-size: 1.1em;">💾</span>
-                            <span style="font-size: 0.85em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Saving to this tab (${savingNow.length})</span>
-                        </div>
-                        <div style="max-height: 240px; overflow-y: auto; background: rgba(0,0,0,0.15); padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05);">
-                            ${savingNow.map(change => renderChangeItem(change)).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Saving Later Section
-            if (savingLater.length > 0) {
-                html += `
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px; color: rgba(255, 215, 0, 0.7); margin-bottom: 12px; padding-left: 4px;">
-                            <span style="font-size: 1.1em;">⏳</span>
-                            <span style="font-size: 0.85em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Not saving yet (other tabs: ${savingLater.length})</span>
-                        </div>
-                        <div style="max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.1); padding: 12px; border-radius: 14px; border: 1px dashed rgba(255,255,255,0.1);">
-                            ${savingLater.map(change => renderChangeItem(change, true)).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (savingNow.length === 0 && savingLater.length > 0) {
-                html += `
-                    <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.2); border-radius: 12px; padding: 16px; margin-top: 20px; text-align: center;">
-                        <div style="color: #ff6b6b; font-size: 0.9em; font-weight: 600;">
-                            ⚠️ This tab has no unsaved changes. 
-                        </div>
-                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8em; margin-top: 4px;">
-                            Changes in other tabs will remain until you save them.
-                        </div>
-                    </div>
-                `;
-            } else {
-                 html += `
-                    <div style="background: rgba(85, 255, 85, 0.05); border: 1px solid rgba(85, 255, 85, 0.15); border-radius: 12px; padding: 14px; margin-top: 20px; display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 1.2em;">💡</span>
-                        <span style="font-size: 0.85em; color: rgba(255,255,255,0.8);">Only the current tab's configuration will be updated on the server.</span>
-                    </div>
-                `;
-            }
-        } else {
-            html = `
-                <div style="text-align: center; padding: 40px 20px;">
-                    <div style="font-size: 3em; margin-bottom: 16px; opacity: 0.7;">💾</div>
-                    <p style="color: rgba(220, 230, 245, 0.95); margin: 0; font-size: 1.1em;">
-                        Save <strong>current tab only</strong> to the server?
-                    </p>
-                    <p style="color: rgba(180, 190, 210, 0.7); margin: 12px 0 0 0; font-size: 0.9em;">
-                        No tracked changes detected, but you can still force a save.
-                    </p>
-                </div>
-            `;
-        }
-    }
-
-    content.innerHTML = html;
-
-    const animationsDisabled = document.body.classList.contains('no-animations');
+    if (later.length) group('Other tabs - not saving yet', later, true);
+    const explanation = document.createElement('p');
+    explanation.className = 'draft-save-notice';
+    explanation.textContent = 'Only this section is saved to your personal draft. The live server stays unchanged until Review & Publish.';
+    content.append(explanation);
     modal.style.display = 'flex';
-
-    const modalBox = modal.querySelector('.modal-box');
-    if (modalBox && !animationsDisabled) {
-        modalBox.style.animation = 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-    } else if (modalBox) {
-        modalBox.style.animation = 'none';
-    }
 }
 
 function closeSaveConfirmationModal() {
@@ -424,6 +297,7 @@ function closeSaveConfirmationModal() {
     } else {
         modal.style.display = 'none';
     }
+    if (typeof scheduleEditorAutoSave === 'function') setTimeout(scheduleEditorAutoSave, animationsDisabled ? 0 : 310);
 }
 
 function getModalFieldValues(fields) {
@@ -642,7 +516,7 @@ function openEditModal(data) {
                 } else if (field.type === 'textarea') {
                     fHtml += `<textarea id="${field.id}" name="${field.id}" class="textarea-base" placeholder="${escapeHtml(field.placeholder || '')}">${escapeHtml(field.value || '')}</textarea>`;
                 } else if (field.type === 'number') {
-                    fHtml += `<input type="number" id="${field.id}" name="${field.id}" class="input-base" value="${escapeHtml(field.value || '')}" min="${field.min || ''}" max="${field.max || ''}" step="${field.step || ''}" placeholder="${escapeHtml(field.placeholder || '')}">`;
+                    fHtml += `<input type="number" id="${field.id}" name="${field.id}" class="input-base" value="${escapeHtml(String(field.value ?? ''))}" min="${field.min ?? ''}" max="${field.max ?? ''}" step="${field.step ?? ''}" placeholder="${escapeHtml(field.placeholder || '')}">`;
                 } else {
                     fHtml += `<input type="text" id="${field.id}" name="${field.id}" class="input-base" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}">`;
                 }
@@ -3235,100 +3109,28 @@ function closeActivityLogModal() {
 }
 
 function openActivityDetailModal(entryId) {
-    const entry = activityLog.find(e => String(e.id) === String(entryId));
+    const entry = activityLog.find(item => String(item.id) === String(entryId));
     if (!entry) return;
 
     currentViewedEntry = entry;
     const modal = document.getElementById('activity-detail-modal');
     const title = document.getElementById('activity-detail-title');
     const content = document.getElementById('activity-detail-content');
-    const rollbackBtn = document.getElementById('rollback-btn');
-
-    title.textContent = `Change Details: ${entry.action.toUpperCase()} ${entry.target}`;
+    title.textContent = getActivitySummary(entry);
     const display = entry.target === 'shop-item' && entry.details?.comparison
         ? entry.details.comparison : activityComparisonData(entry.beforeData, entry.afterData, entry.target);
+    const information = [EditorChangeView.context(entry), entry.username || 'Unknown',
+        new Date(entry.timestamp).toLocaleString()].filter(Boolean).join(' · ');
+    content.classList.add('change-detail-content');
+    content.replaceChildren(EditorChangeView.metadata(information, display.before, display.after),
+        EditorChangeView.comparison(display.before, display.after));
 
-    // Generate diff view
-    let html = `
-        <div style="background: rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid rgba(102, 126, 234, 0.2);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="color: rgba(200, 210, 225, 0.7); font-size: 0.85em;">Action: <strong style="color: #fff;">${entry.action.toUpperCase()}</strong></div>
-                <div style="color: rgba(200, 210, 225, 0.7); font-size: 0.85em;">Target: <strong style="color: #fff;">${entry.target}</strong></div>
-                <div style="color: rgba(200, 210, 225, 0.7); font-size: 0.85em;">Time: <strong style="color: #fff;">${new Date(entry.timestamp).toLocaleString()}</strong></div>
-            </div>
-        </div>
-    `;
-
-    if (entry.action === 'deleted') {
-        html += `
-            <div style="margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                    <span style="font-size: 1.2em;">🗑️</span>
-                    <h3 style="margin: 0; color: rgba(255, 107, 107, 0.9); font-size: 1em; font-weight: 700;">DELETED DATA</h3>
-                </div>
-                <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); border-radius: 10px; padding: 14px;">
-                    <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.before))}</pre>
-                </div>
-            </div>
-        `;
-    } else if (entry.action === 'created') {
-        html += `
-            <div style="margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                    <span style="font-size: 1.2em;">➕</span>
-                    <h3 style="margin: 0; color: rgba(0, 230, 118, 0.9); font-size: 1em; font-weight: 700;">CREATED DATA</h3>
-                </div>
-                <div style="background: rgba(0, 230, 118, 0.1); border: 1px solid rgba(0, 230, 118, 0.3); border-radius: 10px; padding: 14px;">
-                    <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.after))}</pre>
-                </div>
-            </div>
-        `;
-    } else {
-        html += `
-            <div class="activity-comparison" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                        <span style="font-size: 1.2em;">📋</span>
-                        <h3 style="margin: 0; color: rgba(255, 107, 107, 0.9); font-size: 1em; font-weight: 700;">BEFORE</h3>
-                    </div>
-                    <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); border-radius: 10px; padding: 14px; height: 400px; overflow-y: auto;">
-                        <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.before))}</pre>
-                    </div>
-                </div>
-
-                <div>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                        <span style="font-size: 1.2em;">📋</span>
-                        <h3 style="margin: 0; color: rgba(0, 230, 118, 0.9); font-size: 1em; font-weight: 700;">AFTER</h3>
-                    </div>
-                    <div style="background: rgba(0, 230, 118, 0.1); border: 1px solid rgba(0, 230, 118, 0.3); border-radius: 10px; padding: 14px; height: 400px; overflow-y: auto;">
-                        <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.after))}</pre>
-                    </div>
-                </div>
-            </div>
-
-            <div style="background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 10px; padding: 14px;">
-                <div style="font-weight: 700; margin-bottom: 8px; color: rgba(255, 215, 0, 0.9); font-size: 0.9em;">📊 CHANGES DETECTED</div>
-                ${generateChangeSummary(entry.beforeData, entry.afterData)}
-            </div>
-        `;
-    }
-
-    content.innerHTML = html;
-
-    // Rollback is now fully supported
-    rollbackBtn.style.display = 'flex';
-
-    const animationsDisabled = document.body.classList.contains('no-animations');
+    const rollback = document.getElementById('rollback-btn');
+    rollback.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     modal.style.display = 'flex';
-
     const modalBox = modal.querySelector('.modal-box');
-    if (modalBox && !animationsDisabled) {
-        modalBox.style.animation = 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-    } else if (modalBox) {
-        modalBox.style.animation = 'none';
-    }
+    if (modalBox) modalBox.style.animation = 'none';
 }
 
 function formatActivityYaml(data) {
@@ -3553,39 +3355,12 @@ async function rollbackChange() {
 
 async function refreshActivityLog() {
     await loadActivityLog();
-
     const container = document.getElementById('activity-log-container');
     const emptyState = document.getElementById('activity-log-empty');
     if (!container) return;
-
-    if (activityLog.length === 0) {
-        container.innerHTML = '';
-        if (emptyState) emptyState.style.display = 'block';
-        return;
-    }
-
-    if (emptyState) emptyState.style.display = 'none';
-
-    const sortedActivity = [...activityLog].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-    let html = '';
-    sortedActivity.forEach(entry => {
-        const timeAgo = getTimeAgo(entry.timestamp);
-        const icon = entry.action === 'created' ? '➕' : entry.action === 'updated' ? '✏️' : '🗑️';
-        const color = entry.action === 'created' ? 'var(--activity-created-bg)' : entry.action === 'updated' ? 'var(--activity-updated-bg)' : 'var(--activity-deleted-bg)';
-        const borderColor = entry.action === 'created' ? 'var(--activity-created-border)' : entry.action === 'updated' ? 'var(--activity-updated-border)' : 'var(--activity-deleted-border)';
-
-        html += `
-            <div class="shop-item" style="margin-bottom: 10px; background: ${color}; border-color: ${borderColor}; cursor: pointer;" onclick="openActivityDetailModal(${escapeHtml(JSON.stringify(entry.id))})">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                    <div style="font-size: 1.2em; flex-shrink: 0;">${icon}</div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(getActivitySummary(entry))}</div>
-                        <div style="font-size: 0.8em; color: rgba(255,255,255,0.6);">${entry.username || 'Unknown'} • ${timeAgo} • ${escapeHtml(entry.target || 'unknown')}</div>
-                    </div>
-                    <div style="font-size: 1.2em; opacity: 0.5;">🔍</div>
-                </div>
-            </div>
-        `;
-    });
-    container.innerHTML = html;
+    container.replaceChildren();
+    if (emptyState) emptyState.style.display = activityLog.length ? 'none' : 'block';
+    const sorted = [...activityLog].sort((left, right) =>
+        new Date(right.timestamp || 0).getTime() - new Date(left.timestamp || 0).getTime());
+    for (const entry of sorted) container.append(EditorChangeView.historyRow(entry));
 }

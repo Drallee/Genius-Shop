@@ -9,17 +9,27 @@
     const tabFiles = { mainmenu: 'menus/main-menu.yml', purchase: 'menus/purchase-menu.yml',
         sell: 'menus/sell-menu.yml', campaigns: 'campaigns.yml', customitems: 'custom-items.yml',
         guisettings: 'menus/gui-settings.yml', commands: 'commands.yml' };
-    const can = capability => capabilities.admin === true || capabilities[capability] === true;
-    const tabAllowed = tab => !!tabPermissions[tab] && can(tabPermissions[tab]);
-    const fileForTab = tab => tab === 'shop' ? `shops/${currentShopFile}` : tabFiles[tab];
+    const can = capability => capabilities.admin === true || capabilities[capability] === true || capability === 'commands' && capabilities.drafts === true;
+    const sectionFor = tab => ['stockanalytics', 'salesanalytics'].includes(tab) ? 'analytics' : tab === 'dataeditor' ? 'database' : tab;
+    const sectionAccess = tab => {
+        if (can('admin')) return { view: true, edit: true };
+        const section = capabilities.sections?.[sectionFor(tab)];
+        if (section) return section;
+        const edit = !!tabPermissions[tab] && !['stockanalytics', 'salesanalytics'].includes(tab) && can(tabPermissions[tab]);
+        return { view: edit || (!!tabPermissions[tab] && can(tabPermissions[tab])) || can('publish'), edit };
+    };
+    const tabAllowed = tab => !!tabPermissions[tab] && (sectionAccess(tab).view || tab === 'guisettings' && sectionAccess('shop').view);
+    const fileForTab = tab => tab === 'guisettings' && global.GuiLayout ? GuiLayout.targetFile() : tab === 'shop' ? `shops/${currentShopFile}` : tabFiles[tab];
     function canWriteFile(file) {
         if (readOnly.has(file)) return false;
-        if (file === 'commands.yml') return can('commands');
+        if (file === 'commands.yml') return sectionAccess('commands').edit;
         if (file === 'config.yml' || file === 'discord.yml' || file === 'gui.yml' || file.startsWith('languages/')) return can('admin');
-        return can('drafts');
+        const section = file.startsWith('shops/') ? 'shop' : Object.entries(tabFiles).find(([, path]) => path === file)?.[0];
+        return section ? sectionAccess(section).edit : file === 'menus/bulk-sell-menu.yml' && sectionAccess('sell').edit;
     }
-    const canSaveTab = tab => tabAllowed(tab) && !!fileForTab(tab) && canWriteFile(fileForTab(tab));
-    const hasDrafts = () => can('drafts') || can('commands') || can('publish');
+    const canSaveTab = tab => tabAllowed(tab) && (tab === 'guisettings' && canWriteFile('menus/gui-settings.yml') || !!fileForTab(tab) && canWriteFile(fileForTab(tab)));
+    const canEditDrafts = () => Object.keys(tabFiles).some(tab => sectionAccess(tab).edit) || sectionAccess('shop').edit;
+    const hasDrafts = () => can('publish') || canEditDrafts();
 
     function set(value, lockedFiles = []) {
         // Missing or old capability payloads fail closed instead of assuming administrator access.
@@ -58,13 +68,14 @@
             button.disabled = !editableTab(currentTab);
         });
         const toggle = document.getElementById('auto-save-toggle');
-        if (toggle) toggle.closest('label').hidden = !can('drafts') && !can('commands');
+        if (toggle) toggle.closest('label').hidden = !Object.keys(tabFiles).some(tab => sectionAccess(tab).edit) && !sectionAccess('shop').edit;
         const editable = editableTab(currentTab);
         const locked = tabAllowed(currentTab) && !!fileForTab(currentTab) && !editable;
         const notice = document.getElementById('editor-permission-notice');
         if (notice) {
             notice.hidden = !locked;
-            notice.textContent = 'Read-only: this file contains command actions and requires geniusshop.editor.commands.';
+            const section = currentTab === 'guisettings' && global.GuiLayout && GuiLayout.isShopScope() ? 'shop' : sectionFor(currentTab);
+            notice.textContent = `Read-only: editing this section requires geniusshop.editor.${section}.drafts or geniusshop.editor.drafts. Command-bearing files require geniusshop.editor.commands or broad draft access.`;
         }
         const preview = document.querySelector('.minecraft-preview-section');
         if (preview) preview.inert = !editable;
@@ -76,13 +87,23 @@
                 const items = document.getElementById('items-container');
                 if (items) items.inert = !editableTab('shop');
                 section.querySelectorAll('.content-header button').forEach(button => {
-                    button.inert = button.getAttribute('onclick') === 'createNewShop()' ? !can('drafts') : !editableTab('shop');
+                    button.inert = button.getAttribute('onclick') === 'createNewShop()' ? !sectionAccess('shop').edit : !editableTab('shop');
                 });
-            } else if (tab !== 'stockanalytics' && tab !== 'dataeditor') {
+            } else if (tab === 'guisettings') {
+                section.inert = false;
+                section.querySelectorAll('.settings-group:not(.gui-layout-settings)').forEach(group => { group.inert = !sectionAccess('guisettings').edit; });
+                const layoutEditor = document.getElementById('gui-layout-editor');
+                const layoutEditable = canWriteFile(fileForTab('guisettings')) || practice && tabAllowed('guisettings');
+                if (layoutEditor) layoutEditor.inert = !layoutEditable;
+                const buttonEditor = document.getElementById('gui-button-editor');
+                if (buttonEditor) buttonEditor.inert = !layoutEditable;
+            } else if (!['stockanalytics', 'salesanalytics', 'dataeditor'].includes(tab)) {
                 section.inert = !editableTab(tab);
             }
         }
         const empty = document.getElementById('restricted-tab');
+        document.querySelectorAll('#data-editor-sections input').forEach(input => { input.readOnly = !can('database'); });
+        document.querySelectorAll('#data-editor-sections button').forEach(button => { button.disabled = !can('database'); });
         if (empty) empty.classList.toggle('active', currentTab === 'restricted');
     }
 
@@ -107,6 +128,13 @@
                 for (const key of ['admin', 'analytics', 'drafts', 'publish', 'commands', 'database']) {
                     reduced[key] = can(key) && data.permissions?.[key] === true;
                 }
+                if (data.permissions?.sections) {
+                    reduced.sections = {};
+                    for (const [section, access] of Object.entries(data.permissions.sections)) {
+                        const previous = sectionAccess(section === 'analytics' ? 'stockanalytics' : section === 'database' ? 'dataeditor' : section);
+                        reduced.sections[section] = { view: previous.view && access.view, edit: previous.edit && access.edit };
+                    }
+                }
                 set(reduced, data.readOnlyFiles);
             } else return;
             apply();
@@ -118,5 +146,5 @@
         if (document.body.classList.contains('permissions-ready')) recheck();
     });
 
-    global.EditorPermissions = { can, set, apply, refresh, recheck, tabAllowed, canSaveTab, canWriteFile, hasDrafts };
+    global.EditorPermissions = { can, set, apply, refresh, recheck, tabAllowed, canSaveTab, canWriteFile, hasDrafts, canEditDrafts, canViewSharedGui: () => sectionAccess('guisettings').view };
 })(window);

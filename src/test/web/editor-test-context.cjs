@@ -17,7 +17,7 @@ module.exports = function editorContext() {
     context.window = context;
     const root = path.join(__dirname, '../../main/resources/web');
     for (const file of ['js/state-store.js', 'js/core.js', 'js/schema.js', 'vendor/yaml.min.js',
-        'js/yaml-editor.js', 'js/database.js', 'js/commands.js', 'js/modals.js']) {
+        'js/yaml-editor.js', 'js/database.js', 'js/commands.js', 'js/change-view.js', 'js/modals.js', 'js/gui-layout.js']) {
         vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
     }
     return {

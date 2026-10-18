@@ -1,0 +1,47 @@
+.gui-layout-settings { grid-column: 1 / -1; min-width: 0; }
+.gui-layout-scope { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; margin-bottom: 24px; }
+.gui-layout-scope label { display: grid; gap: 8px; min-width: 0; max-width: 100%; }
+.gui-layout-scope select { max-width: 100%; }
+.gui-paint-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.gui-paint-tools .input-base { width: auto; max-width: 100%; }
+.gui-paint-tools .selected { border-color: var(--primary); background: #35cba529; }
+#preview-grid .layout-reserved { background: #60656b66; box-shadow: inset 0 0 0 1px #a1a1aa55; cursor: default; }
+#preview-grid .layout-reserved img { opacity: .65; filter: saturate(.6); }
+.gui-layout-grid .layout-reserved { background-color: #53585d; }
+.gui-control-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; margin-bottom: 16px; }
+.gui-control-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; }
+.gui-control-icon { display: flex; justify-content: center; align-items: center; position: relative; min-height: 48px; width: 100%; }
+.gui-control-icon img { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+.gui-control-cards button { display: flex; flex-direction: column; align-items: start; gap: 6px; text-align: left; white-space: normal; }
+.gui-control-cards small { color: var(--text-muted); }
+.gui-layout-workspace { display: grid; grid-template-columns: minmax(0,1fr); gap: 24px; align-items: start; }
+.gui-layout-chest { width: min(100%, 680px); margin: 0 auto; box-sizing: border-box; }
+.gui-layout-chest { min-width: 0; padding: 20px; border: 1px solid #414a52; border-radius: 8px; background: var(--bg-surface); }
+.gui-layout-chest h4 { margin: 0 0 16px; }
+.gui-layout-chest .gui-layout-grid { max-width: none; background: #121517; border: 1px solid #343b41; border-radius: 6px; gap: 4px; padding: 8px; }
+.gui-layout-chest .gui-layout-cell { background: #252a2e; border: 1px solid #40484f; border-radius: 3px; padding: 0; }
+.gui-layout-chest .gui-layout-cell:hover, .gui-layout-chest .gui-layout-cell:focus-visible { background: #35413e; border-color: #83d9b8; box-shadow: none; transform: none; z-index: 1; }
+.gui-layout-chest .gui-layout-painting .layout-content { background: #256244; }
+.gui-layout-chest .gui-layout-painting .layout-filler { background: #856228; }
+.gui-layout-chest .gui-layout-painting .layout-empty { background: #34383d; }
+.gui-layout-chest .gui-layout-painting .layout-control { background: #515d76; }
+.gui-layout-slot-number { position: absolute; left: 2px; top: 1px; font-size: 9px; color: #fff; text-shadow: 1px 1px #222; pointer-events: none; }
+.gui-control-cards .shop-item { text-align: left; color: inherit; font: inherit; display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
+.gui-layout-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 16px 0; }
+.gui-layout-actions .btn, .gui-layout-actions select { min-height: 40px; margin: 0; box-sizing: border-box; }
+.gui-layout-actions .gui-layout-action-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.gui-layout-actions label { margin: 0; }
+.gui-layout-actions label { display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
+.gui-layout-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+.gui-layout-grid { display: grid; grid-template-columns: repeat(9,minmax(0,1fr)); gap: 3px; padding: 8px; background: #27272a; border: 3px solid #52525b; border-radius: 6px; max-width: 440px; }
+.gui-layout-cell { aspect-ratio: 1; min-width: 0; width: 100%; height: auto; position: relative; display: flex; align-items: center; justify-content: center; border: 1px solid #ffffff30; border-radius: 2px; color: #fff; font-size: 11px; }
+button.gui-layout-cell { cursor: pointer; }
+.gui-layout-cell img { max-width: 85%; height: auto; image-rendering: pixelated; }
+.layout-content { background: #166534; }
+.layout-filler { background: #854d0e; }
+.layout-control { background: #52525b; }
+.layout-empty { background: #16191c; border-color: #71717a; }
+.gui-layout-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.gui-layout-legend span { padding: 4px 8px; border-radius: 4px; color: #fff; font-size: 12px; }
+.gui-layout-settings p { color: var(--text-muted); line-height: 1.6; }
+@media(max-width:900px) { .gui-layout-columns, .gui-layout-workspace { grid-template-columns: minmax(0,1fr); } }

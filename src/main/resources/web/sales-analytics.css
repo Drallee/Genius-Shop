@@ -7,8 +7,9 @@
 #salesanalytics-tab h3 { font-size: 16px; margin: 26px 0 12px; letter-spacing: 0; }
 .sales-muted { color: #a7b4be; font-size: 12px; }
 .sales-badge { color: #73d6ba; border-left: 3px solid #41b795; padding: 5px 10px; font-size: 12px; }
-.sales-filters { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)) repeat(2, minmax(130px, 1fr)) auto; gap: 12px; align-items: end; }
-.sales-filters label { display: grid; gap: 7px; color: #c7d1d8; font-size: 12px; min-width: 0; }
+.sales-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 12px; align-items: end; }
+.sales-filters label { display: grid; gap: 7px; color: #c7d1d8; font-size: 12px; min-width: 0; margin: 0; }
+.sales-filter-field { display: grid; gap: 7px; min-width: 0; }
 .sales-filters input, .sales-filters select { width: 100%; min-width: 0; box-sizing: border-box; background: #20272c; color: #e1e7eb; border: 1px solid #4a555f; border-radius: 5px; padding: 10px 8px; height: 40px; font: inherit; color-scheme: dark; }
 .sales-filters button { min-height: 40px; white-space: nowrap; }
 #sales-status { min-height: 20px; font-size: 13px; color: #b6c3cb; margin: 14px 0; }
@@ -30,5 +31,9 @@
 .sales-chart { position: relative; height: 280px; width: 100%; margin: 12px 0 20px; }
 .sales-history-wrap { max-height: 350px; overflow-y: auto; }
 .sales-history-wrap thead { position: sticky; top: 0; background: #20272c; }
-@media (max-width: 1200px) { .sales-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-filters button { justify-self: start; } }
+.sales-filters .custom-select { width: 100%; min-width: 0; }
+.sales-filters .custom-select-trigger { height: 40px; min-height: 40px; box-sizing: border-box; padding: 10px 8px; }
+.sales-filters .custom-select-trigger span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sales-filters .custom-select-options { max-width: min(420px, calc(100vw - 40px)); min-width: 100%; }
+@media (max-width: 800px) { .sales-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-filters button { justify-self: start; } }
 @media (max-width: 500px) { .sales-money { grid-template-columns: 1fr; gap: 20px; } .sales-money dd { font-size: 22px; } .sales-heading { align-items: start; } .sales-chart { height: 230px; } }

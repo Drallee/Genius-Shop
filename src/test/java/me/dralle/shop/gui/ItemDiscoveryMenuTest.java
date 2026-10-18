@@ -40,6 +40,9 @@ class ItemDiscoveryMenuTest {
 
     @BeforeEach void setup() {
         plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        when(plugin.getMenuManager().getGuiSettingsConfig()).thenReturn(new org.bukkit.configuration.file.YamlConfiguration());
+        when(plugin.getMessages().resolveConfigString(any(), anyString(), anyString())).thenAnswer(call -> call.getArgument(2));
+        when(plugin.getMessages().resolveConfigStringList(any(), anyString())).thenReturn(List.of());
         service = mock(ItemDiscoveryService.class);
         when(service.text(anyString())).thenAnswer(call -> call.getArgument(0));
         when(service.list(any(), any(), anyString())).thenReturn(List.of());
@@ -61,6 +64,9 @@ class ItemDiscoveryMenuTest {
             return inventory;
         });
         icons = mockStatic(ShopItemUtil.class);
+        Material buttonMaterial = mock(Material.class);
+        when(buttonMaterial.isItem()).thenReturn(true);
+        icons.when(() -> ShopItemUtil.getMaterial(any(), any(Material.class))).thenReturn(buttonMaterial);
         icons.when(() -> ShopItemUtil.create(any(Material.class), anyInt(), anyString(), anyList())).thenAnswer(call -> icon(call.getArgument(0)));
         icons.when(() -> ShopItemUtil.color(anyString())).thenAnswer(call -> call.getArgument(0));
         ItemStack preview = icon(Material.STONE);
@@ -117,6 +123,29 @@ class ItemDiscoveryMenuTest {
         assertInstanceOf(ItemDiscoveryMenu.DetailHolder.class, latest().getHolder());
         assertEquals(entries.get(45).reference(), ((ItemDiscoveryMenu.DetailHolder) latest().getHolder()).item);
         verify(service).recordRecent(player, "blocks", entries.get(45).item());
+    }
+
+    @Test void customContentSlotsPageAndSelectUsingLogicalReferences() {
+        var config = plugin.getMenuManager().getGuiSettingsConfig();
+        config.set("gui.discovery.search.rows", 3);
+        config.set("gui.discovery.search.content-slots", List.of(10, 11));
+        config.set("gui.discovery.search.buttons.next-button.slot", 26);
+        List<Entry> entries = java.util.stream.IntStream.range(0, 5).mapToObj(this::entry).toList();
+        when(service.list(player, Mode.SEARCH, "stone")).thenReturn(entries);
+        menu.open(player, Mode.SEARCH, "stone", 1);
+        verify(latest()).setItem(eq(10), any(ItemStack.class));
+        verify(latest()).setItem(eq(11), any(ItemStack.class));
+        click(latest(), 0, ClickType.LEFT);
+        assertTrue(tasks.isEmpty(), "Filler cannot select an item");
+        click(latest(), 26, ClickType.LEFT);
+        tasks.remove().run();
+        var holder = (ItemDiscoveryMenu.ResultsHolder) latest().getHolder();
+        assertEquals(2, holder.state.page());
+        assertEquals(entries.get(2).reference(), holder.items.getFirst());
+        when(service.resolve(player, entries.get(3).reference())).thenReturn(entries.get(3));
+        click(latest(), 11, ClickType.LEFT);
+        tasks.remove().run();
+        assertEquals(entries.get(3).reference(), ((ItemDiscoveryMenu.DetailHolder) latest().getHolder()).item);
     }
 
     @Test void removedSelectionsDoNotOpenATransactionOrThrow() {

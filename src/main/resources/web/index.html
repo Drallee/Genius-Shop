@@ -13,41 +13,46 @@
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="navigation.css?v=sidebar-1">
-    <link rel="stylesheet" href="editor-design.css?v=preview-grid-rows-1">
-    <link rel="stylesheet" href="sales-analytics.css?v=1">
+    <link rel="stylesheet" href="shortcuts.css?v=layout-refinements-2">
+    <link rel="stylesheet" href="editor-design.css?v=layout-air-shortcuts-3">
+    <link rel="stylesheet" href="gui-layout.css?v=layout-colors-repair-3">
+    <link rel="stylesheet" href="sales-analytics.css?v=per-shop-layout-2">
     <link rel="stylesheet" href="tutorial.css?v=1">
-    <link rel="stylesheet" href="drafts.css?v=1">
-    <link rel="stylesheet" href="save-conflicts.css?v=1">
-    <link rel="stylesheet" href="permissions.css?v=1">
+    <link rel="stylesheet" href="drafts.css?v=per-shop-layout-2">
+    <link rel="stylesheet" href="save-conflicts.css?v=focused-diff-2">
+    <link rel="stylesheet" href="permissions.css?v=per-shop-layout-2">
     <script>
         try {
             document.documentElement.dataset.navigationCollapsed = localStorage.getItem('editor-navigation-collapsed') === 'true';
         } catch (_) {}
     </script>
     <script defer src="js/state-store.js"></script>
-    <script defer src="js/permissions.js?v=integration-30-33-37-1"></script>
+    <script defer src="js/permissions.js?v=layout-refinements-2"></script>
     <script defer src="vendor/chart-4.5.1.umd.min.js"></script>
-    <script defer src="js/sales-analytics.js?v=1"></script>
-    <script defer src="js/core.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/schema.js"></script>
+    <script defer src="js/sales-analytics.js?v=per-shop-layout-2"></script>
+    <script defer src="js/core.js?v=discovery-layouts-1"></script>
+    <script defer src="js/schema.js?v=per-shop-layout-2"></script>
     <script defer src="vendor/yaml.min.js"></script>
-    <script defer src="js/yaml-editor.js?v=history-yaml-1"></script>
+    <script defer src="js/yaml-editor.js?v=discovery-layouts-1"></script>
     <script defer src="js/telemetry.js"></script>
     <script defer src="js/database.js?v=menu-placeholders-1"></script>
-    <script defer src="js/save-conflicts.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/modals.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/drafts.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/api.js?v=integration-30-33-37-1"></script>
+    <script defer src="js/save-conflicts.js?v=layout-air-shortcuts-3"></script>
+    <script defer src="js/change-view.js?v=focused-diff-2"></script>
+    <script defer src="js/modals.js?v=layout-refinements-2"></script>
+    <script defer src="js/drafts.js?v=section-access-1"></script>
+    <script defer src="js/api.js?v=section-access-1"></script>
     <script defer src="js/commands.js?v=custom-commands-model-name-4"></script>
     <script defer src="js/custom-items.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/save-dispatcher.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/autosave-manager.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/ui.js?v=integration-30-33-37-1"></script>
+    <script defer src="js/save-dispatcher.js?v=layout-refinements-2"></script>
+    <script defer src="js/autosave-manager.js?v=layout-air-shortcuts-3"></script>
+    <script defer src="js/gui-layout.js?v=layout-colors-repair-3"></script>
+    <script defer src="js/ui.js?v=layout-refinements-2"></script>
     <script defer src="js/navigation.js?v=integration-30-33-37-1"></script>
+    <script defer src="js/shortcuts.js?v=layout-air-shortcuts-3"></script>
     <script defer src="js/tutorial-state.js?v=1"></script>
-    <script defer src="js/tutorial-practice.js?v=1"></script>
-    <script defer src="js/tutorial.js?v=integration-30-33-37-1"></script>
-    <script defer src="js/events.js?v=integration-30-33-37-1"></script>
+    <script defer src="js/tutorial-practice.js?v=per-shop-layout-2"></script>
+    <script defer src="js/tutorial.js?v=per-shop-layout-2"></script>
+    <script defer src="js/events.js?v=layout-air-shortcuts-3"></script>
 </head>
 <body class="editor-shell">
     <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
@@ -61,6 +66,7 @@
             <button type="button" class="tab" data-tab="shop" title="Shop" onclick="selectEditorTab('shop')"><i class="fa-solid fa-store" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.shop">Shop</span></button>
             <button type="button" class="tab" data-tab="purchase" title="Purchase" onclick="selectEditorTab('purchase')"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.purchase">Purchase</span></button>
             <button type="button" class="tab" data-tab="sell" title="Sell" onclick="selectEditorTab('sell')"><i class="fa-solid fa-tag" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.sell">Sell</span></button>
+            <button type="button" class="tab" data-tab="guisettings" title="GUI Settings" onclick="selectEditorTab('guisettings')"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.gui-settings">GUI Settings</span></button>
             <div class="sidebar-divider" role="separator"></div>
             <button type="button" class="tab" data-tab="campaigns" title="Campaigns" onclick="selectEditorTab('campaigns')"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span class="sidebar-label">Campaigns</span></button>
                 <button type="button" class="tab" data-tab="commands" title="Commands" onclick="selectEditorTab('commands')"><i class="fa-solid fa-terminal" aria-hidden="true"></i><span class="sidebar-label">Commands</span></button>
@@ -68,8 +74,8 @@
             <button type="button" class="tab" data-tab="salesanalytics" title="Sales" onclick="selectEditorTab('salesanalytics')"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span class="sidebar-label">Sales</span></button>
             <button type="button" class="tab" data-tab="stockanalytics" title="Stock" onclick="selectEditorTab('stockanalytics')"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.stock-analytics">Stock</span></button>
             <button type="button" class="tab" data-tab="dataeditor" title="Data" onclick="selectEditorTab('dataeditor')"><i class="fa-solid fa-database" aria-hidden="true"></i><span class="sidebar-label">Data</span></button>
-            <button type="button" class="tab" data-tab="guisettings" title="GUI Settings" onclick="selectEditorTab('guisettings')"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.gui-settings">GUI Settings</span></button>
         </nav>
+        <div class="sidebar-shortcuts-wrap"><button id="editor-shortcuts-button" type="button" class="sidebar-shortcuts" onclick="EditorShortcuts.open()" title="Keyboard shortcuts (Ctrl + /)" aria-label="Keyboard shortcuts" disabled><span class="shortcuts-glyph" aria-hidden="true">⌨</span><span class="sidebar-label">Shortcuts</span></button></div>
     </aside>
     <button type="button" class="navigation-backdrop" onclick="closeEditorNavigation()" aria-label="Close navigation" tabindex="-1" hidden></button>
     <div class="container editor-workspace" id="editor-workspace">
@@ -79,7 +85,7 @@
             <span id="navigation-current-section">Main Menu</span>
             </div>
             <div class="header-top flex justify-between items-center mb-16">
-                <div class="flex items-center gap-12">
+                <div class="editor-language-control flex items-center gap-12">
                     <label for="language-selector" class="sr-only">Editor Language</label>
                     <select id="language-selector" name="language-selector" class="premium-select" style="min-width: 120px;" onchange="changeEditorLanguage(this.value)">
                         <option value="en_US">English</option>
@@ -146,15 +152,16 @@
                             <!-- Shop Settings -->
                             <div id="shop-settings-preview" class="preview-tab-settings">
                                 <div class="flex items-center gap-12">
-                                    <div class="stealth-edit-container" title="Click to edit Rows">
+                                    <div id="shop-rows-control" class="stealth-edit-container" title="Click to edit Rows">
                                         <label for="shop-rows-input" class="sr-only">Rows</label>
                                         <input type="number" id="shop-rows-input" name="shop-rows-input" class="stealth-input" min="1" max="6" onchange="handleRowsChange(this.value)">
                                         <div class="stealth-display-wrapper">
                                             <span class="stealth-label" data-i18n="web-editor.rows">Rows:</span>
-                                            <span id="shop-rows-display" class="stealth-value">6</span>
+                                            <span id="shop-rows-display" class="stealth-value">3</span>
                                             <span class="edit-icon-small"></span>
                                         </div>
                                     </div>
+                                    <button id="shop-layout-override" type="button" class="btn btn-secondary" onclick="GuiLayout.selectScope(currentShopFile); switchTab('guisettings')" hidden>EDIT SHOP LAYOUT</button>
                                     <div class="stealth-edit-container" title="Click to edit Permission" style="min-width: 150px;">
                                         <label for="shop-permission-input" class="sr-only">Permission</label>
                                         <input type="text" id="shop-permission-input" name="shop-permission-input" class="stealth-input" placeholder="None" oninput="handleShopPermissionChange(this.value)">
@@ -322,7 +329,7 @@
                         </div>
                         <div class="flex items-center gap-12">
                             <button class="btn btn-primary" onclick="addCampaignTemplate()">
-                                <span class="btn-icon"></span>
+                                <span class="btn-icon" aria-hidden="true">+</span>
                                 <span>ADD CAMPAIGN</span>
                             </button>
                         </div>
@@ -404,7 +411,7 @@
                                 <span style="font-size: 0.78rem; font-weight: 700;">EXPORT</span>
                             </button>
                             <button class="btn btn-primary" onclick="addCustomCommand()">
-                                <span class="btn-icon"></span>
+                                <span class="btn-icon" aria-hidden="true">+</span>
                                 <span>ADD COMMAND</span>
                             </button>
                         </div>
@@ -433,8 +440,8 @@
                     <form id="sales-filters" class="sales-filters">
                         <label>From (UTC)<input id="sales-from" type="date" min="1970-01-01" max="9999-12-30" required></label>
                         <label>Through (UTC)<input id="sales-through" type="date" min="1970-01-01" max="9999-12-30" required></label>
-                        <label>Shop<select id="sales-shop"><option value="">All shops</option></select></label>
-                        <label>Item<select id="sales-item"><option value="">All items</option></select></label>
+                        <div class="sales-filter-field"><label for="sales-shop">Shop</label><select id="sales-shop" class="premium-select"><option value="">All shops</option></select></div>
+                        <div class="sales-filter-field"><label for="sales-item">Item</label><select id="sales-item" class="premium-select"><option value="">All items</option></select></div>
                         <button type="submit" class="btn-base btn-secondary" title="Refresh sales report"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Refresh</button>
                     </form>
                     <p id="sales-status" role="status" aria-live="polite"></p>
@@ -542,22 +549,6 @@
                     <pre id="export-output"></pre>
                 </div>
 
-                <div class="info-box editor-quick-tips" style="margin-top: 40px;">
-                    <div class="flex justify-between items-center mb-12 cursor-pointer" onclick="toggleQuickTips()">
-                        <h3 class="flex items-center gap-8 m-0">
-                            <span style="font-size: 1.2em;"></span>
-                            <span style="font-size: 0.9em; font-weight: 700; letter-spacing: 0.5px;" data-i18n="web-editor.tips.title">QUICK TIPS</span>
-                        </h3>
-                        <span id="tips-toggle-icon" class="toggle-icon" style="font-size: 0.8em; color: rgba(200, 210, 225, 0.7);"></span>
-                    </div>
-                    <ul id="quick-tips-list" style="display: block;">
-                        <li data-i18n="web-editor.tips.tip1"> Click items in preview to edit properties</li>
-                        <li data-i18n="web-editor.tips.tip2"> Real Minecraft textures displayed</li>
-                        <li data-i18n="web-editor.tips.tip3"> Auto-save keeps your changes safe</li>
-                        <li data-i18n="web-editor.tips.tip4"> Use SYNC to reload from server</li>
-                        <li data-i18n="web-editor.tips.tip5"> Create multiple shop files</li>
-                    </ul>
-                </div>
             </div>
         </div>
 

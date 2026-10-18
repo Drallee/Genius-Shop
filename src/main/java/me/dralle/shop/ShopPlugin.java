@@ -844,7 +844,7 @@ public class ShopPlugin extends JavaPlugin {
             // Fallback to en_US if configured language is missing
             langFile = new File(getDataFolder(), "languages/en_US.yml");
         }
-        this.messagesConfig = YamlConfiguration.loadConfiguration(langFile);
+        this.messagesConfig = me.dralle.shop.util.YamlUtil.loadUtf8(langFile);
 
         // Load gui.yml only if it exists (legacy support - menu configs are now in menus/ folder)
         File guiFile = new File(getDataFolder(), "gui.yml");

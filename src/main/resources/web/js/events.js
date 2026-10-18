@@ -57,9 +57,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     populateUserInfo();
     await loadAllFiles(true);
     await loadActivityLog();
-    if (typeof updateQuickTips === 'function') {
-        updateQuickTips(currentTab || 'mainmenu');
-    }
     if (typeof initCustomSelects === 'function') {
         initCustomSelects();
     }
@@ -182,46 +179,7 @@ function isTypingTarget(target) {
 }
 
 function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', async (e) => {
-        if (!sessionToken || isTypingTarget(e.target)) return;
-
-        const key = (e.key || '').toLowerCase();
-        const mod = e.ctrlKey || e.metaKey;
-
-        if (mod && key === 's' && !e.shiftKey) {
-            e.preventDefault();
-            if (window.EditorTelemetry) window.EditorTelemetry.track('shortcut_used', { shortcut: 'save_tab' }, true);
-            openSaveConfirmationModal('tab');
-            return;
-        }
-
-        if (mod && key === 's' && e.shiftKey) {
-            e.preventDefault();
-            if (window.EditorTelemetry) window.EditorTelemetry.track('shortcut_used', { shortcut: 'publish_all' }, true);
-            openSaveConfirmationModal('publish');
-            return;
-        }
-
-        if (mod && key === 'f') {
-            e.preventDefault();
-            if (window.EditorTelemetry) window.EditorTelemetry.track('shortcut_used', { shortcut: 'focus_search' }, true);
-            const itemSearch = document.getElementById('item-search');
-            if (itemSearch) {
-                itemSearch.focus();
-                itemSearch.select?.();
-            }
-            return;
-        }
-
-        if (key === 'escape') {
-            const activityDetail = document.getElementById('activity-detail-modal');
-            const activityLog = document.getElementById('activity-log-modal');
-            const saveConfirm = document.getElementById('save-confirmation-modal');
-            if (activityDetail && activityDetail.style.display === 'flex') return closeActivityDetailModal();
-            if (activityLog && activityLog.style.display === 'flex') return closeActivityLogModal();
-            if (saveConfirm && saveConfirm.style.display === 'flex') return closeSaveConfirmationModal();
-        }
-    });
+    EditorShortcuts.init();
 }
 
 function manualSave() {

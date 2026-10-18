@@ -25,14 +25,15 @@ test('missing permissions fail closed and every tab follows its independent capa
     }
     permissions.set({ publish: true });
     assert.equal(permissions.hasDrafts(), true);
-    assert.equal(permissions.tabAllowed('shop'), false);
+    assert.equal(permissions.tabAllowed('shop'), true);
+    assert.equal(permissions.canWriteFile('shops/a.yml'), false);
     permissions.set();
     assert.equal(permissions.hasDrafts(), false);
 });
 
 test('command-bearing files are read-only without blocking other shops', () => {
     const permissions = context().EditorPermissions;
-    permissions.set({ drafts: true }, ['shops/a.yml']);
+    permissions.set({ sections: { shop: { view: true, edit: true }, mainmenu: { view: true, edit: true } } }, ['shops/a.yml']);
     assert.equal(permissions.canSaveTab('shop'), false);
     assert.equal(permissions.canSaveTab('mainmenu'), true);
     assert.equal(permissions.canWriteFile('shops/b.yml'), true);
@@ -41,6 +42,20 @@ test('command-bearing files are read-only without blocking other shops', () => {
     permissions.set({ admin: true });
     assert.equal(permissions.canSaveTab('shop'), true);
     assert.equal(permissions.canWriteFile('config.yml'), true);
+});
+
+test('section view and draft grants stay independent of broad editing and publishing', () => {
+    const permissions = context().EditorPermissions;
+    permissions.set({ sections: { shop: { view: true, edit: true }, guisettings: { view: true, edit: false } } });
+    assert.equal(permissions.canSaveTab('shop'), true);
+    assert.equal(permissions.tabAllowed('guisettings'), true);
+    assert.equal(permissions.canSaveTab('guisettings'), false);
+    assert.equal(permissions.tabAllowed('mainmenu'), false);
+    assert.equal(permissions.can('publish'), false);
+    permissions.set({ publish: true, sections: { shop: { view: true, edit: false }, database: { view: true, edit: false } } });
+    assert.equal(permissions.tabAllowed('dataeditor'), true);
+    assert.equal(permissions.canWriteFile('shops/a.yml'), false);
+    assert.equal(permissions.can('database'), false);
 });
 
 test('save all only writes files granted by the server and does not fetch live database rows', async () => {
@@ -58,7 +73,8 @@ test('save all only writes files granted by the server and does not fetch live d
     await vm.runInContext('saveAllDrafts()', ctx);
     assert.ok(calls.includes('saveCurrentShop'));
     assert.ok(calls.includes('b.yml'));
-    for (const skipped of ['locked.yml', 'saveCommandsYaml', 'saveCustomItemsYaml', 'saveEconomySafetySettings', 'loadDatabaseEditorData']) {
+    assert.ok(calls.includes('saveCommandsYaml'));
+    for (const skipped of ['locked.yml', 'saveCustomItemsYaml', 'saveEconomySafetySettings', 'loadDatabaseEditorData']) {
         assert.ok(!calls.includes(skipped), skipped);
     }
     calls.length = 0;

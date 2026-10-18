@@ -22,8 +22,10 @@ async function saveCurrentTabChanges(isSilent = false) {
         } else if (tab === 'customitems') {
             await saveCustomItemsYaml(isSilent);
         } else if (tab === 'guisettings') {
-            await saveGuiSettingsYaml(isSilent);
-            await saveEconomySafetySettings(true);
+            const allowed = file => !window.EditorPermissions || EditorPermissions.canWriteFile(file);
+            if (window.GuiLayout && GuiLayout.isShopScope() && allowed(`shops/${currentShopFile}`)) await saveCurrentShop(isSilent);
+            if (allowed('menus/gui-settings.yml')) await saveGuiSettingsYaml(isSilent);
+            if (allowed('config.yml') && EditorRevisions.pendingChanges().some(change => change.file === 'config.yml')) await saveEconomySafetySettings(true);
         } else if (tab === 'dataeditor') {
             await loadDatabaseEditorData(false);
             showToast('Data refreshed', 'success');

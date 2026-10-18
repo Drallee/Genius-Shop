@@ -59,8 +59,8 @@ async function performTask(page, id, touch = false) {
         case 'command-add': await page.locator('#commands-tab button[onclick="addCustomCommand()"]').click(); break;
         case 'command-name': await page.locator('[data-command-field="name"]').first().fill('practice-shop'); break;
         case 'customitem-add': await page.locator('#customitems-tab button[onclick="addCustomItem()"]').click(); break;
-        case 'gui-open': await page.locator('#gui-settings-container .shop-item').first().click(); break;
-        case 'gui-name': await page.locator('#modal-name').fill('Practice back'); break;
+        case 'gui-open': await page.locator('#gui-settings-container [onclick="GuiLayout.edit(\'backButton\')"]').click(); break;
+        case 'gui-name': await page.locator('#name').fill('Practice back'); break;
         default: throw new Error(`Missing browser action for task ${id}`);
     }
     await page.waitForFunction(() => !Array.from(document.querySelectorAll('#editor-tutorial button')).find(button => /^(Next|Finish)$/.test(button.textContent.trim()))?.disabled);

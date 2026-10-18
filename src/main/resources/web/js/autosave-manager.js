@@ -4,6 +4,7 @@ function scheduleEditorAutoSave() {
     if (window.EditorPermissions && !EditorPermissions.canSaveTab(getEditorState('currentTab'))) return;
     if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
     if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
+    if (window.document?.getElementById?.('save-confirmation-modal')?.style?.display === 'flex') return;
     if (window.EditorRevisions && window.EditorRevisions.hasPending()) return;
     if (getEditorState('isLoadingFiles')) return;
     if (localStorage.getItem('autoSaveEnabled') === 'false') return;
@@ -16,6 +17,7 @@ function scheduleEditorAutoSave() {
         if (window.EditorPermissions && !EditorPermissions.canSaveTab(getEditorState('currentTab'))) return;
         if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
         if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
+        if (window.document?.getElementById?.('save-confirmation-modal')?.style?.display === 'flex') return;
         if (window.EditorRevisions && window.EditorRevisions.hasPending()) return;
         try {
             await saveCurrentTabChanges(true);

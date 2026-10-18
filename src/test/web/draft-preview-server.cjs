@@ -22,15 +22,24 @@ function createDraftPreviewServer({ permissions = null, readOnlyFiles = [] } = {
         }
         const send = (code, body) => { response.writeHead(code, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(body)); };
         const can = key => !permissions || permissions.admin || permissions[key];
-        const fileAllowed = file => file === 'commands.yml' ? can('commands') :
-            file === 'config.yml' || file === 'discord.yml' || file.startsWith('languages/') ? can('admin') : can('drafts');
+        const sectionFor = file => file.startsWith('shops/') ? 'shop' : ({ 'menus/main-menu.yml': 'mainmenu',
+            'menus/purchase-menu.yml': 'purchase', 'menus/sell-menu.yml': 'sell', 'menus/gui-settings.yml': 'guisettings',
+            'campaigns.yml': 'campaigns', 'commands.yml': 'commands', 'custom-items.yml': 'customitems' })[file];
+        const fileAllowed = (file, write = false) => {
+            if (can('admin')) return true;
+            if (file === 'config.yml' || file === 'discord.yml' || file.startsWith('languages/')) return false;
+            const section = sectionFor(file);
+            const access = permissions?.sections?.[section];
+            if (access) return !!access[write ? 'edit' : 'view'];
+            return !write && can('publish') || (section === 'commands' ? can('commands') || can('drafts') : can('drafts'));
+        };
         if (url.pathname === '/api/permissions') { send(200, permissions || base.permissions); return true; }
-        const forbidden = url.pathname === '/api/database' && !can('database') ||
-            url.pathname === '/api/stock-analytics' && !can('analytics') ||
+        const forbidden = url.pathname === '/api/database' && !(can('database') || request.method === 'GET' && (can('publish') || permissions?.sections?.database?.view)) ||
+            ['/api/stock-analytics', '/api/sales-analytics'].includes(url.pathname) && !(can('analytics') || can('publish')) ||
             url.pathname === '/api/activity-log' && !can('admin') ||
             url.pathname === '/api/economy-safety' && !can('admin') ||
             url.pathname === '/api/draft/publish' && !can('publish') ||
-            url.pathname.startsWith('/api/file/') && !fileAllowed(decodeURIComponent(url.pathname.slice('/api/file/'.length)));
+            url.pathname.startsWith('/api/file/') && !fileAllowed(decodeURIComponent(url.pathname.slice('/api/file/'.length)), request.method !== 'GET');
         if (forbidden) { send(403, { message: 'Editor permission denied' }); return true; }
         if (url.pathname === '/api/files') {
             const payload = { ...base, shops: {}, revisions: {}, draft: status(), permissions: permissions || base.permissions, readOnlyFiles };

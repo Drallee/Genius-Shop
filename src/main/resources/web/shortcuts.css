@@ -1,0 +1,15 @@
+.sidebar-shortcuts-wrap { margin-top: auto; padding: 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.sidebar-shortcuts { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--text-main); text-align: left; cursor: pointer; font: inherit; }
+.sidebar-shortcuts:hover { background: #25252c; }
+.sidebar-shortcuts:focus-visible { outline: 2px solid #5ee7b0; }
+.shortcuts-glyph { width: 20px; flex: 0 0 20px; text-align: center; font-size: 20px; }
+.editor-shortcuts { position: fixed; inset: 0; margin: auto; width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); padding: 0; box-sizing: border-box; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface); color: var(--text-main); box-shadow: 0 24px 80px #0008; overflow: auto; }
+.editor-shortcuts::backdrop { background: #000a; }
+.editor-shortcuts header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+.editor-shortcuts h2 { font-size: 18px; margin: 0; }
+.shortcuts-content { padding: 8px 22px 22px; }
+.shortcuts-content p { color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.shortcut-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.shortcut-row kbd { padding: 5px 8px; border: 1px solid var(--border); border-bottom-width: 3px; border-radius: 5px; background: var(--bg-card); white-space: nowrap; font-size: 12px; }
+.shortcut-unavailable { opacity: .6; }
+.shortcut-row small { flex-basis: 100%; color: #fbd38d; }

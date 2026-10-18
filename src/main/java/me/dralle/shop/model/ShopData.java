@@ -25,10 +25,19 @@ public class ShopData {
     private final String campaignKey;
     private final Map<String, ShopItem> itemsByUniqueKey;
     private final Map<Integer, ShopItem> itemsBySlot;
+    private final org.bukkit.configuration.ConfigurationSection layout;
 
     public ShopData(String key, String guiName, int rows, String permission, List<ShopItem> items, List<String> availableTimes,
                     StockResetRule stockResetRule, boolean sellAddsToStock, boolean allowSellStockOverflow,
                     Map<String, ShopCampaign> campaigns, String campaignKey) {
+        this(key, guiName, rows, permission, items, availableTimes, stockResetRule, sellAddsToStock,
+                allowSellStockOverflow, campaigns, campaignKey, null);
+    }
+
+    public ShopData(String key, String guiName, int rows, String permission, List<ShopItem> items, List<String> availableTimes,
+                    StockResetRule stockResetRule, boolean sellAddsToStock, boolean allowSellStockOverflow,
+                    Map<String, ShopCampaign> campaigns, String campaignKey, org.bukkit.configuration.ConfigurationSection layout) {
+        this.layout = layout;
         this.key = key;
         this.guiName = guiName;
         this.rows = rows;
@@ -64,6 +73,8 @@ public class ShopData {
     public int getRows() {
         return rows;
     }
+
+    public org.bukkit.configuration.ConfigurationSection getLayout() { return layout; }
 
     public String getPermission() {
         return permission;

@@ -4,20 +4,102 @@
 config-version: 4
 
 gui:
+  discovery:
+    search: {}
+    favorites: {}
+    recent: {}
+  layout:
+    rows: 0
+    content-slots: []
+    empty-slots: []
+    empty-area: air
+    empty-item:
+      enabled: true
+      material: GRAY_STAINED_GLASS_PANE
+      amount: 1
+      name: " "
+      lore: []
+      hide-attributes: true
+      hide-additional: true
+      hide-enchants: false
+    filler:
+      enabled: false
+      material: YELLOW_STAINED_GLASS_PANE
+      amount: 1
+      name: " "
+      lore: []
+      hide-attributes: true
+      hide-additional: true
+      hide-enchants: false
+
+  search-button:
+    enabled: true
+    slot: -1
+    material: COMPASS
+    amount: 1
+    name: messages.discovery.search
+    lore:
+      - messages.discovery.search-hint
+    hide-attributes: true
+    hide-additional: true
+    hide-enchants: false
+
+  favorites-button:
+    enabled: true
+    slot: -1
+    material: NETHER_STAR
+    amount: 1
+    name: messages.discovery.favorites
+    lore:
+      - messages.discovery.favorites-hint
+    hide-attributes: true
+    hide-additional: true
+    hide-enchants: false
+
+  recent-button:
+    enabled: true
+    slot: -1
+    material: CLOCK
+    amount: 1
+    name: messages.discovery.recent
+    lore:
+      - messages.discovery.recent-hint
+    hide-attributes: true
+    hide-additional: true
+    hide-enchants: false
+
   # Navigation buttons for shop pages
   back-button:
+    enabled: true
+    slot: -1
+    amount: 1
+    hide-attributes: true
+    hide-additional: true
+    hide-enchants: false
     material: "ENDER_CHEST"
     name: menus.gui-settings.back-button.name
     lore:
       - menus.gui-settings.back-button.lore
 
   prev-button:
+    enabled: true
+    slot: -1
+    amount: 1
+    hide-attributes: true
+    hide-additional: true
+    hide-enchants: false
     material: "GRAY_DYE"
     name: menus.gui-settings.prev-button.name
     lore:
       - menus.gui-settings.prev-button.lore
 
   next-button:
+    enabled: true
+    slot: -1
+    amount: 1
+    hide-attributes: true
+    hide-additional: true
+    hide-enchants: false
     material: "LIME_DYE"
     name: menus.gui-settings.next-button.name
     lore:

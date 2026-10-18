@@ -32,10 +32,16 @@ public class GenericShopGui implements Listener {
     public static class GenericShopHolder extends MenuInventoryHolder {
         private final String shopKey;
         private final int page;
+        private final ShopLayout layout;
 
         public GenericShopHolder(String shopKey, int page) {
+            this(shopKey, page, null);
+        }
+
+        public GenericShopHolder(String shopKey, int page, ShopLayout layout) {
             this.shopKey = shopKey;
             this.page = page;
+            this.layout = layout;
         }
 
         public String getShopKey() { return shopKey; }
@@ -387,13 +393,9 @@ public class GenericShopGui implements Listener {
         plugin.shopsOpened++;
         plugin.incrementShopPopularity(shopKey);
 
-        int configuredRows = shop.getRows();
-        int usableRows = Math.max(configuredRows, 1);
-        int totalRows = usableRows + 1;
-        if (totalRows > 6) totalRows = 6;
-
-        int totalSlots = totalRows * 9;
-        int usableSlots = Math.min(usableRows * 9, 45);
+        ShopLayout layout = layout(shop);
+        int totalSlots = layout.size();
+        int usableSlots = layout.capacity();
 
         List<ShopItem> allItems = shop.getItems();
         if (allItems == null || allItems.isEmpty()) {
@@ -408,7 +410,8 @@ public class GenericShopGui implements Listener {
         if (page > totalPages) page = totalPages;
 
         String title = me.dralle.shop.util.BedrockUtil.formatTitle(player, ShopItemUtil.color(shop.getGuiName() + " &7(" + page + "/" + totalPages + ")"));
-        Inventory inv = new GenericShopHolder(shopKey, page).createInventory(totalSlots, title);
+        Inventory inv = new GenericShopHolder(shopKey, page, layout).createInventory(totalSlots, title);
+        layout.fill(plugin, inv);
 
         String currency = plugin.getCurrencySymbol();
         String availableTimesStr = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
@@ -428,59 +431,14 @@ public class GenericShopGui implements Listener {
             ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, si);
             if (!condition.allowed()) continue;
 
-            inv.setItem(absoluteSlot - start, createGuiItem(player, si, shopKey, availableTimesStr, currency, shop));
+            inv.setItem(layout.contentSlots().get(absoluteSlot - start), createGuiItem(player, si, shopKey, availableTimesStr, currency, shop));
         }
 
         for (VariantGroupData group : variantGroupsBySlot.values()) {
-            inv.setItem(group.slot - start, createVariantGroupIcon(player, shop, shopKey, availableTimesStr, currency, group));
+            inv.setItem(layout.contentSlots().get(group.slot - start), createVariantGroupIcon(player, shop, shopKey, availableTimesStr, currency, group));
         }
 
-        // Navigation slots
-        int nav = totalSlots - 9;
-        int prev = nav + 3;
-        int back = nav + 4;
-        int next = nav + 5;    
-
-        FileConfiguration guiConfig = plugin.getMenuManager().getGuiSettingsConfig();
-
-// Botón Back
-String backMaterialStr = guiConfig.getString("gui.back-button.material", "ENDER_CHEST");
-String backName = plugin.getMessages().resolveConfigString(guiConfig, "gui.back-button.name", "&9Back");
-List<String> backLore = plugin.getMessages().resolveConfigStringList(guiConfig, "gui.back-button.lore");
-
-Material backMaterial = Material.matchMaterial(backMaterialStr.toUpperCase());
-if (backMaterial == null) backMaterial = Material.ENDER_CHEST;
-
-inv.setItem(back, ShopItemUtil.create(backMaterial, 1, backName, backLore));
-
-if (plugin.getItemDiscovery() != null) {
-    inv.setItem(nav, ShopItemUtil.create(Material.COMPASS, 1, plugin.getItemDiscovery().text("search"), List.of()));
-    inv.setItem(nav + 1, ShopItemUtil.create(Material.NETHER_STAR, 1, plugin.getItemDiscovery().text("favorites"), List.of()));
-    inv.setItem(nav + 2, ShopItemUtil.create(Material.CLOCK, 1, plugin.getItemDiscovery().text("recent"), List.of()));
-}
-
-if (page > 1) {
-    String prevMaterialStr = guiConfig.getString("gui.prev-button.material", "GRAY_DYE");
-    String prevName = plugin.getMessages().resolveConfigString(guiConfig, "gui.prev-button.name", "&e<- Previous");
-    List<String> prevLore = plugin.getMessages().resolveConfigStringList(guiConfig, "gui.prev-button.lore");
-
-    Material prevMaterial = Material.matchMaterial(prevMaterialStr.toUpperCase());
-    if (prevMaterial == null) prevMaterial = Material.GRAY_DYE;
-
-    inv.setItem(prev, ShopItemUtil.create(prevMaterial, 1, prevName, prevLore));
-}
-
-if (page < totalPages) {
-    String nextMaterialStr = guiConfig.getString("gui.next-button.material", "LIME_DYE");
-    String nextName = plugin.getMessages().resolveConfigString(guiConfig, "gui.next-button.name", "&eNext ->");
-    List<String> nextLore = plugin.getMessages().resolveConfigStringList(guiConfig, "gui.next-button.lore");
-
-    Material nextMaterial = Material.matchMaterial(nextMaterialStr.toUpperCase());
-    if (nextMaterial == null) nextMaterial = Material.LIME_DYE;
-
-    inv.setItem(next, ShopItemUtil.create(nextMaterial, 1, nextName, nextLore));
-}
-
+        drawControls(inv, layout, page, totalPages);
         player.openInventory(inv);
 
         // Store page info
@@ -488,10 +446,22 @@ if (page < totalPages) {
         player.setMetadata("shop.page", new FixedMetadataValue(plugin, page));
     }
 
+    private ShopLayout layout(ShopData shop) {
+        return ShopLayout.forShop(plugin.getMenuManager().getGuiSettingsConfig(), shop, plugin.getItemDiscovery() != null);
+    }
+
+    private void drawControls(Inventory inventory, ShopLayout layout, int page, int pages) {
+        for (var entry : layout.controls().entrySet()) {
+            boolean visible = entry.getKey() != ShopLayout.Control.PREVIOUS || page > 1;
+            visible &= entry.getKey() != ShopLayout.Control.NEXT || page < pages;
+            inventory.setItem(entry.getValue(), visible ? layout.configuredButton(plugin, entry.getKey()) : null);
+        }
+    }
+
     public void openItemMenu(Player player, ShopItem item, String shopKey, int page) {
         ShopData shop = plugin.getShopManager().getShop(shopKey);
         if (shop != null && item != null && item.getSlot() != null) {
-            int usableSlots = Math.min(Math.max(shop.getRows(), 1) * 9, 45);
+            int usableSlots = layout(shop).capacity();
             int displaySlot = item.isVariantMenuEnabled() && item.getVariantGroupSlot() != null ? item.getVariantGroupSlot() : item.getSlot();
             int itemPage = Math.max(1, (displaySlot / Math.max(1, usableSlots)) + 1);
             openShop(player, shopKey, itemPage);
@@ -526,22 +496,19 @@ if (page < totalPages) {
         ShopData shop = plugin.getShopManager().getShop(shopKey);
         if (shop == null) return;
 
-        int configuredRows = shop.getRows();
-        int usableRows = Math.max(configuredRows, 1);
-        int totalRows = Math.min(usableRows + 1, 6);
-        int totalSlots = totalRows * 9;
-        int usableSlots = Math.min(usableRows * 9, 45);
-
-        int nav = totalSlots - 9;
-        int prev = nav + 3;
-        int back = nav + 4;
-        int next = nav + 5;
+        ShopLayout layout = layout(shop);
+        if (holder.layout != null && !holder.layout.equals(layout)) {
+            Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, page));
+            return;
+        }
+        int usableSlots = layout.capacity();
         int slot = e.getSlot();
 
-        if (plugin.getItemDiscoveryMenu() != null && slot >= nav && slot <= nav + 2) {
+        ShopLayout.Control control = layout.controlAt(slot);
+        if (plugin.getItemDiscoveryMenu() != null && (control == ShopLayout.Control.SEARCH || control == ShopLayout.Control.FAVORITES || control == ShopLayout.Control.RECENT)) {
             Bukkit.getScheduler().runTask(plugin, () -> {
-                var mode = slot == nav + 1 ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.FAVORITES
-                        : slot == nav + 2 ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.RECENT
+                var mode = control == ShopLayout.Control.FAVORITES ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.FAVORITES
+                        : control == ShopLayout.Control.RECENT ? me.dralle.shop.discovery.ItemDiscoveryService.Mode.RECENT
                         : me.dralle.shop.discovery.ItemDiscoveryService.Mode.SEARCH;
                 plugin.getItemDiscoveryMenu().open(player, mode, "", 1);
             });
@@ -552,23 +519,24 @@ if (page < totalPages) {
         int totalPages = (int) Math.ceil((double) (maxSlot + 1) / (double) usableSlots);
         if (totalPages < 1) totalPages = 1;
 
-        if (slot == back) {
+        if (control == ShopLayout.Control.BACK) {
             Bukkit.getScheduler().runTask(plugin, () -> MainMenu.open(player));
             return;
         }
-        if (slot == prev && page > 1) {
+        if (control == ShopLayout.Control.PREVIOUS && page > 1) {
             Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, page - 1));
             return;
         }
-        if (slot == next && page < totalPages) {
+        if (control == ShopLayout.Control.NEXT && page < totalPages) {
             Bukkit.getScheduler().runTask(plugin, () -> openShop(player, shopKey, page + 1));
             return;
         }
-        if (slot >= nav) return;
+        int contentIndex = layout.contentSlots().indexOf(slot);
+        if (contentIndex < 0) return;
 
         int start = (page - 1) * usableSlots;
         int end = start + usableSlots;
-        int absoluteSlot = start + slot;
+        int absoluteSlot = start + contentIndex;
 
         Map<Integer, VariantGroupData> groupsBySlot = buildVariantGroups(shop, player, start, end);
         VariantGroupData group = groupsBySlot.get(absoluteSlot);
@@ -799,19 +767,24 @@ if (page < totalPages) {
             ShopData shop = plugin.getShopManager().getShop(holder.getShopKey());
             if (shop == null) continue;
 
-            int configuredRows = shop.getRows();
-            int usableRows = Math.max(configuredRows, 1);
-            int totalRows = Math.min(usableRows + 1, 6);
-            int usableSlots = Math.min(usableRows * 9, 45);
+            ShopLayout layout = layout(shop);
+            if (layout.size() != top.getSize() || holder.layout != null && !holder.layout.equals(layout)) {
+                openShop(player, holder.getShopKey(), holder.getPage());
+                continue;
+            }
+            int usableSlots = layout.capacity();
             int start = (holder.getPage() - 1) * usableSlots;
             int end = start + usableSlots;
             String currency = plugin.getCurrencySymbol();
             String availableTimesStr = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
             Map<Integer, VariantGroupData> variantGroupsBySlot = buildVariantGroups(shop, player, start, end);
 
-            for (int slot = 0; slot < usableSlots; slot++) {
+            for (int slot = 0; slot < layout.size(); slot++) {
                 top.setItem(slot, null);
             }
+            layout.fill(plugin, top);
+            int totalPages = Math.max(1, (getDisplayMaxSlot(shop) + usableSlots) / usableSlots);
+            drawControls(top, layout, holder.getPage(), totalPages);
 
             for (int absoluteSlot = start; absoluteSlot < end; absoluteSlot++) {
                 ShopItem si = shop.getItemBySlot(absoluteSlot);
@@ -821,11 +794,11 @@ if (page < totalPages) {
                 }
                 ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, si);
                 if (!condition.allowed()) continue;
-                top.setItem(absoluteSlot - start, createGuiItem(player, si, holder.getShopKey(), availableTimesStr, currency, shop));
+                top.setItem(layout.contentSlots().get(absoluteSlot - start), createGuiItem(player, si, holder.getShopKey(), availableTimesStr, currency, shop));
             }
 
             for (VariantGroupData group : variantGroupsBySlot.values()) {
-                top.setItem(group.slot - start, createVariantGroupIcon(player, shop, holder.getShopKey(), availableTimesStr, currency, group));
+                top.setItem(layout.contentSlots().get(group.slot - start), createVariantGroupIcon(player, shop, holder.getShopKey(), availableTimesStr, currency, group));
             }
         }
     }

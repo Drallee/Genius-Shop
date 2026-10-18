@@ -53,8 +53,8 @@
             { target: '#data-editor-generated', title: 'Persistent counters', text: 'Inspect stored player counts, global counts, and reset data. Data editing actions affect live stored values, so review each action carefully.' }
         ] },
         { id: 'guisettings', revision: 2, title: 'GUI settings', tab: 'guisettings', steps: [
-            { target: '#gui-settings-container [onclick="openGuiButtonModal(\'backButton\', \'Back Button\')"]', task: 'gui-open', modal: true, title: 'Shared GUI settings', text: 'Click the Back Button entry to edit a shared navigation button. These settings can affect more than one shop.' },
-            { target: '#modal-name', task: 'gui-name', modal: true, title: 'Edit a shared button', text: 'Change Display Name to Practice back. Shared button names and lore are configured here.' },
+            { target: '#gui-settings-container [onclick="GuiLayout.edit(\'backButton\')"]', task: 'gui-open', modal: true, title: 'Shared GUI settings', text: 'Click the Back Button entry to edit a navigation button. The layout selector chooses shared defaults or a specific shop.' },
+            { target: '#name', task: 'gui-name', modal: true, title: 'Edit a shared button', text: 'Change Display Name to Practice back. Button names and lore are configured here.' },
             { target: '#edit-modal button[onclick="saveEditModal()"]', task: 'gui-save', modal: true, title: 'Apply the practice button', text: 'Click the dialog\'s Save to apply the temporary name. Your real button will return when you exit the tutorial.' }
         ] },
         { id: 'saving', revision: 3, title: 'Saving and history', steps: [

@@ -60,6 +60,7 @@ const EditorYaml = (() => {
             if (key === 'stockResetRule') result[key] = typeof value === 'string'
                 ? sanitizeStockResetRule({ ...createDefaultStockResetRule(), enabled: true, type: value })
                 : sanitizeStockResetRule(decode({ ...createDefaultStockResetRule(), enabled: true }, value));
+            else if (key === 'contentSlots' || key === 'emptySlots') result[key] = Array.isArray(value) ? value.slice() : [];
             else if (Array.isArray(result[key])) result[key] = list(value);
             else if (object(result[key])) result[key] = decode(result[key], value);
             else result[key] = value;
@@ -72,6 +73,11 @@ const EditorYaml = (() => {
         Object.entries(model).forEach(([key, value]) => {
             if (key === 'id' || key === 'key' || key.startsWith('_yaml')) return;
             const yamlKey = key === 'stockResetRule' ? 'stock-reset' : kebab(key);
+            if (key === 'discovery') {
+                const overrides = Object.fromEntries(Object.entries(value || {}).filter(([, layout]) => layout != null).map(([mode, layout]) => [mode, encode(layout)]));
+                if (Object.keys(overrides).length) result[yamlKey] = overrides;
+                return;
+            }
             result[yamlKey] = key === 'stockResetRule' ? resetData(value)
                 : key === 'enchantments' ? clone(value) : object(value) ? encode(value) : value;
         });
@@ -179,6 +185,9 @@ const EditorYaml = (() => {
             sellAddsToStock: false, allowSellStockOverflow: false, stockResetRule: createDefaultStockResetRule() }, data);
         result.availableTimes = list(data['available-times']).join('\n');
         result.campaigns = (data.campaigns || []).map(campaign);
+        const camelLayout = value => Array.isArray(value) ? value.map(camelLayout) : object(value)
+            ? Object.fromEntries(Object.entries(value).map(([key, child]) => [key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), camelLayout(child)])) : value;
+        result.layout = data.layout ? camelLayout(data.layout) : null;
         return window.GeniusSchemas.normalizeShopSettings(result);
     }
 
@@ -195,6 +204,7 @@ const EditorYaml = (() => {
 
     function shopData() {
         const data = encode(currentShopSettings);
+        if (!currentShopSettings.layout) delete data.layout;
         data['available-times'] = String(currentShopSettings.availableTimes || '').split(/\r?\n/).filter(line => line.trim());
         data.campaigns = (currentShopSettings.campaigns || []).map(campaignData);
         return data;
@@ -319,6 +329,9 @@ const EditorYaml = (() => {
     function readGui(source) {
         const { value } = readChecked('gui', source);
         guiSettings = decode(defaults.gui, value.gui || {});
+        const camelLayout = value => Array.isArray(value) ? value.map(camelLayout) : object(value)
+            ? Object.fromEntries(Object.entries(value).map(([key, child]) => [key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), camelLayout(child)])) : value;
+        for (const mode of ['search', 'favorites', 'recent']) guiSettings.discovery[mode] = value.gui?.discovery?.[mode] == null ? null : camelLayout(value.gui.discovery[mode]);
         remember('gui', source, { gui: encode(guiSettings) });
     }
     function readCampaigns(source) {

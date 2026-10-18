@@ -18,14 +18,65 @@ permissions:
   geniusshop.ledger:
     description: Allows searching completed transactions with /shop ledger
     default: op
+  geniusshop.editor.mainmenu:
+    description: Allows read-only viewing of the mainmenu editor section
+    default: false
+  geniusshop.editor.mainmenu.drafts:
+    description: Allows viewing and editing drafts in the mainmenu editor section
+    default: false
+  geniusshop.editor.shop:
+    description: Allows read-only viewing of the shop editor section
+    default: false
+  geniusshop.editor.shop.drafts:
+    description: Allows viewing and editing drafts in the shop editor section
+    default: false
+  geniusshop.editor.purchase:
+    description: Allows read-only viewing of the purchase editor section
+    default: false
+  geniusshop.editor.purchase.drafts:
+    description: Allows viewing and editing drafts in the purchase editor section
+    default: false
+  geniusshop.editor.sell:
+    description: Allows read-only viewing of the sell editor section
+    default: false
+  geniusshop.editor.sell.drafts:
+    description: Allows viewing and editing drafts in the sell editor section
+    default: false
+  geniusshop.editor.campaigns:
+    description: Allows read-only viewing of the campaigns editor section
+    default: false
+  geniusshop.editor.campaigns.drafts:
+    description: Allows viewing and editing drafts in the campaigns editor section
+    default: false
+  geniusshop.editor.customitems:
+    description: Allows read-only viewing of the customitems editor section
+    default: false
+  geniusshop.editor.customitems.drafts:
+    description: Allows viewing and editing drafts in the customitems editor section
+    default: false
+  geniusshop.editor.guisettings:
+    description: Allows read-only viewing of the guisettings editor section
+    default: false
+  geniusshop.editor.guisettings.drafts:
+    description: Allows viewing and editing drafts in the guisettings editor section
+    default: false
+  geniusshop.editor.commands.view:
+    description: Allows read-only viewing of command configurations
+    default: false
+  geniusshop.editor.commands.drafts:
+    description: Allows managing command drafts and command-bearing files
+    default: false
+  geniusshop.editor.database.view:
+    description: Allows read-only viewing of live database rows
+    default: false
   geniusshop.editor.analytics:
     description: Allows web editor login and viewing stock analytics
     default: false
   geniusshop.editor.drafts:
-    description: Allows editing shop, menu, campaign, and custom-item drafts without publishing
+    description: Allows editing all configuration drafts including commands and command-bearing files, without publishing or live database writes
     default: false
   geniusshop.editor.publish:
-    description: Allows publishing reviewed drafts; editing permissions for every changed file are also required
+    description: Allows viewing all editor tabs and publishing reviewed drafts; file editing permissions are still required to publish changes
     default: false
   geniusshop.editor.commands:
     description: Allows managing custom command drafts and command-bearing files (other file permissions still apply)

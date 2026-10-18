@@ -147,7 +147,7 @@ class ConfigApiServerPermissionsTest {
     }
 
     @Test void draftWriterCanSaveButCannotPublishOrModifyCommands() throws Exception {
-        grant("drafts");
+        grant("shop.drafts");
         assertEquals(200, save("shops/a.yml", "rows: 4\nitems: []\n").status());
         assertEquals(200, request("GET", "/api/file/shops/a.yml", "").status());
         assertEquals(403, save("commands.yml", "commands: {}\n").status());
@@ -157,8 +157,49 @@ class ConfigApiServerPermissionsTest {
         verify(plugin, never()).reloadPublishedConfiguration();
     }
 
+    @Test void sectionDraftAndViewPermissionsAreEnforcedByDirectFileRequests() throws Exception {
+        grant("shop");
+        assertEquals(200, request("GET", "/api/file/shops/a.yml", "").status());
+        assertEquals(403, save("shops/a.yml", "items: []\n").status());
+        assertEquals(403, request("GET", "/api/file/commands.yml", "").status());
+        assertEquals(403, request("POST", "/api/draft/discard", "").status());
+        grant("shop.drafts");
+        assertEquals(200, save("shops/a.yml", "rows: 4\nitems: []\n").status());
+        assertEquals(403, save("menus/purchase-menu.yml", "rows: 3\n").status());
+        assertEquals(403, save("commands.yml", "commands: {}\n").status());
+        grants.remove("geniusshop.editor.shop.drafts");
+        assertEquals(403, save("shops/a.yml", "items: []\n").status());
+    }
+
+    @Test void publishOnlyCanReadTabsButCannotEditOrDiscardDrafts() throws Exception {
+        grant("publish");
+        assertEquals(200, request("GET", "/api/file/shops/a.yml", "").status());
+        assertEquals(200, request("GET", "/api/file/commands.yml", "").status());
+        assertEquals(403, request("GET", "/api/file/config.yml", "").status());
+        assertEquals(403, save("shops/a.yml", "items: []\n").status());
+        assertEquals(403, request("POST", "/api/database", "{}").status());
+        assertEquals(403, request("POST", "/api/draft/discard", "").status());
+    }
+
+    @Test void shopOnlyReceivesReadOnlyLayoutPreviewWithoutUnrelatedGuiSettings() throws Exception {
+        Files.createDirectories(root.resolve("menus"));
+        Files.writeString(root.resolve("menus/gui-settings.yml"), "gui: {layout: {rows: 3, content-slots: [10, 11]}, search-button: {slot: 24}}\nunrelated: private-setting\n");
+        grant("shop.drafts");
+        Material material = mock(Material.class);
+        when(material.isItem()).thenReturn(true);
+        try (var materials = mockStatic(Material.class)) {
+            materials.when(Material::values).thenReturn(new Material[]{material});
+            var files = request("GET", "/api/files", "");
+            assertEquals(200, files.status(), files.body());
+            assertFalse(files.json().has("guiSettings"));
+            assertTrue(files.json().get("guiPreview").getAsString().contains("content-slots"));
+            assertFalse(files.body().contains("private-setting"));
+        }
+        assertEquals(403, save("menus/gui-settings.yml", "gui: {}\n").status());
+    }
+
     @Test void commandActionsCannotBeSmuggledThroughOtherFiles() throws Exception {
-        grant("drafts");
+        grant("shop.drafts", "mainmenu.drafts", "customitems.drafts");
         String commands = "items: [{material: STONE, commands: ['op %player%']}]\n";
         assertEquals(403, save("shops/a.yml", commands).status());
         assertEquals(403, save("menus/main-menu.yml", "items: [{action: command, commands: [say hi]}]").status());
@@ -171,14 +212,14 @@ class ConfigApiServerPermissionsTest {
     }
 
     @Test void publishRechecksEveryChangedFileAfterPermissionsAreRevoked() throws Exception {
-        grant("drafts", "commands", "publish");
+        grant("commands", "publish");
         assertEquals(200, save("commands.yml", "commands: {}\n# changed\n").status());
         Response review = request("GET", "/api/draft/review", "");
         assertEquals(200, review.status());
         String body = "{\"token\":\"" + review.json().get("token").getAsString() + "\"}";
         grants.remove("geniusshop.editor.commands");
         assertEquals(403, request("POST", "/api/draft/publish", body).status());
-        assertEquals(403, request("GET", "/api/draft/review", "").status());
+        assertEquals(200, request("GET", "/api/draft/review", "").status());
         assertEquals("commands: {}\n", Files.readString(root.resolve("commands.yml")));
         verify(plugin, never()).reloadPublishedConfiguration();
     }
@@ -255,7 +296,7 @@ class ConfigApiServerPermissionsTest {
     }
 
     @Test void filesResponseOmitsRestrictedSourcesAndMarksCommandFilesReadOnly() throws Exception {
-        grant("drafts");
+        grant("shop.drafts");
         Files.writeString(root.resolve("shops/command.yml"), "items: [{commands: [say hi]}]\n");
         try (MockedStatic<Material> materials = mockStatic(Material.class)) {
             materials.when(Material::values).thenReturn(new Material[0]);

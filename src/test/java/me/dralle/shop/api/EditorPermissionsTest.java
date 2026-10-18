@@ -7,6 +7,40 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class EditorPermissionsTest {
+    @Test void broadDraftPermissionEditsEveryConfigurationSectionIncludingCommands() {
+        var permissions = only("drafts");
+        for (String file : new String[]{"shops/a.yml", "menus/main-menu.yml", "menus/purchase-menu.yml", "menus/sell-menu.yml", "menus/gui-settings.yml", "commands.yml", "campaigns.yml", "custom-items.yml"}) {
+            assertTrue(permissions.canWriteContent(file, "commands: [say before]", "commands: [say after]"), file);
+        }
+        assertFalse(permissions.publish());
+        assertFalse(permissions.database());
+        assertFalse(permissions.canReadFile("config.yml"));
+    }
+
+    @Test void sectionViewAndDraftPermissionsAreIndependent() {
+        var viewer = only("shop");
+        assertTrue(viewer.access());
+        assertTrue(viewer.canReadFile("shops/blocks.yml"));
+        assertFalse(viewer.canWriteFile("shops/blocks.yml"));
+        assertFalse(viewer.canReadFile("menus/main-menu.yml"));
+        var editor = only("shop.drafts");
+        assertTrue(editor.canWriteContent("shops/blocks.yml", "items: []", "rows: 3\nitems: []"));
+        assertFalse(editor.canWriteFile("campaigns.yml"));
+        assertFalse(editor.canWriteContent("shops/blocks.yml", "items: []", "items: [{commands: [op me]}]"));
+    }
+
+    @Test void publishersCanViewEveryTabWithoutGainingEditingOrSensitiveFileAccess() {
+        var publisher = only("publish");
+        for (String file : new String[]{"shops/a.yml", "menus/main-menu.yml", "menus/purchase-menu.yml", "menus/sell-menu.yml", "menus/gui-settings.yml", "commands.yml", "campaigns.yml", "custom-items.yml"}) {
+            assertTrue(publisher.canReadFile(file), file);
+            assertFalse(publisher.canWriteFile(file), file);
+        }
+        assertTrue(publisher.allows("/api/database", "GET"));
+        assertFalse(publisher.allows("/api/database", "POST"));
+        assertTrue(publisher.allows("/api/sales-analytics", "GET"));
+        assertFalse(publisher.canReadFile("config.yml"));
+    }
+
     private EditorPermissions only(String node) {
         CommandSender sender = mock(CommandSender.class);
         when(sender.hasPermission("geniusshop.editor." + node)).thenReturn(true);
@@ -46,7 +80,7 @@ class EditorPermissionsTest {
     }
 
     @Test void embeddedCommandsNeedTheCommandCapabilityEvenWhenDeleting() {
-        var permissions = only("drafts");
+        var permissions = only("shop.drafts");
         String ordinary = "items: [{material: STONE, commands: []}]\n";
         String command = "items: [{material: STONE, commands: ['op %player%'], run-as: console}]\n";
         String custom = "items: {wand: {actions: [{type: command, commands: [say hello]}]}}\n";

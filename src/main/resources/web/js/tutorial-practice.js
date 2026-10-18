@@ -148,9 +148,9 @@
             'command-add': { allow: ['#commands-tab button[onclick="addCustomCommand()"]'], done: () => customCommands.length > initialCommands },
             'command-name': { allow: ['[data-command-field="name"]'], done: () => customCommands.some(command => command.name === 'practice-shop') },
             'customitem-add': { allow: ['#customitems-tab button[onclick="addCustomItem()"]'], done: () => Object.keys(customItemsConfig.items).length > initialCustomItems },
-            'gui-open': { allow: ['#gui-settings-container [onclick="openGuiButtonModal(\'backButton\', \'Back Button\')"]'], done: modalOpen },
-            'gui-name': { allow: ['#modal-name'], done: () => value('modal-name') === 'Practice back' },
-            'gui-save': { allow: [saveButton], done: () => !modalOpen() && guiSettings.backButton.name === 'Practice back' }
+            'gui-open': { allow: ['#gui-settings-container [onclick="GuiLayout.edit(\'backButton\')"]'], done: modalOpen },
+            'gui-name': { allow: ['#name'], done: () => value('name') === 'Practice back' },
+            'gui-save': { allow: [saveButton], done: () => !modalOpen() && GuiLayout.selectedSettings().backButton.name === 'Practice back' }
         };
         return definitions[id];
     }

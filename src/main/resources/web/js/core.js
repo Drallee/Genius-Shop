@@ -142,9 +142,14 @@ let currentShopSettings = {
 };
 
 let guiSettings = {
-    backButton: { name: '&9Back', lore: [] },
-    prevButton: { name: '&e<- Previous', lore: [] },
-    nextButton: { name: '&eNext ->', lore: [] },
+    discovery: { search: null, favorites: null, recent: null },
+    backButton: { enabled: true, slot: -1, material: 'ENDER_CHEST', amount: 1, name: '&9Back', lore: [], hideAttributes: true, hideAdditional: true, hideEnchants: false },
+    prevButton: { enabled: true, slot: -1, material: 'GRAY_DYE', amount: 1, name: '&e<- Previous', lore: [], hideAttributes: true, hideAdditional: true, hideEnchants: false },
+    nextButton: { enabled: true, slot: -1, material: 'LIME_DYE', amount: 1, name: '&eNext ->', lore: [], hideAttributes: true, hideAdditional: true, hideEnchants: false },
+    searchButton: { enabled: true, slot: -1, material: 'COMPASS', amount: 1, name: 'messages.discovery.search', lore: ['messages.discovery.search-hint'], hideAttributes: true, hideAdditional: true, hideEnchants: false },
+    favoritesButton: { enabled: true, slot: -1, material: 'NETHER_STAR', amount: 1, name: 'messages.discovery.favorites', lore: ['messages.discovery.favorites-hint'], hideAttributes: true, hideAdditional: true, hideEnchants: false },
+    recentButton: { enabled: true, slot: -1, material: 'CLOCK', amount: 1, name: 'messages.discovery.recent', lore: ['messages.discovery.recent-hint'], hideAttributes: true, hideAdditional: true, hideEnchants: false },
+    layout: { rows: 0, contentSlots: [], emptySlots: [], emptyArea: 'air', emptyItem: { enabled: true, material: 'GRAY_STAINED_GLASS_PANE', amount: 1, name: ' ', lore: [], hideAttributes: true, hideAdditional: true, hideEnchants: false }, filler: { enabled: false, material: 'YELLOW_STAINED_GLASS_PANE', amount: 1, name: ' ', lore: [], hideAttributes: true, hideAdditional: true, hideEnchants: false } },
     itemLore: {
         showBuyPrice: true,
         buyPriceLine: '&6Buy Price: &a%price%',
@@ -661,7 +666,6 @@ function applyFontAwesomeIcons() {
     setIcon('button[onclick="manualSave()"] .btn-icon', 'fa-solid fa-floppy-disk');
     setIcon('button[onclick="publishChanges()"] .btn-icon', 'fa-solid fa-rocket');
     setIcon('.search-icon', 'fa-solid fa-magnifying-glass');
-    setIcon('#tips-toggle-icon', 'fa-solid fa-chevron-down');
     setIcon('#alert-modal-icon', 'fa-solid fa-circle-info');
     setIcon('#prompt-modal-icon', 'fa-solid fa-pen-to-square');
     setIcon('#modal-delete-btn span:first-child', 'fa-solid fa-trash');
@@ -946,6 +950,8 @@ function addActivityEntry(action, target, beforeData, afterData, details = {}) {
         action: action,
         target: target,
         description: getActivitySummary(localEntry),
+        beforeData: localEntry.beforeData,
+        afterData: localEntry.afterData,
         details: details
     }];
     setUnsavedChanges(nextChanges);
@@ -969,8 +975,7 @@ function getActivitySummary(entry) {
     };
 
     const stripColors = (text) => {
-        if (!text) return '';
-        return text.toString().replace(/&[0-9a-fk-or]/gi, '').replace(/&#[0-9a-fA-F]{6}/gi, '');
+        return EditorChangeView.plainText(text);
     };
 
     const getDisplayName = (data) => {
@@ -1005,6 +1010,13 @@ function getActivitySummary(entry) {
     const actionText = entry.action.charAt(0).toUpperCase() + entry.action.slice(1);
     const targetText = targetNames[entry.target] || entry.target;
     const rollbackSuffix = entry.details && entry.details.isRollback ? ' (Rollback)' : '';
+
+    const file = entry.details?.fileName || entry.afterData?.fileName || entry.beforeData?.fileName;
+    if (entry.target === 'file' && file?.startsWith('shops/') && entry.action === 'updated') {
+        const display = activityComparisonData(entry.beforeData, entry.afterData, 'file');
+        const labels = EditorChangeView.names(display.before, display.after);
+        if (labels.length) return `${actionText} Shop ${labels.length === 1 ? 'Item' : 'Items'} ${labels.slice(0, 3).join(', ')}${labels.length > 3 ? ` (+${labels.length - 3} more)` : ''}${rollbackSuffix}`;
+    }
 
     return `${actionText} ${targetText} ${name}${rollbackSuffix}`.trim();
 }

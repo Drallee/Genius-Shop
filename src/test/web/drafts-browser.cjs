@@ -89,7 +89,11 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
         assert.equal(await page.evaluate(() => getEditorState('autoSaveTimeout')), null);
         await review.locator('summary').filter({ hasText: 'shops/blocks.yml' }).click();
         const shopDiff = review.locator('details').filter({ has: page.locator('summary').filter({ hasText: 'shops/blocks.yml' }) });
-        assert.equal(await shopDiff.locator('.draft-before pre').textContent(), baseline['shops/blocks.yml']);
+        const beforeItem = await shopDiff.locator('.draft-before pre').textContent();
+        assert.match(beforeItem, /material: STONE/);
+        assert.ok(!beforeItem.includes('COBBLESTONE'));
+        assert.ok(!beforeItem.includes('gui-name:'));
+        assert.match(await shopDiff.locator('.change-metadata').textContent(), /Shop: blocks/);
         assert.ok(state.workspace['shops/other.yml']);
         const panelBox = await review.boundingBox();
         const viewport = page.viewportSize();
@@ -136,6 +140,31 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
         await review.getByRole('button', { name: 'Discard draft', exact: true }).click();
         await review.waitFor({ state: 'hidden' });
         assert.deepEqual(state.live, state.workspace);
+        const historyEntry = { id: 9001, action: 'updated', target: 'file', username: 'Preview', timestamp: Date.now(),
+            beforeData: { fileName: 'shops/blocks.yml', content: 'items:\n- material: STONE\n  name: "<gradient:#F8F9FA:#C7CDD6>Stone</gradient>"\n  price: 5\n- material: DIRT\n  price: 2\n' },
+            afterData: { fileName: 'shops/blocks.yml', content: 'items:\n- material: STONE\n  name: "<gradient:#F8F9FA:#C7CDD6>Stone</gradient>"\n  price: 7\n- material: DIRT\n  price: 2\n' } };
+        await page.route('**/api/activity-log?*', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify([historyEntry]) }));
+        await page.evaluate(() => openActivityLogModal());
+        const history = page.locator('#activity-log-container .change-history-row');
+        await history.first().waitFor();
+        assert.match(await history.first().textContent(), /Updated Shop Item Stone/);
+        assert.match(await history.first().textContent(), /Shop: blocks/);
+        assert.ok(!(await history.first().textContent()).includes('<gradient'));
+        await page.screenshot({ path: `target/history-list-shared-${process.argv.includes('--firefox') ? 'firefox' : 'chrome'}-${viewport.width}.png` });
+        await history.first().click();
+        const detail = page.locator('#activity-detail-modal');
+        await detail.waitFor({ state: 'visible' });
+        assert.equal(await detail.locator('#activity-detail-title').textContent(), 'Updated Shop Item Stone');
+        for (const panel of await detail.locator('.change-comparison pre').allTextContents()) {
+            assert.match(panel, /material: STONE/);
+            assert.ok(!panel.includes('DIRT'));
+        }
+        assert.match(await detail.locator('.change-metadata').textContent(), /Shop: blocks/);
+        assert.equal(await detail.locator('.change-comparison').evaluate(node => node.scrollWidth <= node.clientWidth), true);
+        await page.screenshot({ path: `target/history-shared-${process.argv.includes('--firefox') ? 'firefox' : 'chrome'}-${viewport.width}.png` });
+        await page.evaluate(() => closeActivityDetailModal());
+        await detail.waitFor({ state: 'hidden' });
+        await page.evaluate(() => closeActivityLogModal());
         assert.deepEqual(errors, []);
         console.log('Draft browser checks passed: persistence, draft-only autosave, full review, stale reviews, rollback errors, validation, explicit publish, deletions and discard.');
         await context.close();

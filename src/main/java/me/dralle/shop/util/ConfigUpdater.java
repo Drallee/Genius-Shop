@@ -107,7 +107,9 @@ public class ConfigUpdater {
             YamlConfiguration defCfg = null;
             try (InputStream in = plugin.getResource(fileName)) {
                 if (in != null) {
-                    defCfg = YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+                    String source = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                    if (fileName.startsWith("languages/")) source = YamlUtil.normalizeLegacyLanguage(source);
+                    defCfg = YamlConfiguration.loadConfiguration(new java.io.StringReader(source));
                     maxDefaultVersion = Math.max(maxDefaultVersion, defCfg.getInt("config-version", 1));
                 }
             }

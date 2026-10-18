@@ -341,7 +341,6 @@ function buildShopTooltipLoreParity(item) {
 function switchTab(tabName) {
     if (window.EditorPermissions && tabName !== 'restricted' && !EditorPermissions.tabAllowed(tabName)) return;
     setEditorState('currentTab', tabName);
-    updateQuickTips(tabName);
 
     // Toggle tab content visibility
     document.querySelectorAll('.tab-content').forEach(tab => {
@@ -469,6 +468,7 @@ function handleRowsChange(value) {
 
     let before;
     if (currentTab === 'shop') {
+        if (GuiLayout.rowsOverridden()) return GuiLayout.updateRowsControl();
         before = currentShopSettings.rows;
         currentShopSettings.rows = rows;
         updatePreview();
@@ -774,82 +774,6 @@ function renderSkeletons() {
     }
 }
 
-function toggleQuickTips() {
-    const list = document.getElementById('quick-tips-list');
-    const icon = document.getElementById('tips-toggle-icon');
-    if (list && icon) {
-        const isHidden = list.style.display === 'none';
-        list.style.display = isHidden ? 'block' : 'none';
-        icon.textContent = isHidden ? '\u25B2' : '\u25BC';
-    }
-}
-
-const QUICK_TIPS_BY_TAB = {
-    mainmenu: [
-        'Use slot numbers to keep category layout consistent.',
-        'Buttons can open shops, run commands, or do nothing.',
-        'Keep button names short so they stay readable in GUI.',
-        'Use parity mode to preview lore placeholders.',
-        'Save after large button rearrangements.'
-    ],
-    shop: [
-        'Click an item card or preview slot to edit details.',
-        'Sort and search before bulk edits to avoid mistakes.',
-        'Set slot explicitly when you need stable layout order.',
-        'Use campaign and stock flags only where needed.',
-        'Use import/export for faster cross-shop updates.'
-    ],
-    campaigns: [
-        'Create campaign keys once, then assign them in bulk.',
-        'Set timezone explicitly for predictable start/end windows.',
-        'Use shop-level campaign for broad promos.',
-        'Use item-level campaign to override specific products.',
-        'Save campaigns, then save affected shop files.'
-    ],
-    stockanalytics: [
-        'Use the shop filter to isolate stock bottlenecks.',
-        'Track out-of-stock and low-stock counts first.',
-        'High utilization means your global limit is near full.',
-        'Rows are sorted by highest utilization to surface risk.',
-        'Refresh after major buy/sell testing.'
-    ],
-    dataeditor: [
-        'Player Counts are per-player item limit counters.',
-        'Global Counts are shared stock counters per item key.',
-        'Stock Resets track last reset run times in epoch millis.',
-        'Edit carefully: these values affect live shop behavior.',
-        'Refresh after each change to verify persisted data.'
-    ],
-    purchase: [
-        'Keep confirm/cancel/back buttons on predictable slots.',
-        'Set max amount based on your economy balance.',
-        'Check display slot so preview item is always visible.',
-        'Match button labels with their configured amounts.',
-        'Use parity mode to validate lore output.'
-    ],
-    sell: [
-        'Place Sell All where users can find it quickly.',
-        'Keep remove/add/set amounts balanced for UX.',
-        'Lower max amount if economy abuse is a concern.',
-        'Verify sell lore lines match your placeholders.',
-        'Use parity mode before publishing menu changes.'
-    ],
-    guisettings: [
-        'Edit global lore formats carefully; all shops use them.',
-        'Test buy/sell hint visibility with real item states.',
-        'Use safety presets as a baseline, then fine-tune.',
-        'Set separators/decimals to match your server locale.',
-        'Save and retest one shop after major global changes.'
-    ]
-};
-
-function updateQuickTips(tabName = currentTab) {
-    const list = document.getElementById('quick-tips-list');
-    if (!list) return;
-
-    const tips = QUICK_TIPS_BY_TAB[tabName] || QUICK_TIPS_BY_TAB.shop;
-    list.innerHTML = tips.map(tip => `<li>${escapeHtml(tip)}</li>`).join('');
-}
 
 function switchShop(filename) {
     if (filename === currentShopFile) return;
@@ -895,7 +819,7 @@ function getItemTexture(material) {
 
 function changePage(direction) {
     const rows = currentShopSettings.rows || 3;
-    const itemsPerPage = rows * 9;
+    const itemsPerPage = GuiLayout.current().capacity;
     let maxSlot = items.length > 0 ? Math.max(...items.map(it => it.slot || 0)) : 0;
     const maxPage = Math.ceil((maxSlot + 1) / itemsPerPage) - 1;
     
@@ -1076,7 +1000,7 @@ function listImageLoadingAttributes(source) {
 
 function renderItems() {
     if (currentTab === 'shop') {
-        const pageSize = Math.max(1, (currentShopSettings.rows || 3) * 9);
+        const pageSize = GuiLayout.current().capacity;
         const start = currentPreviewPage * pageSize;
         const first = [...items].sort((a, b) => a.slot - b.slot).find(item => item.slot >= start && item.slot < start + pageSize);
         if (first) prioritizePreviewTexture(getShopItemIconUrl(first));
@@ -1194,9 +1118,9 @@ function renderItems() {
         }
 
         const rows = (currentShopSettings && currentShopSettings.rows) ? currentShopSettings.rows : 3;
-        const itemsPerPage = rows * 9;
+        const itemsPerPage = GuiLayout.current().capacity;
         const page = Math.floor(item.slot / itemsPerPage) + 1;
-        const slotOnPage = item.slot % itemsPerPage;
+        const slotOnPage = GuiLayout.current().contentSlots[item.slot % itemsPerPage];
         const buyDisplay = calculateCampaignAdjustedTotal(item, false);
         const sellDisplay = calculateCampaignAdjustedTotal(item, true);
         const buyPriceHtml = item.price > 0
@@ -1913,9 +1837,10 @@ function createCustomDropdown(select) {
             if (displayHtml) opt.innerHTML = displayHtml;
             else opt.textContent = displayText;
             opt.onclick = (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 select.selectedIndex = index;
-                select.dispatchEvent(new Event('change'));
+                select.dispatchEvent(new Event('change', { bubbles: true }));
                 if (displayHtml) triggerText.innerHTML = displayHtml;
                 else triggerText.textContent = displayText;
                 container.classList.remove('open');
@@ -1928,6 +1853,7 @@ function createCustomDropdown(select) {
     updateOptions();
     
     trigger.onclick = (e) => {
+        e.preventDefault();
         e.stopPropagation();
         const isOpen = container.classList.contains('open');
         // Close all other custom selects
@@ -1961,7 +1887,7 @@ function updatePaginationVisibility(totalPages) {
 
     if (currentTab === 'shop') {
         const rows = (currentShopSettings && currentShopSettings.rows) ? currentShopSettings.rows : 3;
-        const itemsPerPage = rows * 9;
+        const itemsPerPage = GuiLayout.current().capacity;
         
         if (!totalPages) {
             let maxSlot = items.length > 0 ? Math.max(...items.map(it => it.slot || 0)) : 0;
@@ -1997,6 +1923,7 @@ function updatePaginationVisibility(totalPages) {
 }
 
 function updatePreview() {
+    GuiLayout.updateRowsControl();
     const grid = document.getElementById('preview-grid');
     if (!grid) return;
     grid.innerHTML = '';
@@ -2005,7 +1932,7 @@ function updatePreview() {
     const rows = currentShopSettings.rows || 3;
     const rowsInput = document.getElementById('shop-rows-input');
     if (rowsInput) rowsInput.value = rows;
-    const itemsPerPage = rows * 9;
+    const itemsPerPage = GuiLayout.current().capacity;
 
     // Calculate total pages based on max slot
     let maxSlot = items.length > 0 ? Math.max(...items.map(it => it.slot || 0)) : 0;
@@ -2020,25 +1947,32 @@ function updatePreview() {
     // Handle paging visibility
     updatePaginationVisibility(totalPages);
 
+    const layout = GuiLayout.current();
     let priorityImageAssigned = false;
-    for (let i = 0; i < rows * 9; i++) {
+    for (let i = 0; i < layout.size; i++) {
         const slot = document.createElement('div');
         slot.className = 'gui-slot';
         slot.dataset.slotIndex = i;
+        const contentIndex = layout.contentSlots.indexOf(i);
+        if (contentIndex < 0) {
+            GuiLayout.decorate(slot, layout, i, currentPreviewPage, totalPages);
+            grid.appendChild(slot);
+            continue;
+        }
         
         // Drag and drop listeners
         slot.ondragover = handleDragOver;
         slot.ondragenter = handleDragEnter;
         slot.ondragleave = handleDragLeave;
         slot.ondragend = handleDragEnd;
-        slot.ondrop = (e) => handleDrop(e, i, 'shop');
+        slot.ondrop = (e) => handleDrop(e, contentIndex, 'shop');
         
-        const absoluteSlot = (currentPreviewPage * itemsPerPage) + i;
+        const absoluteSlot = (currentPreviewPage * itemsPerPage) + contentIndex;
         const item = items.find(it => it.slot === absoluteSlot);
 
         if (item) {
             slot.draggable = true;
-            slot.ondragstart = (e) => handleDragStart(e, i, 'shop');
+            slot.ondragstart = (e) => handleDragStart(e, contentIndex, 'shop');
             slot.classList.add('filled');
             
             slot.innerHTML = `<div class="item-icon"><img alt="" width="32" height="32" fetchpriority="${priorityImageAssigned ? 'auto' : 'high'}" src="${getShopItemIconUrl(item)}" onerror="this.src='${TEXTURE_API}stone.png'"></div>`;
@@ -2084,6 +2018,7 @@ function updatePreview() {
             }
         }
         
+        if (!item) GuiLayout.decorate(slot, layout, i, currentPreviewPage, totalPages);
         grid.appendChild(slot);
     }
 }
@@ -2199,7 +2134,7 @@ function handleDrop(e, targetIndex, source) {
 
     if (source === 'shop') {
         const rows = currentShopSettings.rows || 3;
-        const itemsPerPage = rows * 9;
+        const itemsPerPage = GuiLayout.current().capacity;
         if (!Number.isInteger(itemsPerPage) || itemsPerPage <= 0) return false;
         const fromAbsoluteSlot = (draggedFromPage * itemsPerPage) + draggedSlotIndex;
         const toAbsoluteSlot = (currentPreviewPage * itemsPerPage) + targetIndex;
@@ -2392,23 +2327,7 @@ function renderGuiSettings() {
     if (!container) return;
 
     container.innerHTML = `
-        <div class="settings-group card-base full-width" style="grid-column: 1 / -1;">
-            <h3 class="group-title">Navigation Buttons</h3>
-            <div class="grid-list" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
-                <div class="shop-item" onclick="openGuiButtonModal('backButton', 'Back Button')">
-                    <div class="item-title">${parseMinecraftColors(guiSettings.backButton.name)}</div>
-                    <div class="item-subtitle">Back Button</div>
-                </div>
-                <div class="shop-item" onclick="openGuiButtonModal('prevButton', 'Previous Page Button')">
-                    <div class="item-title">${parseMinecraftColors(guiSettings.prevButton.name)}</div>
-                    <div class="item-subtitle">Previous Page Button</div>
-                </div>
-                <div class="shop-item" onclick="openGuiButtonModal('nextButton', 'Next Page Button')">
-                    <div class="item-title">${parseMinecraftColors(guiSettings.nextButton.name)}</div>
-                    <div class="item-subtitle">Next Page Button</div>
-                </div>
-            </div>
-        </div>
+        ${GuiLayout.settingsHtml()}
 
         <div class="settings-group card-base full-width" style="grid-column: 1 / -1;" ${window.EditorPermissions && !EditorPermissions.can('admin') ? 'hidden' : ''}>
             <div class="flex justify-between items-center mb-16">
@@ -2619,6 +2538,9 @@ function renderGuiSettings() {
             </div>
         </div>
     `;
+    GuiLayout.renderDesigner();
+    if (window.EditorPermissions && !EditorPermissions.canViewSharedGui()) container.querySelectorAll('.settings-group:not(.gui-layout-settings)').forEach(group => { group.hidden = true; });
+    if (window.EditorPermissions) EditorPermissions.refresh();
 }
 
 function updateGuiLoreFormat(value) {
@@ -2746,26 +2668,7 @@ function applyEconomySafetyPreset(mode) {
 }
 
 function openGuiButtonModal(buttonKey, title) {
-    const btn = guiSettings[buttonKey];
-    openEditModal({
-        title: `Edit ${title}`,
-        fields: [
-            { id: 'modal-name', label: 'Display Name', value: btn.name },
-            { id: 'modal-lore', label: 'Lore (one per line)', type: 'textarea', value: (btn.lore || []).join('\n') }
-        ],
-        onSave: (data) => {
-            const beforeData = JSON.parse(JSON.stringify(btn));
-            btn.name = data['modal-name'];
-            btn.lore = data['modal-lore'].split('\n');
-            
-            addActivityEntry('updated', 'gui-settings', beforeData, JSON.parse(JSON.stringify(btn)), {
-                button: buttonKey
-            });
-            
-            renderGuiSettings();
-            scheduleAutoSave();
-        }
-    });
+    GuiLayout.edit(buttonKey);
 }
 
 function renderMainMenuShops() {
@@ -3357,6 +3260,7 @@ function renderDatabaseEditor() {
             ${renderDatabaseStockTable(stockRows)}
         </div>
     `;
+    if (window.EditorPermissions) EditorPermissions.refresh();
 }
 
 function renderDatabasePlayerTable(rows) {

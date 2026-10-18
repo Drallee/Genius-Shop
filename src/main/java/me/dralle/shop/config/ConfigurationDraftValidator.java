@@ -22,11 +22,12 @@ public final class ConfigurationDraftValidator {
         Map<String, YamlConfiguration> parsed = new TreeMap<>();
         files.forEach((name, content) -> {
             try {
+                String source = name.startsWith("languages/") ? me.dralle.shop.util.YamlUtil.normalizeLegacyLanguage(content) : content;
                 org.yaml.snakeyaml.LoaderOptions options = new org.yaml.snakeyaml.LoaderOptions();
                 options.setAllowDuplicateKeys(false);
-                new org.yaml.snakeyaml.Yaml(new org.yaml.snakeyaml.constructor.SafeConstructor(options)).load(content);
+                new org.yaml.snakeyaml.Yaml(new org.yaml.snakeyaml.constructor.SafeConstructor(options)).load(source);
                 YamlConfiguration yaml = new YamlConfiguration();
-                yaml.loadFromString(content);
+                yaml.loadFromString(source);
                 parsed.put(name, yaml);
             } catch (Exception e) { errors.add(name + ": " + e.getMessage()); }
         });
@@ -49,10 +50,35 @@ public final class ConfigurationDraftValidator {
             if (name.startsWith("shops/")) shops.put(name.substring(6, name.length() - 4), yaml);
         });
         Set<String> globalCampaigns = campaignKeys(parsed.get("campaigns.yml"), "campaigns.yml", errors);
+        YamlConfiguration gui = parsed.get("menus/gui-settings.yml");
+        if (gui != null) {
+            if (gui.contains("gui.discovery") && !gui.isConfigurationSection("gui.discovery")) errors.add("menus/gui-settings.yml: gui.discovery must be a mapping");
+            for (String mode : List.of("search", "favorites", "recent")) {
+                String path = "gui.discovery." + mode;
+                if (gui.get(path) == null) continue;
+                if (!gui.isConfigurationSection(path)) {
+                    errors.add("menus/gui-settings.yml: " + path + " must be a mapping");
+                    continue;
+                }
+                var effective = me.dralle.shop.gui.ShopLayout.settings(gui, gui.getConfigurationSection(path));
+                for (String error : me.dralle.shop.gui.ShopLayout.validate(effective, 5)) errors.add("menus/gui-settings.yml: " + path + ": " + error);
+            }
+            Set<Integer> rows = new HashSet<>(List.of(5));
+            shops.values().stream().filter(shop -> !shop.isConfigurationSection("layout")).forEach(shop -> rows.add(shop.getInt("rows", 3)));
+            for (int count : rows) for (String error : me.dralle.shop.gui.ShopLayout.validate(gui, count)) {
+                String message = "menus/gui-settings.yml: " + error;
+                if (!errors.contains(message)) errors.add(message);
+            }
+        }
         for (var entry : shops.entrySet()) {
             String path = "shops/" + entry.getKey() + ".yml";
             YamlConfiguration shop = entry.getValue();
             integer(shop.get("rows"), 1, 6, path + ".rows", errors);
+            if (shop.contains("layout") && !shop.isConfigurationSection("layout")) errors.add(path + ": layout must be a mapping");
+            if (shop.isConfigurationSection("layout")) {
+                var effective = me.dralle.shop.gui.ShopLayout.settings(gui == null ? new YamlConfiguration() : gui, shop.getConfigurationSection("layout"));
+                for (String error : me.dralle.shop.gui.ShopLayout.validate(effective, shop.getInt("rows", 3))) errors.add(path + ": " + error);
+            }
             if (shop.contains("items") && !shop.isList("items")) errors.add(path + ": items must be a list");
             Set<String> campaigns = new HashSet<>(globalCampaigns);
             campaigns.addAll(campaignKeys(shop, path, errors));

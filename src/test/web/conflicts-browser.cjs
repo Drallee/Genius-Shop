@@ -10,7 +10,7 @@ const { createConflictPreviewServer } = require('./conflict-preview-server.cjs')
     let browser;
     try {
         const isFirefox = process.argv.includes('--firefox');
-        const viewport = process.argv.includes('--mobile') ? { width: 390, height: 844 } : { width: 1365, height: 900 };
+        const viewport = process.argv.includes('--narrow') ? { width: 320, height: 568 } : process.argv.includes('--mobile') ? { width: 390, height: 844 } : { width: 1365, height: 900 };
         browser = isFirefox ? await firefox.launch({ headless: true }) : await chromium.launch({ channel: 'chrome', headless: true });
         const errors = [];
         async function editor() {
@@ -25,6 +25,17 @@ const { createConflictPreviewServer } = require('./conflict-preview-server.cjs')
             });
             await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'domcontentloaded' });
             await page.waitForFunction(() => !isLoadingFiles && items.length > 0);
+            const alignment = await page.evaluate(() => {
+                const controls = ['#custom-language-selector .custom-select-trigger', '#editor-tutorial-help', '#user-info'].map(selector => document.querySelector(selector).getBoundingClientRect());
+                return { centers: controls.map(rect => rect.y + rect.height / 2),
+                    bounds: controls.map(rect => ({ x: rect.x, width: rect.width })),
+                    header: document.querySelector('.header-top').getBoundingClientRect().toJSON(),
+                    overflow: document.querySelector('.editor-topbar').scrollWidth > document.querySelector('.editor-topbar').clientWidth };
+            });
+            await page.locator('.editor-topbar').screenshot({ path: `target/header-inline-${viewport.width}.png` });
+            assert.ok(Math.max(...alignment.centers) - Math.min(...alignment.centers) < 3, 'Language, Tutorial and User controls share one row');
+            assert.equal(alignment.overflow, false, JSON.stringify(alignment));
+            assert.ok(alignment.bounds[0].x + alignment.bounds[0].width <= alignment.bounds[1].x, JSON.stringify(alignment));
             await page.evaluate(() => switchTab('shop'));
             return page;
         }
@@ -44,9 +55,19 @@ const { createConflictPreviewServer } = require('./conflict-preview-server.cjs')
         assert.equal(state.files.get('shops/blocks.yml'), savedByB);
         assert.equal(await a.evaluate(() => items[0].price), 30);
         assert.equal(await a.evaluate(() => unsavedChanges.length), 2);
-        assert.equal(await conflict.locator('.conflict-comparison pre').nth(0).textContent(), original);
-        assert.equal(await conflict.locator('.conflict-comparison pre').nth(1).textContent(), savedByB);
+        assert.match(await conflict.locator('.conflict-comparison pre').nth(0).textContent(), /price: 5/);
+        assert.match(await conflict.locator('.conflict-comparison pre').nth(1).textContent(), /price: 20/);
         assert.match(await conflict.locator('.conflict-comparison pre').nth(2).textContent(), /price: 30/);
+        for (const column of await conflict.locator('.conflict-comparison pre').allTextContents()) {
+            assert.match(column, /material: STONE/);
+            assert.ok(!column.includes('COBBLESTONE'));
+            assert.ok(!column.includes('sell-price:'));
+        }
+        assert.deepEqual((await conflict.locator('.conflict-line-changed').allTextContents()).map(line => line.trim()), ['price: 5', 'price: 20', 'price: 30']);
+        await conflict.getByRole('button', { name: 'Show full files', exact: true }).click();
+        assert.equal(await conflict.locator('.conflict-comparison pre').nth(0).textContent(), original.replace(/\r\n/g, '\n'));
+        assert.equal(await conflict.locator('.conflict-comparison pre').nth(1).textContent(), savedByB.replace(/\r\n/g, '\n'));
+        await conflict.getByRole('button', { name: 'Show differences only', exact: true }).click();
         const box = await conflict.boundingBox();
         assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width + 1 && box.y + box.height <= viewport.height + 1);
         assert.equal(await conflict.evaluate(node => node.scrollWidth <= node.clientWidth), true);
@@ -66,7 +87,9 @@ const { createConflictPreviewServer } = require('./conflict-preview-server.cjs')
         const downloadEvent = a.waitForEvent('download');
         await conflict.getByRole('button', { name: 'Download local', exact: true }).click();
         const download = await downloadEvent;
-        assert.match(fs.readFileSync(await download.path(), 'utf8'), /price: 31/);
+        const downloaded = fs.readFileSync(await download.path(), 'utf8');
+        assert.match(downloaded, /price: 31/);
+        assert.match(downloaded, /COBBLESTONE/);
         await conflict.getByRole('button', { name: 'Reconcile', exact: true }).click();
         const reconciled = '# local reconciliation\n' + await a.locator('#conflict-merged').inputValue();
         await a.locator('#conflict-merged').fill(reconciled);

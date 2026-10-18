@@ -138,6 +138,24 @@
         return fallback;
     }
 
+    function pendingChanges() {
+        const editable = new Set(['menus/main-menu.yml', 'menus/purchase-menu.yml', 'menus/sell-menu.yml',
+            'menus/gui-settings.yml', 'campaigns.yml', 'commands.yml', 'custom-items.yml', 'config.yml']);
+        const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
+            ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+        const result = [];
+        for (const [file, snapshot] of loaded) {
+            if (!editable.has(file) && !file.startsWith('shops/')) continue;
+            if (global.EditorPermissions && !EditorPermissions.canWriteFile(file)) continue;
+            const before = snapshot.content;
+            const after = localSource(file, before ?? '');
+            if (before === after) continue;
+            if (before != null && after != null && JSON.stringify(canonical(EditorYaml.parse(before))) === JSON.stringify(canonical(EditorYaml.parse(after)))) continue;
+            result.push({ file, before, after, action: before == null ? 'created' : after == null ? 'deleted' : 'updated' });
+        }
+        return result;
+    }
+
     function open() {
         const conflict = conflicts.values().next().value;
         if (!conflict) return;
@@ -166,13 +184,36 @@
         status.setAttribute('role', 'status');
         body.append(status);
         const comparison = element('div', null, 'conflict-comparison');
-        for (const [title, source] of [['Originally loaded', conflict.base], ['Latest on server', conflict.latest.content], ['Your changes', conflict.local]]) {
-            const column = element('section');
-            column.append(element('h3', title), element('pre', source == null ?
-                (title === 'Originally loaded' && conflict.file === 'config.yml' && !conflict.economy ? '(full file was not loaded)' : '(file absent / deletion)') : source));
-            comparison.append(column);
-        }
-        body.append(comparison);
+        const sources = [conflict.base, conflict.latest.content, conflict.local];
+        let fullFiles = false;
+        const renderComparison = () => {
+            comparison.replaceChildren();
+            const visible = fullFiles ? sources : EditorChangeView.conflictSources(sources, conflict.economy);
+            const highlights = EditorChangeView.changedLines(visible);
+            ['Originally loaded', 'Latest on server', 'Your changes'].forEach((title, index) => {
+                const column = element('section', null, `conflict-version conflict-version-${index}`);
+                const pre = element('pre');
+                if (visible[index] == null) pre.textContent = index === 0 && conflict.file === 'config.yml' && !conflict.economy
+                    ? '(full file was not loaded)' : '(file absent / deletion)';
+                else visible[index].split(/\r?\n/).forEach((line, lineIndex, lines) => {
+                    const text = line + (lineIndex < lines.length - 1 ? '\n' : '');
+                    pre.append(element('span', text, highlights[index].has(lineIndex) ? 'conflict-line-changed' : 'conflict-line-context'));
+                });
+                column.append(element('h3', title), pre);
+                comparison.append(column);
+            });
+        };
+        const controls = element('div', null, 'conflict-view-controls');
+        const description = element('span', 'Changed fields are highlighted. Unchanged settings are hidden.');
+        const toggle = button('Show full files', 'expand', () => {
+            fullFiles = !fullFiles;
+            toggle.textContent = fullFiles ? 'Show differences only' : 'Show full files';
+            description.textContent = fullFiles ? 'Full files shown; changed lines remain highlighted.' : 'Changed fields are highlighted. Unchanged settings are hidden.';
+            renderComparison();
+        });
+        controls.append(description, toggle);
+        body.append(controls, comparison, element('p', 'Downloads and reconciliation always use complete files.', 'conflict-view-note'));
+        renderComparison();
         const footer = element('footer');
         saveMergedButton = button('Save reconciled', 'floppy-disk', saveMerged, 'btn-success');
         saveMergedButton.hidden = true;
@@ -323,5 +364,5 @@
         if (conflicts.size) { open(); throw conflictError(); }
     }
 
-    global.EditorRevisions = { seed, request, open, latest, apply, requireResolved, hasPending: () => conflicts.size > 0 };
+    global.EditorRevisions = { seed, request, open, latest, apply, requireResolved, pendingChanges, hasPending: () => conflicts.size > 0 };
 })(window);

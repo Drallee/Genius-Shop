@@ -33,8 +33,13 @@ public final class ItemDiscoveryMenu implements Listener {
         final State state;
         final List<ItemReference> items;
         final int pages;
+        final ShopLayout layout;
         public ResultsHolder(State state, List<ItemReference> items, int pages) {
+            this(state, items, pages, null);
+        }
+        public ResultsHolder(State state, List<ItemReference> items, int pages, ShopLayout layout) {
             this.state = state; this.items = List.copyOf(items); this.pages = pages;
+            this.layout = layout;
         }
     }
     public static final class DetailHolder extends MenuInventoryHolder {
@@ -59,12 +64,15 @@ public final class ItemDiscoveryMenu implements Listener {
         String search = query == null ? "" : query.strip();
         if (search.length() > 64) { player.sendMessage(service.text("query-too-long")); return; }
         List<Entry> all = service.list(player, mode, search);
-        int pages = Math.max(1, (all.size() + 44) / 45);
+        ShopLayout layout = ShopLayout.forDiscovery(plugin.getMenuManager().getGuiSettingsConfig(), mode);
+        int capacity = layout.capacity();
+        int pages = Math.max(1, (all.size() + capacity - 1) / capacity);
         int page = Math.max(1, Math.min(requestedPage, pages));
-        List<Entry> visible = all.subList((page - 1) * 45, Math.min(page * 45, all.size()));
+        List<Entry> visible = all.subList((page - 1) * capacity, Math.min(page * capacity, all.size()));
         State state = new State(mode, search, page);
-        Inventory inventory = new ResultsHolder(state, visible.stream().map(Entry::reference).toList(), pages)
-                .createInventory(54, service.text(mode.name().toLowerCase(Locale.ROOT)) + " " + page + "/" + pages);
+        Inventory inventory = new ResultsHolder(state, visible.stream().map(Entry::reference).toList(), pages, layout)
+                .createInventory(layout.size(), service.text(mode.name().toLowerCase(Locale.ROOT)) + " " + page + "/" + pages);
+        layout.fill(plugin, inventory);
         for (int i = 0; i < visible.size(); i++) {
             ItemStack icon = icon(player, visible.get(i));
             ItemMeta meta = icon.getItemMeta();
@@ -74,17 +82,27 @@ public final class ItemDiscoveryMenu implements Listener {
                 lore.add(service.text("open-hint"));
                 meta.setLore(lore); icon.setItemMeta(meta);
             }
-            inventory.setItem(i, icon);
+            inventory.setItem(layout.contentSlots().get(i), icon);
         }
-        if (visible.isEmpty()) inventory.setItem(22, button(Material.GRAY_STAINED_GLASS_PANE, "empty"));
-        inventory.setItem(45, button(Material.COMPASS, "search", "search-hint"));
-        inventory.setItem(46, button(Material.NETHER_STAR, "favorites", mode == Mode.FAVORITES ? "clear-hint" : "favorites-hint"));
-        inventory.setItem(47, button(Material.CLOCK, "recent", mode == Mode.RECENT ? "clear-hint" : "recent-hint"));
-        if (page > 1) inventory.setItem(48, button(Material.ARROW, "previous"));
-        inventory.setItem(49, button(Material.CHEST, "main-menu"));
-        if (page < pages) inventory.setItem(50, button(Material.ARROW, "next"));
-        inventory.setItem(53, ShopItemUtil.create(Material.PAPER, 1, service.text("results").replace("%count%", String.valueOf(all.size())),
-                search.isEmpty() ? List.of() : List.of(ShopItemUtil.color("&7" + search))));
+        if (visible.isEmpty()) inventory.setItem(layout.contentSlots().get(capacity / 2), button(Material.GRAY_STAINED_GLASS_PANE, "empty"));
+        for (var entry : layout.controls().entrySet()) {
+            if (entry.getKey() == ShopLayout.Control.PREVIOUS && page == 1 || entry.getKey() == ShopLayout.Control.NEXT && page == pages) continue;
+            ItemStack control = layout.configuredButton(plugin, entry.getKey());
+            if (entry.getKey() == ShopLayout.Control.FAVORITES && mode == Mode.FAVORITES || entry.getKey() == ShopLayout.Control.RECENT && mode == Mode.RECENT) {
+                var meta = control.getItemMeta();
+                if (meta != null) {
+                    List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                    lore.add(service.text("clear-hint"));
+                    meta.setLore(lore); control.setItemMeta(meta);
+                }
+            }
+            inventory.setItem(entry.getValue(), control);
+        }
+        int information = layout.size() - 1;
+        if (!layout.contentSlots().contains(information) && !layout.emptySlots().contains(information) && layout.controlAt(information) == null) {
+            inventory.setItem(information, ShopItemUtil.create(Material.PAPER, 1, service.text("results").replace("%count%", String.valueOf(all.size())),
+                    search.isEmpty() ? List.of() : List.of(ShopItemUtil.color("&7" + search))));
+        }
         player.openInventory(inventory);
     }
 
@@ -182,23 +200,30 @@ public final class ItemDiscoveryMenu implements Listener {
         }
         if (holder instanceof ResultsHolder results) {
             State state = results.state;
-            if (slot < results.items.size()) {
-                ItemReference reference = results.items.get(slot);
+            ShopLayout layout = ShopLayout.forDiscovery(plugin.getMenuManager().getGuiSettingsConfig(), state.mode());
+            if (results.layout != null && !results.layout.equals(layout)) {
+                defer(player, () -> open(player, state.mode(), state.query(), state.page()));
+                return;
+            }
+            int index = layout.contentSlots().indexOf(slot);
+            ShopLayout.Control control = layout.controlAt(slot);
+            if (index >= 0 && index < results.items.size()) {
+                ItemReference reference = results.items.get(index);
                 defer(player, () -> {
                     if (click == ClickType.SHIFT_RIGHT) { service.toggleFavorite(player, reference); open(player, state.mode(), state.query(), state.page()); }
                     else detail(player, reference, state);
                 });
-            } else if (slot == 45) defer(player, () -> beginSearch(player, state));
-            else if (slot == 46 || slot == 47) defer(player, () -> {
-                Mode mode = slot == 46 ? Mode.FAVORITES : Mode.RECENT;
+            } else if (control == ShopLayout.Control.SEARCH) defer(player, () -> beginSearch(player, state));
+            else if (control == ShopLayout.Control.FAVORITES || control == ShopLayout.Control.RECENT) defer(player, () -> {
+                Mode mode = control == ShopLayout.Control.FAVORITES ? Mode.FAVORITES : Mode.RECENT;
                 if (state.mode() == mode && click == ClickType.SHIFT_RIGHT) {
                     if (!plugin.getDataManager().clearPersonalItems(player.getUniqueId(), mode == Mode.FAVORITES)) player.sendMessage(service.text("save-failed"));
                 }
                 open(player, mode, "", 1);
             });
-            else if (slot == 48 && state.page() > 1) defer(player, () -> open(player, state.mode(), state.query(), state.page() - 1));
-            else if (slot == 49) defer(player, () -> MainMenu.open(player));
-            else if (slot == 50 && state.page() < results.pages) defer(player, () -> open(player, state.mode(), state.query(), state.page() + 1));
+            else if (control == ShopLayout.Control.PREVIOUS && state.page() > 1) defer(player, () -> open(player, state.mode(), state.query(), state.page() - 1));
+            else if (control == ShopLayout.Control.BACK) defer(player, () -> MainMenu.open(player));
+            else if (control == ShopLayout.Control.NEXT && state.page() < results.pages) defer(player, () -> open(player, state.mode(), state.query(), state.page() + 1));
         } else if (holder instanceof DetailHolder detail) {
             defer(player, () -> {
                 if (slot == 22) { open(player, detail.back.mode(), detail.back.query(), detail.back.page()); return; }
@@ -212,7 +237,7 @@ public final class ItemDiscoveryMenu implements Listener {
                     if (open.isCancelled()) return;
                     Entry latest = service.resolve(player, detail.item);
                     if (latest == null) { service.unavailable(player); player.closeInventory(); return; }
-                    int usable = Math.min(Math.max(latest.shop().getRows(), 1) * 9, 45);
+                    int usable = ShopLayout.forShop(plugin.getMenuManager().getGuiSettingsConfig(), latest.shop(), true).capacity();
                     int displaySlot = latest.item().isVariantMenuEnabled() && latest.item().getVariantGroupSlot() != null
                             ? latest.item().getVariantGroupSlot() : latest.item().getSlot();
                     int page = Math.max(1, displaySlot / usable + 1);

@@ -24,7 +24,7 @@ function normalizeEconomySafetySettings(input) {
 }
 
 async function loadStockAnalyticsData(isSilent = true) {
-    if (!EditorPermissions.can('analytics')) return;
+    if (!EditorPermissions.tabAllowed('stockanalytics')) return;
     try {
         const response = await fetch(`api/stock-analytics?t=${Date.now()}`, {
             headers: {
@@ -45,7 +45,7 @@ async function loadStockAnalyticsData(isSilent = true) {
 }
 
 async function loadDatabaseEditorData(isSilent = true) {
-    if (!EditorPermissions.can('database')) return;
+    if (!EditorPermissions.tabAllowed('dataeditor')) return;
     try {
         const response = await fetch(`api/database?t=${Date.now()}`, {
             headers: {
@@ -212,8 +212,8 @@ async function loadAllFiles(isSilent = false) {
             renderSellButtons();
         }
 
-        if (data.guiSettings) {
-            parseGuiSettingsYaml(data.guiSettings);
+        if (data.guiSettings || data.guiPreview) {
+            parseGuiSettingsYaml(data.guiSettings || data.guiPreview);
         }
         if (data.campaignsFile) {
             parseCampaignsFileYaml(data.campaignsFile);

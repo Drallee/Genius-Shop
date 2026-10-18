@@ -925,6 +925,20 @@ public class ConfigApiServer {
                 "sellMenu", "menus/sell-menu.yml", "guiSettings", "menus/gui-settings.yml", "bulkSellMenu", "menus/bulk-sell-menu.yml",
                 "discord", "discord.yml", "campaignsFile", "campaigns.yml", "commandsFile", "commands.yml", "customItemsFile", "custom-items.yml");
         menuKeys.forEach((key, name) -> { response.remove(key); if (workspace.containsKey(name)) response.put(key, workspace.get(name)); });
+        if (snapshot != null && permissions.sections().get("shop").view() && !workspace.containsKey("menus/gui-settings.yml")) {
+            YamlConfiguration source = new YamlConfiguration();
+            YamlConfiguration preview = new YamlConfiguration();
+            try {
+                source.loadFromString(snapshot.files().getOrDefault("menus/gui-settings.yml", ""));
+                for (String path : List.of("gui.layout", "gui.search-button", "gui.favorites-button", "gui.recent-button",
+                        "gui.prev-button", "gui.back-button", "gui.next-button", "gui.item-lore")) {
+                    if (source.contains(path)) preview.set(path, source.get(path));
+                }
+                response.put("guiPreview", preview.saveToString());
+            } catch (org.bukkit.configuration.InvalidConfigurationException exception) {
+                throw new IOException("Unable to load GUI preview settings", exception);
+            }
+        }
         if (snapshot != null) response.put("draft", snapshot.draft());
 
         // Add server info

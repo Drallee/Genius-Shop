@@ -79,7 +79,9 @@
         publishButton = button('Publish', 'upload', publish, 'btn-success');
         publishButton.id = 'draft-publish';
         publishButton.hidden = !!global.EditorPermissions && !EditorPermissions.can('publish');
-        footer.append(button('Discard draft', 'trash', discard, 'btn-secondary'),
+        const discardButton = button('Discard draft', 'trash', discard, 'btn-secondary');
+        discardButton.id = 'draft-discard';
+        footer.append(discardButton,
             button('Validate again', 'check', () => review(false), 'btn-secondary'), publishButton);
         dialog.append(header, content, footer);
         dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
@@ -95,6 +97,7 @@
         dialog.querySelectorAll('button').forEach(control => { control.disabled = value; });
         publishButton.disabled = value || !reviewToken || (!!global.EditorPermissions && !EditorPermissions.can('publish'));
         publishButton.hidden = !!global.EditorPermissions && !EditorPermissions.can('publish');
+        document.getElementById('draft-discard').hidden = !!global.EditorPermissions && !EditorPermissions.canEditDrafts();
     }
 
     function showError(error) {
@@ -115,34 +118,15 @@
             const row = element('details', null, 'draft-file');
             const summary = element('summary');
             summary.append(element('span', change.kind, `draft-kind ${change.kind}`), element('code', change.file));
-            const diff = element('div', null, 'draft-diff');
-            // Complete before/after text keeps long, comment-preserving YAML changes inspectable without truncation.
-            for (const [title, source] of [['Live', change.before], ['Draft', change.after]]) {
-                const column = element('section');
-                column.className = title === 'Live' ? 'draft-before' : 'draft-after';
-                column.append(element('h3', title), diffSource(source, title === 'Live' ? change.after : change.before, title === 'Live' ? 'removed' : 'added'));
-                diff.append(column);
-            }
-            row.append(summary, diff);
+            const before = change.before == null ? null : { fileName: change.file, content: change.before };
+            const after = change.after == null ? null : { fileName: change.file, content: change.after };
+            const display = activityComparisonData(before, after, 'file');
+            row.append(summary, EditorChangeView.metadata(EditorChangeView.context({ afterData: after, beforeData: before }), display.before, display.after),
+                EditorChangeView.comparison(display.before, display.after, 'Live', 'Draft'));
             content.append(row);
         }
         reviewToken = !data.errors.length && data.changes.length ? data.token : null;
         setBusy(false);
-    }
-
-    function diffSource(source, other, kind) {
-        const pre = element('pre');
-        if (source == null) { pre.textContent = '(file absent)'; return pre; }
-        const lines = source.match(/[^\n]*\n|[^\n]+$/g) || [];
-        const previous = other == null ? [] : other.match(/[^\n]*\n|[^\n]+$/g) || [];
-        let start = 0, end = 0;
-        const same = (a, b) => a.replace(/\r?\n$/, '') === b.replace(/\r?\n$/, '');
-        while (start < Math.min(lines.length, previous.length) && same(lines[start], previous[start])) start++;
-        while (end < Math.min(lines.length, previous.length) - start && same(lines[lines.length - 1 - end], previous[previous.length - 1 - end])) end++;
-        // Keep complete source text, highlighting the changed span between matching context.
-        lines.forEach((line, index) => pre.append(element('span', line,
-            index >= start && index < lines.length - end ? `draft-line-${kind}` : null)));
-        return pre;
     }
 
     async function review(saveLocal = true) {
@@ -178,6 +162,7 @@
     }
 
     async function discard() {
+        if (global.EditorPermissions && !EditorPermissions.canEditDrafts()) return;
         if (busy) return;
         // Use a native confirmation above this modal, without opening another editor overlay behind it.
         if (!global.confirm('Discard your saved draft and local edits, and reload the live configuration?')) return;

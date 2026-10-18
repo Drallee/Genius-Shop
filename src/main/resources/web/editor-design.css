@@ -38,8 +38,9 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-topbar::before, .editor-topbar::after { content: none; }
 .editor-section-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
 #navigation-current-section { font-size: 16px; font-weight: 600; text-transform: capitalize; overflow-wrap: anywhere; }
-.editor-shell .header-top { display: flex; align-items: center; gap: 16px; margin: 0 !important; padding: 0; }
-.editor-shell .desktop-navigation { display: flex; }
+.editor-shell .header-top { display: flex; align-items: center; gap: 16px; margin: 0 !important; padding: 0; min-width: 0; }
+.editor-shell .desktop-navigation { display: flex; flex-wrap: nowrap; flex: 0 0 auto; width: auto; max-width: none; }
+.editor-shell #editor-tutorial-help { width: 36px; height: 36px; flex: 0 0 36px; }
 .editor-shell .user-badge { background: #24292d; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; box-shadow: none; font-size: 13px; }
 .editor-shell #user-info { width: 160px; height: 42px; flex-shrink: 0; }
 .editor-shell .user-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -47,8 +48,11 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-shell .user-avatar, .editor-shell .status-dot { flex-shrink: 0; }
 .editor-shell .fa-solid { display: inline-block; width: 1.25em; flex-shrink: 0; line-height: 1; text-align: center; }
 .editor-shell .btn-icon { display: inline-block; width: 20px; flex: 0 0 20px; line-height: 18px; }
-.editor-shell .header-top > .flex { width: 160px; flex-shrink: 0; }
-.editor-shell #custom-language-selector { width: 100%; }
+.editor-shell .header-top > .editor-language-control { width: 160px; flex-shrink: 0; }
+.editor-shell #custom-language-selector { width: 100%; min-width: 0; }
+.editor-shell #custom-language-selector .custom-select-trigger { width: 100%; min-width: 0; box-sizing: border-box; }
+.editor-shell #custom-language-selector .custom-select-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-shell #custom-language-selector .custom-select-trigger::after { flex-shrink: 0; }
 .editor-shell .nav-dropdown { background: var(--bg-surface); border-color: var(--border); border-radius: 8px; box-shadow: 0 12px 32px #0006; }
 .editor-shell .editor-sidebar { background: #181b1e; }
 .editor-shell .sidebar-brand { min-height: 68px; }
@@ -187,7 +191,6 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-shell .page-indicator { font-size: 12px; }
 .editor-shell .pagination { background: transparent; border: 0; padding: 0; box-shadow: none; }
 .editor-shell .page-btn, .editor-shell .page-indicator { background: #24292d; color: #d8e0e5; border: 1px solid #3b444b; border-radius: 6px; box-shadow: none; }
-.editor-shell .editor-quick-tips { grid-column: 1 / -1; margin-top: 24px !important; padding: 16px 0; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; }
 
 .editor-shell .sticky-footer-actions { position: fixed; inset: auto 0 0 var(--navigation-width); margin: 0; max-width: none; padding: 12px 24px; background: #191c1f; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; transform: none; width: auto; z-index: 160; }
 .editor-shell .footer-actions-container { justify-content: flex-end; gap: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; flex-wrap: wrap; }
@@ -262,6 +265,7 @@ body.login-page .login-container .premium-select { background: #24292d !importan
     #navigation-current-section { font-size: 14px; }
     .editor-shell .editor-section-heading { gap: 8px; }
     .editor-shell .header-top { flex: 1 1 100%; justify-content: flex-end; }
+    .editor-shell .header-top > .editor-language-control { flex: 1 1 88px; width: auto; min-width: 88px; max-width: 160px; }
     .editor-shell #user-info { width: 128px; height: 36px; }
     .editor-shell .user-badge { padding: 6px 8px !important; }
     .editor-shell .user-avatar, .editor-shell .user-avatar-placeholder { display: none; }

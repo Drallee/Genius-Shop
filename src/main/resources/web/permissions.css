@@ -1,4 +1,5 @@
 [hidden] { display: none !important; }
+#editor-permission-notice { padding: 14px 18px; border: 1px solid #f5b94266; border-left: 4px solid #f5b942; border-radius: 8px; background: #f5b94212; color: #fbd38d; line-height: 1.6; }
 body:not(.permissions-ready) .sidebar-tabs,
 body:not(.permissions-ready) .main-content,
 body:not(.permissions-ready) .sticky-footer-actions { visibility: hidden; }

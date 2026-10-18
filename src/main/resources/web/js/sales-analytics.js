@@ -41,6 +41,7 @@
         if (active !== null && !choices.includes(active)) choices.push(active);
         for (const value of choices) select.add(new Option(label(value), optionValue(value)));
         select.value = active === null ? '' : optionValue(active);
+        select.dispatchEvent(new Event('refresh'));
     }
 
     function render(report) {
@@ -141,6 +142,7 @@
     function init() {
         if (initialized) return;
         initialized = true;
+        if (typeof initCustomSelects === 'function') initCustomSelects();
         const today = new Date();
         byId('through').value = today.toISOString().slice(0, 10);
         today.setUTCDate(today.getUTCDate() - 29);

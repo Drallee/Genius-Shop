@@ -115,7 +115,8 @@ public class ShopManager {
                     shopSellAddsToStock,
                     shopAllowSellStockOverflow,
                     campaigns,
-                    campaignKey
+                    campaignKey,
+                    shopConfig.getConfigurationSection("layout")
             ));
         }
         runPostCompileValidation();

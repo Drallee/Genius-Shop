@@ -48,6 +48,7 @@
         return {
             guiName: toStringSafe(src.guiName, '&8Shop'),
             rows: Math.max(1, Math.min(6, toIntSafe(src.rows, 3))),
+            layout: src.layout || null,
             permission: toStringSafe(src.permission, ''),
             campaign: toStringSafe(src.campaign, ''),
             campaigns: Array.isArray(src.campaigns) ? src.campaigns.map(normalizeCampaign).filter(c => c.key) : [],

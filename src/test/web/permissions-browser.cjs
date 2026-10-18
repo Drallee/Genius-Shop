@@ -25,10 +25,10 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
                 });
                 await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'domcontentloaded' });
                 await page.waitForFunction(() => !getEditorState('isLoadingFiles') && document.body.classList.contains('permissions-ready'));
-                const expected = role === 'admin' ? ['mainmenu', 'shop', 'purchase', 'sell', 'campaigns', 'commands', 'customitems', 'salesanalytics', 'stockanalytics', 'dataeditor', 'guisettings'] :
+                const expected = ['admin', 'publish', 'maintainer'].includes(role) ? ['mainmenu', 'shop', 'purchase', 'sell', 'campaigns', 'commands', 'customitems', 'salesanalytics', 'stockanalytics', 'dataeditor', 'guisettings'] :
                     role === 'analytics' ? ['salesanalytics', 'stockanalytics'] : role === 'database' ? ['dataeditor'] : role === 'commands' ? ['commands'] :
-                    role === 'publish' ? [] : ['mainmenu', 'shop', 'purchase', 'sell', 'campaigns', 'customitems', 'guisettings'];
-                assert.deepEqual(await page.locator('.sidebar-tabs .tab:not([hidden])').evaluateAll(buttons => buttons.map(button => button.dataset.tab)), expected, role);
+                    ['mainmenu', 'shop', 'purchase', 'sell', 'campaigns', 'commands', 'customitems', 'guisettings'];
+                assert.deepEqual(await page.locator('.sidebar-tabs .tab:not([hidden])').evaluateAll(buttons => buttons.map(button => button.dataset.tab).sort()), expected.toSorted(), role);
                 assert.equal(await page.locator('.sticky-footer-actions button[onclick="openActivityLogModal()"]').isVisible(), role === 'admin');
                 const review = page.locator('button[onclick="publishChanges()"]');
                 if (role === 'analytics' || role === 'database') assert.equal(await review.isVisible(), false);
@@ -42,7 +42,7 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
                         assert.equal(await page.locator('button[onclick="manualSave()"]').isVisible(), false);
                         await page.evaluate(() => EditorTutorial.open());
                         const tour = page.locator('#editor-tutorial');
-                        assert.equal(await tour.getByRole('button', { name: /^Commands/ }).count(), 0);
+                        assert.equal(await tour.getByRole('button', { name: /^Commands/ }).count(), 1);
                         await tour.getByRole('button', { name: /^Shop items/ }).click();
                         await page.waitForFunction(() => EditorTutorialPractice.isActive());
                         assert.equal(await page.locator('.minecraft-preview-section').evaluate(node => node.inert), false);
@@ -58,13 +58,13 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
                         const writes = server.draftState.requests;
                         if (role !== 'admin') assert.ok(!writes.includes('/api/economy-safety'));
                         if (role === 'commands') assert.ok(writes.every(url => url === '/api/file/commands.yml'));
-                        if (role === 'drafts') assert.ok(!writes.includes('/api/file/commands.yml') && !writes.includes('/api/file/shops/blocks.yml'));
+                        if (role === 'drafts') assert.ok(writes.includes('/api/file/commands.yml') && !writes.includes('/api/file/shops/blocks.yml'));
                         await page.locator('#draft-review button[aria-label="Close review"]').click();
                     }
                 }
                 await page.evaluate(() => switchTab('guisettings'));
                 if (expected.includes('guisettings')) assert.equal(await page.getByText('Economy Safety Guards', { exact: true }).isVisible(), role === 'admin');
-                if (!permissions.drafts && !permissions.admin) assert.notEqual(await page.evaluate(() => currentTab), 'guisettings');
+                if (!permissions.drafts && !permissions.admin && !permissions.publish) assert.notEqual(await page.evaluate(() => currentTab), 'guisettings');
                 assert.deepEqual(errors, [], role + ': page errors');
                 assert.deepEqual(denied, [], role + ': controls must not send forbidden requests');
                 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
@@ -81,7 +81,7 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
                     assert.equal(await page.evaluate(() => EditorPermissions.can('database')), false, 'New grants require loading actual file models');
                     assert.equal(await page.evaluate(() => items[0].price), 987, 'Permission refresh preserves local edits');
                     assert.equal(await page.evaluate(() => allShops[currentShopFile]), local);
-                    assert.equal(await page.locator('#restricted-tab').isVisible(), true);
+                    assert.equal(await page.locator('.minecraft-preview-section').evaluate(node => node.inert), true);
                 }
                 console.log(`PASS ${role} ${mobile ? 'mobile' : 'desktop'}`);
             } finally { await context.close(); await new Promise(resolve => server.close(resolve)); }
