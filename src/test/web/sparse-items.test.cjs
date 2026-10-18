@@ -102,3 +102,15 @@ for (const fixture of fixtures) test(`runtime fixture: ${fixture.name}`, () => {
     editor.set('expected', fixture.after);
     assert.deepEqual(save({ 'modal-price': '125' }), JSON.parse(editor.run('JSON.stringify(EditorYaml.parse(expected))')));
 });
+
+test('item-save history captures the same sparse configuration as the file writer', () => {
+    const { editor, save } = setup("items:\n  - material: STONE\n    price: 5\n    sell-price: 0\n    run-command-only: false\n");
+    let entry;
+    editor.set('addActivityEntry', (...args) => { entry = args; });
+    const saved = save({ 'modal-price': '10' });
+    assert.equal(entry[2].buyPricePerItem, true, 'Original model remains intact');
+    assert.equal(entry[3].id, 0);
+    const details = JSON.parse(JSON.stringify(entry[4]));
+    assert.deepEqual(details.comparison.after, saved.items[0]);
+    assert.deepEqual(details.comparison.before, { material: 'STONE', price: 5, 'sell-price': 0, 'run-command-only': false });
+});

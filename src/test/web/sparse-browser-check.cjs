@@ -34,6 +34,17 @@ async function check(type, name, viewport) {
         await save();
         assert.deepEqual(await item(), { material: 'GOLDEN_APPLE', price: 125 });
         assert.match(server.state().yaml, /# Keep this comment/);
+        await page.evaluate(() => openActivityDetailModal(activityLog.find(entry => entry.target === 'shop-item').id));
+        const itemPanels = await page.locator('.activity-comparison pre').allTextContents();
+        assert.match(itemPanels[0], /material: GOLDEN_APPLE/);
+        assert.match(itemPanels[0], /price: 100/);
+        assert.match(itemPanels[1], /price: 125/);
+        for (const panel of itemPanels) assert.doesNotMatch(panel, /itemKey|item-key|campaign-enabled|stock-reset|"material"|fileName|buy-price-per-item/);
+        assert.equal(await page.evaluate(() => currentViewedEntry.beforeData.buyPricePerItem), true);
+        assert.equal(await page.evaluate(() => currentViewedEntry.details.comparison.before.price), 100);
+        await page.screenshot({ path: path.resolve(__dirname, `../../../target/item-history-${name}-${viewport.width}.jpg`), type: 'jpeg', quality: 65 });
+        await page.evaluate(() => closeActivityDetailModal());
+        await page.locator('#activity-detail-modal').waitFor({ state: 'hidden' });
         const once = server.state().yaml;
         await page.reload();
         await page.waitForFunction(() => !getEditorState('isLoadingFiles'));
@@ -60,8 +71,28 @@ async function check(type, name, viewport) {
         await page.screenshot({ path: path.resolve(__dirname, `../../../target/sparse-${name}-${viewport.width}.jpg`), type: 'jpeg', quality: 65 });
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
         assert.equal(overflow, false);
+        await page.evaluate(() => {
+            closeEditModal();
+            const before = 'items:\n  - {material: STONE, amount: 16}\n  - {material: COBBLESTONE, amount: 32}\n  - {material: DIRT, amount: 32}\n';
+            activityLog = [{ id: 100, action: 'updated', target: 'file', timestamp: Date.now(),
+                beforeData: { fileName: 'shops/blocks.yml', content: before },
+                afterData: { fileName: 'shops/blocks.yml', content: before.replace('amount: 16', 'amount: 32') } }];
+            openActivityDetailModal(100);
+        });
+        const panels = await page.locator('.activity-comparison pre').allTextContents();
+        assert.equal(panels.length, 2);
+        assert.match(panels[0], /amount: 16/);
+        assert.match(panels[1], /amount: 32/);
+        for (const panel of panels) {
+            assert.match(panel, /STONE/);
+            assert.doesNotMatch(panel, /COBBLESTONE|DIRT|\\n|"amount"|fileName/);
+        }
+        assert.equal(await page.evaluate(() => currentViewedEntry.beforeData.content.includes('COBBLESTONE')), true);
+        assert.equal(await page.evaluate(() => currentViewedEntry === activityLog[0]), true);
+        await page.screenshot({ path: path.resolve(__dirname, `../../../target/activity-${name}-${viewport.width}.jpg`), type: 'jpeg', quality: 65 });
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
         assert.deepEqual(errors, []);
-        console.log(`PASS ${name} ${viewport.width}: price-only modal save, POST/reload, inheritance, explicit false, sparse reset, repeated saves, layout`);
+        console.log(`PASS ${name} ${viewport.width}: sparse saves, inheritance, repeated saves, changed-item history, intact rollback snapshots, layout`);
     } finally {
         await browser.close();
         await new Promise(resolve => server.close(resolve));

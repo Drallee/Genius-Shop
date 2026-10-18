@@ -229,23 +229,42 @@ const EditorYaml = (() => {
             const originals = library.isSeq(sequence) ? sequence.items : [];
             const nextSequence = doc.createNode([]);
             if (sequence) { nextSequence.comment = sequence.comment; nextSequence.commentBefore = sequence.commentBefore; }
-            nextSequence.items = items.map(item => {
-                const index = state?.items?.findIndex(original => original.id === item.id) ?? -1;
-                const sourceNode = index >= 0 ? originals[index] : null;
-                const row = sourceNode ? sourceNode.clone() : doc.createNode({});
-                const temporary = new library.Document({});
-                temporary.set('item', row);
-                const before = index >= 0 ? state.items[index].data
-                    : { 'stock-reset': resetData(createDefaultStockResetRule()) };
-                const after = itemData(item);
-                if (index >= 0 && !equal(before['buy-price-per-item'], after['buy-price-per-item'])) {
-                    temporary.deleteIn(['item', 'price-per-item']);
-                }
-                patch(temporary, ['item'], before, after);
-                return temporary.get('item', true);
-            });
+            nextSequence.items = items.map(item => shopItemNode(item, state, originals));
             doc.set('items', nextSequence);
         });
+    }
+
+    function shopItemNode(item, state, originals) {
+        const index = state?.items?.findIndex(original => original.id === item.id) ?? -1;
+        const sourceNode = index >= 0 ? originals[index] : null;
+        const temporary = new library.Document({});
+        temporary.set('item', sourceNode ? sourceNode.clone() : temporary.createNode({}));
+        const before = index >= 0 ? state.items[index].data : { 'stock-reset': resetData(createDefaultStockResetRule()) };
+        const after = itemData(item);
+        if (index >= 0 && !equal(before['buy-price-per-item'], after['buy-price-per-item'])) {
+            temporary.deleteIn(['item', 'price-per-item']);
+        }
+        patch(temporary, ['item'], before, after);
+        return temporary.get('item', true);
+    }
+
+    function itemSnapshot(item) {
+        const state = documents.get(`shop:${currentShopFile}`);
+        const { doc } = parse(state?.source || '{}\n');
+        const sequence = doc.get('items', true);
+        const originals = library.isSeq(sequence) ? sequence.items : [];
+        const originalIndex = state?.items?.findIndex(row => row.id === item.id) ?? -1;
+        const index = originalIndex >= 0 ? originalIndex : originals.length;
+        if (!library.isSeq(sequence)) doc.set('items', doc.createNode([]));
+        doc.setIn(['items', index], shopItemNode(item, state, originals));
+        return doc.toJS({ maxAliasCount: 100 }).items[index];
+    }
+
+    function historyItemData(item) {
+        if (!item || typeof item !== 'object') return item;
+        const result = itemData(item);
+        if (equal(result['stock-reset'], resetData(createDefaultStockResetRule()))) delete result['stock-reset'];
+        return result;
     }
 
     function readMain(source) {
@@ -360,7 +379,9 @@ const EditorYaml = (() => {
         return output;
     }
 
-    return { parse: source => parse(source).value, edit, readShop, writeShop, readMain,
+    return { parse: source => parse(source).value,
+        stringify: value => new library.Document(value, { version: '1.1' }).toString({ lineWidth: 0 }),
+        itemSnapshot, historyItemData, edit, readShop, writeShop, readMain,
         writeMain: () => write('main', mainData()), readTransaction,
         writeTransaction: type => write(type, transactionData(type)), readGui,
         writeGui: () => write('gui', { gui: encode(guiSettings) }), readCampaigns,
