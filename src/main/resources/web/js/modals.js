@@ -820,8 +820,9 @@ function updateStockResetInputUi(prefix = 'modal-stockReset') {
     if (dateGroup) dateGroup.style.display = isOnce ? 'block' : 'none';
 }
 
-function readStockResetFromModal(data, prefix = 'modal-stockReset') {
+function readStockResetFromModal(data, prefix = 'modal-stockReset', original = {}) {
     return sanitizeStockResetRule({
+        ...original,
         enabled: !!data[`${prefix}Enabled`],
         type: data[`${prefix}Type`] || 'daily',
         time: data[`${prefix}Time`] || '00:00',
@@ -947,8 +948,10 @@ function buildShopItemPreviewHtml(baseItem, formData) {
     const unstableTnt = !!formData['modal-unstableTnt'];
     const showStock = !!formData['modal-showStock'];
     const showStockResetTimer = !!formData['modal-showStockResetTimer'];
-    const sellAddsToStock = !!formData['modal-sellAddsToStock'];
-    const allowSellOverflow = !!formData['modal-allowSellStockOverflow'];
+    const sellAddsToStock = formData['modal-sellAddsToStock'] === 'true'
+        || (formData['modal-sellAddsToStock'] === '' && currentShopSettings.sellAddsToStock);
+    const allowSellOverflow = formData['modal-allowSellStockOverflow'] === 'true'
+        || (formData['modal-allowSellStockOverflow'] === '' && currentShopSettings.allowSellStockOverflow);
     const stockResetEnabled = !!formData['modal-stockResetEnabled'];
     const stockResetType = stockResetEnabled ? (formData['modal-stockResetType'] || 'daily') : null;
     const spawnerMode = formData['modal-spawnerMode'] || '';
@@ -1923,13 +1926,7 @@ function openShopItemModal(itemId) {
         || !!String(item.requiredGamemode || '').trim()
         || (Array.isArray(item.allowedWorlds) && item.allowedWorlds.length > 0)
         || (Array.isArray(item.deniedWorlds) && item.deniedWorlds.length > 0);
-    const hasCampaign = !!item.campaignEnabled
-        || !!String(item.campaignName || '').trim()
-        || !!String(item.campaignStart || '').trim()
-        || !!String(item.campaignEnd || '').trim()
-        || !!String(item.campaignTimezone || '').trim()
-        || (parseFloat(item.campaignBuyMultiplier) || 1) !== 1
-        || (parseFloat(item.campaignSellMultiplier) || 1) !== 1;
+    const hasCampaign = !!item.campaignEnabled;
 
     const fields = [
         { id: 'modal-name', label: t('web-editor.modals.fields.display-name'), value: item.name, hint: t('web-editor.modals.fields.display-name-hint') },
@@ -2327,8 +2324,12 @@ function openShopItemModal(itemId) {
     });
     fields.push({ id: 'modal-allowedWorlds', label: 'Allowed Worlds', type: 'textarea', value: (item.allowedWorlds || []).join('\n'), hint: 'One world per line. Leave empty to allow all worlds.', hidden: !hasAdvancedConditions });
     fields.push({ id: 'modal-deniedWorlds', label: 'Denied Worlds', type: 'textarea', value: (item.deniedWorlds || []).join('\n'), hint: 'One world per line. Deny list takes priority over allowed list.', hidden: !hasAdvancedConditions });
-    fields.push({ id: 'modal-sellAddsToStock', label: 'Sell adds back to stock', type: 'checkbox', value: item.sellAddsToStock === true, hint: 'Override shop setting for this item', checkboxGroup: 'Trading Rules' });
-    fields.push({ id: 'modal-allowSellStockOverflow', label: 'Allow sell stock overflow', type: 'checkbox', value: item.allowSellStockOverflow === true, hint: 'If disabled, selling is blocked when stock is already full', checkboxGroup: 'Trading Rules' });
+    for (const [property, label] of [['sellAddsToStock', 'Sell adds back to stock'], ['allowSellStockOverflow', 'Allow sell stock overflow']]) {
+        fields.push({ id: `modal-${property}`, label, type: 'select',
+            value: item[property] == null ? '' : String(item[property]),
+            options: [{ value: '', label: `Inherit shop (${currentShopSettings[property] ? 'Enabled' : 'Disabled'})` },
+                { value: 'true', label: 'Enabled' }, { value: 'false', label: 'Disabled' }] });
+    }
     const itemStockReset = sanitizeStockResetRule(item.stockResetRule);
     fields.push({
         id: 'modal-stockResetEnabled',
@@ -2425,6 +2426,7 @@ function openShopItemModal(itemId) {
         },
         onSave: (data) => {
             const beforeData = JSON.parse(JSON.stringify(item));
+            const beforeComparison = EditorYaml.itemSnapshot(item);
 
             const newMaterial = document.getElementById('modal-material')?.value.toUpperCase() || item.material;
             item.material = newMaterial;
@@ -2533,14 +2535,37 @@ function openShopItemModal(itemId) {
                 item.allowedWorlds = [];
                 item.deniedWorlds = [];
             }
-            item.sellAddsToStock = !!data['modal-sellAddsToStock'];
-            item.allowSellStockOverflow = !!data['modal-allowSellStockOverflow'];
-            item.stockResetRule = readStockResetFromModal(data);
+            item.sellAddsToStock = data['modal-sellAddsToStock'] === '' ? null : data['modal-sellAddsToStock'] === 'true';
+            item.allowSellStockOverflow = data['modal-allowSellStockOverflow'] === '' ? null : data['modal-allowSellStockOverflow'] === 'true';
+            item.stockResetRule = readStockResetFromModal(data, 'modal-stockReset', item.stockResetRule);
             item.showStock = !!data['modal-showStock'];
             item.showStockResetTimer = !!data['modal-showStockResetTimer'];
 
+            // Hidden/disabled controls are not an instruction to erase configured options.
+            const changed = id => {
+                const field = fields.find(candidate => candidate.id === id);
+                return field && (field.type === 'checkbox' ? !!data[id] !== !!field.value
+                    : String(data[id] ?? '') !== String(field.value ?? ''));
+            };
+            const preserve = (property, dependencies, materialDependent = false) => {
+                if ((!materialDependent || beforeData.material === item.material) && !dependencies.some(changed)) {
+                    if (Object.hasOwn(beforeData, property)) item[property] = beforeData[property];
+                    else delete item[property];
+                }
+            };
+            for (const property of ['campaignName', 'campaignStart', 'campaignEnd', 'campaignTimezone', 'campaignBuyMultiplier', 'campaignSellMultiplier']) {
+                preserve(property, ['modal-campaignEnabled', `modal-${property}`]);
+            }
+            for (const property of ['commands', 'runAs', 'runCommandOnly']) preserve(property, ['modal-enableCommands', `modal-${property}`]);
+            preserve('lore', ['modal-enableLore', 'modal-lore']);
+            for (const property of ['spawnerType', 'spawnerItem', 'potionType', 'potionLevel', 'headTexture', 'headOwner']) {
+                preserve(property, [`modal-${property}`, 'modal-spawnerMode'], true);
+            }
+            preserve('stockResetRule', fields.filter(field => field.id.startsWith('modal-stockReset')).map(field => field.id));
+
             addActivityEntry('updated', 'shop-item', beforeData, JSON.parse(JSON.stringify(item)), {
-                shopFile: currentShopFile
+                shopFile: currentShopFile,
+                comparison: { before: beforeComparison, after: EditorYaml.itemSnapshot(item) }
             });
 
             renderItems();
@@ -2634,7 +2659,7 @@ function openShopSettingsModal() {
             currentShopSettings.availableTimes = data['modal-enableShopTimes'] ? (data['modal-shopTimes'] || '').trim() : '';
             currentShopSettings.sellAddsToStock = !!data['modal-shopSellAddsToStock'];
             currentShopSettings.allowSellStockOverflow = !!data['modal-shopAllowSellStockOverflow'];
-            currentShopSettings.stockResetRule = readStockResetFromModal(data);
+            currentShopSettings.stockResetRule = readStockResetFromModal(data, 'modal-stockReset', currentShopSettings.stockResetRule);
 
             addActivityEntry('updated', 'shop-settings', beforeData, JSON.parse(JSON.stringify(currentShopSettings)), {
                 shopFile: currentShopFile
@@ -2964,6 +2989,8 @@ function openActivityDetailModal(entryId) {
     const rollbackBtn = document.getElementById('rollback-btn');
 
     title.textContent = `Change Details: ${entry.action.toUpperCase()} ${entry.target}`;
+    const display = entry.target === 'shop-item' && entry.details?.comparison
+        ? entry.details.comparison : activityComparisonData(entry.beforeData, entry.afterData, entry.target);
 
     // Generate diff view
     let html = `
@@ -2984,7 +3011,7 @@ function openActivityDetailModal(entryId) {
                     <h3 style="margin: 0; color: rgba(255, 107, 107, 0.9); font-size: 1em; font-weight: 700;">DELETED DATA</h3>
                 </div>
                 <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); border-radius: 10px; padding: 14px;">
-                    <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(JSON.stringify(entry.beforeData, null, 2))}</pre>
+                    <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.before))}</pre>
                 </div>
             </div>
         `;
@@ -2996,20 +3023,20 @@ function openActivityDetailModal(entryId) {
                     <h3 style="margin: 0; color: rgba(0, 230, 118, 0.9); font-size: 1em; font-weight: 700;">CREATED DATA</h3>
                 </div>
                 <div style="background: rgba(0, 230, 118, 0.1); border: 1px solid rgba(0, 230, 118, 0.3); border-radius: 10px; padding: 14px;">
-                    <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(JSON.stringify(entry.afterData, null, 2))}</pre>
+                    <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.after))}</pre>
                 </div>
             </div>
         `;
     } else {
         html += `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div class="activity-comparison" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px;">
                 <div>
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
                         <span style="font-size: 1.2em;">📋</span>
                         <h3 style="margin: 0; color: rgba(255, 107, 107, 0.9); font-size: 1em; font-weight: 700;">BEFORE</h3>
                     </div>
                     <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); border-radius: 10px; padding: 14px; height: 400px; overflow-y: auto;">
-                        <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(JSON.stringify(entry.beforeData, null, 2))}</pre>
+                        <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.before))}</pre>
                     </div>
                 </div>
 
@@ -3019,7 +3046,7 @@ function openActivityDetailModal(entryId) {
                         <h3 style="margin: 0; color: rgba(0, 230, 118, 0.9); font-size: 1em; font-weight: 700;">AFTER</h3>
                     </div>
                     <div style="background: rgba(0, 230, 118, 0.1); border: 1px solid rgba(0, 230, 118, 0.3); border-radius: 10px; padding: 14px; height: 400px; overflow-y: auto;">
-                        <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(JSON.stringify(entry.afterData, null, 2))}</pre>
+                        <pre style="margin: 0; color: rgba(220, 230, 245, 0.85); font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace;">${escapeHtml(formatActivityYaml(display.after))}</pre>
                     </div>
                 </div>
             </div>
@@ -3045,6 +3072,75 @@ function openActivityDetailModal(entryId) {
         modalBox.style.animation = 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
     } else if (modalBox) {
         modalBox.style.animation = 'none';
+    }
+}
+
+function formatActivityYaml(data) {
+    if (data == null) return '# No data\n';
+    const value = data && typeof data === 'object' && Object.hasOwn(data, 'fileName') && Object.hasOwn(data, 'content') ? data.content : data;
+    // Invalid historical YAML is already a source string, not an object to wrap again.
+    return typeof value === 'string' ? value : EditorYaml.stringify(value);
+}
+
+function activityComparisonData(before, after, target) {
+    if (target === 'shop-item' && typeof before?.content !== 'string' && typeof after?.content !== 'string') {
+        return { before: EditorYaml.historyItemData(before), after: EditorYaml.historyItemData(after) };
+    }
+    if (typeof before?.content !== 'string' && typeof after?.content !== 'string') return { before, after };
+    const canonical = value => Array.isArray(value) ? value.map(canonical)
+        : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+    const equal = (left, right) => JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
+    const mapping = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+    const changedRows = (left, right) => {
+        const available = new Map();
+        right.forEach((row, index) => {
+            const key = JSON.stringify(canonical(row));
+            if (!available.has(key)) available.set(key, []);
+            available.get(key).push(index);
+        });
+        const pairs = [];
+        const removed = new Set(left.map((_, index) => index));
+        const added = new Set(right.map((_, index) => index));
+        left.forEach((row, index) => {
+            const matches = available.get(JSON.stringify(canonical(row)));
+            if (matches?.length) {
+                const other = matches.shift();
+                removed.delete(index);
+                added.delete(other);
+                pairs.push([index, other]);
+            }
+        });
+        // Relative order changes matter; simple insertion/deletion shifts do not.
+        const prefixMax = [], suffixMin = [];
+        pairs.forEach((pair, index) => { prefixMax[index] = Math.max(pair[1], prefixMax[index - 1] ?? -1); });
+        for (let index = pairs.length - 1; index >= 0; index--) suffixMin[index] = Math.min(pairs[index][1], suffixMin[index + 1] ?? Infinity);
+        pairs.forEach(([oldIndex, newIndex], index) => {
+            if ((prefixMax[index - 1] ?? -1) > newIndex || (suffixMin[index + 1] ?? Infinity) < newIndex) {
+                removed.add(oldIndex);
+                added.add(newIndex);
+            }
+        });
+        return { before: left.filter((_, index) => removed.has(index)), after: right.filter((_, index) => added.has(index)) };
+    };
+    const project = (left, right, path = []) => {
+        if (Array.isArray(left) && Array.isArray(right)) return changedRows(left, right);
+        if (!mapping(left) || !mapping(right)) return { before: left, after: right };
+        const previous = [], next = [];
+        for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
+            if (equal(left[key], right[key])) continue;
+            const values = path.at(-1) === 'items' ? { before: left[key], after: right[key] }
+                : project(left[key], right[key], [...path, key]);
+            if (values.before !== undefined) previous.push([key, values.before]);
+            if (values.after !== undefined) next.push([key, values.after]);
+        }
+        return { before: Object.fromEntries(previous), after: Object.fromEntries(next) };
+    };
+    try {
+        const content = project(before ? EditorYaml.parse(before.content || '') : null, after ? EditorYaml.parse(after.content || '') : null);
+        return { before: before ? { fileName: before.fileName, content: content.before } : null,
+            after: after ? { fileName: after.fileName, content: content.after } : null };
+    } catch {
+        return { before, after };
     }
 }
 
