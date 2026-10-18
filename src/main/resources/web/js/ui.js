@@ -2755,16 +2755,7 @@ function renderMainMenuShops() {
         const el = document.createElement('div');
         el.className = 'shop-item';
         
-        let action = (shop.action || '').toString().trim().toLowerCase();
-        if (!action) {
-            if (shop.shopKey) {
-                action = 'shop-key';
-            } else if (shop.commands && shop.commands.length > 0) {
-                action = 'command';
-            } else {
-                action = 'no-action';
-            }
-        }
+        const action = resolveMainMenuAction(shop);
 
         let tagsHtml = '<div class="item-tags">';
         tagsHtml += `<span class="item-tag active">Action: ${escapeHtml(action)}</span>`;
@@ -2815,6 +2806,11 @@ function renderMainMenuShops() {
     if (document.getElementById('mainmenu-buttons-count')) {
         document.getElementById('mainmenu-buttons-count').textContent = loadedGuiShops.length;
     }
+}
+
+function resolveMainMenuAction(shop) {
+    const action = String(shop.action || '').trim().toLowerCase();
+    return action || (shop.shopKey ? 'shop-key' : shop.commands?.length ? 'command' : 'no-action');
 }
 
 function buildMainMenuPreviewLore(shop) {
@@ -2870,16 +2866,7 @@ function updateGuiPreview() {
             
             slot.onclick = () => openMainMenuShopModal(loadedGuiShops.indexOf(shop));
 
-            if (previewParityMode) {
-                // Replace placeholders in preview
-                const processedLore = buildMainMenuPreviewLore(shop);
-                setupTooltip(slot, shop.name, processedLore);
-            } else {
-                setupTooltip(slot, shop.name, [
-                    `Slot: ${shop.slot}`,
-                    `Material: ${shop.material}`
-                ]);
-            }
+            setupTooltip(slot, shop.name, buildMainMenuPreviewLore(shop));
         }
         
         grid.appendChild(slot);
