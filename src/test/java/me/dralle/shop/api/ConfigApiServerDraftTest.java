@@ -6,6 +6,10 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import me.dralle.shop.ShopPlugin;
 import org.bukkit.Server;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.mockito.MockedStatic;
+import org.junit.jupiter.api.AfterEach;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.*;
 import java.lang.reflect.*;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.concurrent.*;
@@ -26,6 +31,7 @@ class ConfigApiServerDraftTest {
     private ShopPlugin plugin;
     private ConfigApiServer api;
     private BukkitScheduler scheduler;
+    private MockedStatic<Bukkit> bukkit;
 
     @BeforeEach void setup() throws Exception {
         plugin = mock(ShopPlugin.class);
@@ -45,7 +51,23 @@ class ConfigApiServerDraftTest {
             return result;
         });
         api = new ConfigApiServer(plugin, 0, "unused");
+        Player player = mock(Player.class);
+        when(player.isOp()).thenReturn(true);
+        when(player.isOnline()).thenReturn(true);
+        when(player.getAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 25565));
+        bukkit = mockStatic(Bukkit.class);
+        bukkit.when(() -> Bukkit.getPlayerExact("unknown")).thenReturn(player);
+        bukkit.when(() -> Bukkit.getPlayerExact("test")).thenReturn(player);
+        Class<?> sessionType = Class.forName(ConfigApiServer.class.getName() + "$SessionData");
+        Constructor<?> constructor = sessionType.getDeclaredConstructor(String.class, String.class, long.class);
+        constructor.setAccessible(true);
+        Field sessions = ConfigApiServer.class.getDeclaredField("sessions");
+        sessions.setAccessible(true);
+        @SuppressWarnings("unchecked") var map = (java.util.Map<String, Object>) sessions.get(api);
+        map.put("test-session", constructor.newInstance("test", "127.0.0.1", Long.MAX_VALUE));
     }
+
+    @AfterEach void cleanup() { if (bukkit != null) bukkit.close(); }
 
     private record Response(HttpExchange exchange, ByteArrayOutputStream output) {
         JsonObject json() { return JsonParser.parseString(output.toString(StandardCharsets.UTF_8)).getAsJsonObject(); }
@@ -58,6 +80,7 @@ class ConfigApiServerDraftTest {
         when(exchange.getRequestHeaders()).thenReturn(headers);
         when(exchange.getResponseHeaders()).thenReturn(new Headers());
         when(exchange.getRequestBody()).thenReturn(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+        when(exchange.getRemoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 50000));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         when(exchange.getResponseBody()).thenReturn(output);
         return new Response(exchange, output);

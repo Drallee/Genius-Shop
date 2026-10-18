@@ -247,7 +247,7 @@ public class ShopPlugin extends JavaPlugin {
                 }
 
                 Player p = (Player) sender;
-                if (!p.hasPermission("geniusshop.admin") && !p.hasPermission("shop.admin") && !p.isOp()) {
+                if (!me.dralle.shop.api.EditorPermissions.of(p).access()) {
                     sender.sendMessage(getMessages().getMessage("editor-no-permission"));
                     return true;
                 }
@@ -1180,7 +1180,7 @@ public class ShopPlugin extends JavaPlugin {
     private boolean canUseEditor(CommandSender sender) {
         if (!(sender instanceof Player)) return false;
         if (!getConfig().getBoolean("api.enable-editor-command", true)) return false;
-        return hasAdminAccess(sender);
+        return me.dralle.shop.api.EditorPermissions.of(sender).access();
     }
 
     private boolean canUseSell(CommandSender sender) {

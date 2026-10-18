@@ -18,12 +18,14 @@
     <link rel="stylesheet" href="tutorial.css?v=1">
     <link rel="stylesheet" href="drafts.css?v=1">
     <link rel="stylesheet" href="save-conflicts.css?v=1">
+    <link rel="stylesheet" href="permissions.css?v=1">
     <script>
         try {
             document.documentElement.dataset.navigationCollapsed = localStorage.getItem('editor-navigation-collapsed') === 'true';
         } catch (_) {}
     </script>
     <script defer src="js/state-store.js"></script>
+    <script defer src="js/permissions.js?v=1"></script>
     <script defer src="vendor/chart-4.5.1.umd.min.js"></script>
     <script defer src="js/sales-analytics.js?v=1"></script>
     <script defer src="js/core.js?v=menu-placeholders-1"></script>
@@ -113,6 +115,7 @@
         </header>
 
         <div class="main-content">
+            <p id="editor-permission-notice" role="status" style="grid-column: 1 / -1; overflow-wrap: anywhere;" hidden></p>
             <!-- Unified Editor & Preview Panel -->
             <div class="preview-panel unified-panel">
                 
@@ -310,6 +313,7 @@
                     <div id="items-container" class="grid-list"></div>
                 </div>
 
+                <div id="restricted-tab" class="tab-content" role="status">No editor sections available for your permissions.</div>
                 <!-- CAMPAIGNS TAB -->
                 <div id="campaigns-tab" class="tab-content">
                     <div class="content-header flex justify-between items-center mb-24">

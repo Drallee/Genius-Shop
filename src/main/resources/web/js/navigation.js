@@ -2,6 +2,7 @@ const editorNavigationMedia = window.matchMedia('(max-width: 900px)');
 let editorNavigationCollapsed = false;
 
 function syncEditorNavigation() {
+    if (currentTab === 'restricted') document.getElementById('navigation-current-section').textContent = 'Editor';
     const mobile = editorNavigationMedia.matches;
     const open = document.body.classList.contains('navigation-open');
     const sidebar = document.getElementById('editor-sidebar');
@@ -33,7 +34,8 @@ function toggleEditorNavigation() {
         document.body.classList.toggle('navigation-open');
         syncEditorNavigation();
         if (document.body.classList.contains('navigation-open')) {
-            document.querySelector('.editor-sidebar .tab.active').focus();
+            const active = document.querySelector('.editor-sidebar .tab.active:not([hidden])');
+            (active || document.querySelector('.sidebar-close')).focus();
         }
     } else {
         editorNavigationCollapsed = !editorNavigationCollapsed;
@@ -66,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             closeEditorNavigation();
         } else if (event.key === 'Tab') {
-            const buttons = Array.from(document.querySelectorAll('.editor-sidebar button'));
+            const buttons = Array.from(document.querySelectorAll('.editor-sidebar button:not([hidden])'));
             const first = buttons[0];
             const last = buttons[buttons.length - 1];
             if (event.shiftKey && document.activeElement === first) {

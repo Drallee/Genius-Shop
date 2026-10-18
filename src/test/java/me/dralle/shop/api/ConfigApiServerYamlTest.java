@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import me.dralle.shop.ShopPlugin;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,7 +43,12 @@ class ConfigApiServerYamlTest {
         ConfigApiServer server = new ConfigApiServer(plugin, 0, "test");
         var save = ConfigApiServer.class.getDeclaredMethod("handleSaveFile", HttpExchange.class, String.class);
         save.setAccessible(true);
-        save.invoke(server, exchange, "shops/weekend_market.yml");
+        Player admin = mock(Player.class);
+        when(admin.isOp()).thenReturn(true);
+        try (var bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayerExact("unknown")).thenReturn(admin);
+            save.invoke(server, exchange, "shops/weekend_market.yml");
+        }
         verify(exchange).sendResponseHeaders(eq(400), anyLong());
         assertTrue(response.toString(StandardCharsets.UTF_8).contains("Invalid YAML Syntax"));
         assertEquals(original, Files.readString(file));

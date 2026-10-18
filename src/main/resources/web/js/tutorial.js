@@ -236,6 +236,7 @@
     }
 
     function available(section) {
+        if (section.tab && global.EditorPermissions && !EditorPermissions.tabAllowed(section.tab)) return false;
         return !section.tab || (usable(document.querySelector(`.sidebar-tabs [data-tab="${section.tab}"]`), true) &&
             !!document.getElementById(`${section.tab}-tab`));
     }
@@ -414,7 +415,9 @@
     function start(selected, automatic = false) {
         queue = selected.filter(available);
         if (!queue.length) return library();
-        steps = queue.flatMap(section => section.steps.map(step => ({ ...step, section })));
+        steps = queue.flatMap(section => section.steps
+            .filter(step => step.task !== 'item-commands' || !global.EditorPermissions || EditorPermissions.can('commands'))
+            .map(step => ({ ...step, section })));
         taskInstances = new Map(); completedTasks = new Set();
         index = 0;
         mode = 'tour';

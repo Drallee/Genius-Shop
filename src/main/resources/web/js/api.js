@@ -24,6 +24,7 @@ function normalizeEconomySafetySettings(input) {
 }
 
 async function loadStockAnalyticsData(isSilent = true) {
+    if (!EditorPermissions.can('analytics')) return;
     try {
         const response = await fetch(`api/stock-analytics?t=${Date.now()}`, {
             headers: {
@@ -44,6 +45,7 @@ async function loadStockAnalyticsData(isSilent = true) {
 }
 
 async function loadDatabaseEditorData(isSilent = true) {
+    if (!EditorPermissions.can('database')) return;
     try {
         const response = await fetch(`api/database?t=${Date.now()}`, {
             headers: {
@@ -79,6 +81,7 @@ async function saveDatabaseEntry(table, payload) {
         return null;
     }
     if (!response.ok) {
+        if (response.status === 403) await EditorPermissions.recheck();
         const data = await response.json().catch(() => ({}));
         throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
     }
@@ -105,6 +108,7 @@ async function deleteDatabaseEntry(table, payload) {
         return null;
     }
     if (!response.ok) {
+        if (response.status === 403) await EditorPermissions.recheck();
         const data = await response.json().catch(() => ({}));
         throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
     }
@@ -155,7 +159,7 @@ async function loadAllFiles(isSilent = false) {
         }
 
         const data = await response.json();
-        
+        EditorPermissions.set(data.permissions, data.readOnlyFiles);
         // Load server info
         if (window.EditorDrafts) window.EditorDrafts.setState(data.draft);
         EditorRevisions.seed(data);
@@ -264,6 +268,7 @@ async function loadAllFiles(isSilent = false) {
         if (typeof renderCommandsTab === 'function') renderCommandsTab();
 
         if (!isSilent) showToast(t('web-editor.modals.loaded'), 'success');
+        EditorPermissions.apply();
         if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files' }, true);
         setEditorState('isLoadingFiles', false);
         setUnsavedChanges([]);
@@ -591,6 +596,7 @@ async function saveCampaignHubDirtyShops(isSilent = true) {
     if (!campaignHubDirtyShopFiles || campaignHubDirtyShopFiles.size === 0) return;
     const files = Array.from(campaignHubDirtyShopFiles);
     for (const shopFile of files) {
+        if (window.EditorPermissions && !EditorPermissions.canWriteFile(`shops/${shopFile}`)) continue;
         const content = allShops[shopFile];
         if (typeof content !== 'string') {
             campaignHubDirtyShopFiles.delete(shopFile);
@@ -646,6 +652,7 @@ async function saveCampaignsYaml(isSilent = false) {
 }
 
 async function saveEconomySafetySettings(isSilent = false) {
+    if (!EditorPermissions.can('admin')) return;
     if (isLoadingFiles) return;
 
     try {
@@ -715,7 +722,7 @@ async function createNewShop() {
             return;
         }
 
-        if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) await saveCurrentShop(true);
+        if (currentShopFile && Object.hasOwn(allShops, currentShopFile) && EditorPermissions.canWriteFile(`shops/${currentShopFile}`)) await saveCurrentShop(true);
 
         const initialYaml = `gui-name: '&8New Shop'\nrows: 3\nitems: []`;
         if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) allShops[currentShopFile] = EditorYaml.writeShop();
@@ -735,6 +742,7 @@ async function createNewShop() {
         currentShopFile = filename;
         
         loadShopFromData(filename);
+        EditorPermissions.refresh();
         await saveCurrentShop();
         showToast(t('web-editor.modals.shop-created'), 'success');
     }

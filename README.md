@@ -154,7 +154,7 @@ api:
 
 This is an excerpt, not a replacement for the whole file. The plugin generates an API key when the configured key is empty or still the bundled placeholder.
 
-Join as an administrator and run `/shop editor` to obtain a login link/code. Administrative API requests use authenticated sessions; the configured API key alone does not replace login. Different-IP confirmation requires `api.allow-ip-bypass` and `geniusshop.login.ip.bypass`.
+Join as an administrator or a delegated editor and run `/shop editor` to obtain a login link/code. API requests use authenticated sessions; the configured API key alone does not replace login. Different-IP confirmation requires `api.allow-ip-bypass` and `geniusshop.login.ip.bypass`.
 
 Port `8080` is only the default. Choose an available TCP port allocated by your hosting provider, or configure firewall/forwarding rules for your own server. The editor uses a separate port from Minecraft. Set `api.domain` when the generated address is not reachable; this setting advertises an address and does not configure DNS or networking.
 
@@ -169,7 +169,7 @@ See [Web Editor](wiki/Web-Editor.md) for authentication, HTTPS, network troubles
 | `/shop` | Open the main menu | `geniusshop.use` |
 | `/shop sell` | Open the bulk-sell menu | `geniusshop.sell` |
 | `/shop reload` | Reload configuration and custom commands | `geniusshop.reload` |
-| `/shop editor` | Generate an editor login link/code | `geniusshop.admin` |
+| `/shop editor` | Generate an editor login link/code | Full admin or any `geniusshop.editor.*` capability below |
 | `/shop confirmlogin <token>` | Confirm an editor login request | IP-bypass workflow described above |
 | `/shop wiki` | Show the configured wiki link | `geniusshop.wiki` |
 | `/shop resetstock all` | Reset global counters across shops | `geniusshop.resetstock` |
@@ -251,6 +251,23 @@ proof that every possible route is unprofitable. Estimates assume enough capital
 and inventory/storage, any required confirmation, and eligible initial safety
 history; provider rounding, fees, other plugins, and command side effects are not
 simulated.
+### Delegated Web Editor Access
+
+All five nodes default to **false** and independently allow editor login, including `/shop editor`, UUID login, links, and codes. Players must still be online and pass the existing session/IP checks. `geniusshop.admin`, legacy `shop.admin`, and OP retain full access; granular denials do not restrict a full administrator. Remove full-admin/OP access when delegating a limited role.
+
+| Permission | Behavior |
+| --- | --- |
+| `geniusshop.editor.analytics` | View stock analytics; no configuration or database editing |
+| `geniusshop.editor.drafts` | Read and save personal shop, menu, campaign, and custom-item drafts; cannot publish |
+| `geniusshop.editor.publish` | Publish reviewed changes in the player's own draft; also requires the editing permission for every changed file |
+| `geniusshop.editor.commands` | Manage `commands.yml` drafts; additionally required to edit, delete, or publish any shop/menu/custom-item file containing command actions |
+| `geniusshop.editor.database` | Read, update, and delete live player counts, global counts, and stock reset rows; changes are immediate, not drafts |
+
+For example, grant `geniusshop.editor.drafts` for a draft-only editor, add `geniusshop.editor.publish` for a shop maintainer, or grant only `geniusshop.editor.analytics` for an observer. Command managers need `geniusshop.editor.commands` and `geniusshop.editor.publish` to publish custom commands; command-bearing shop/custom-item files also need `geniusshop.editor.drafts`. Treat command delegation as privileged: configured actions may execute console commands. Files containing commands are entirely read-only without the command capability, even for price-only changes; ordinary files with empty command lists remain editable.
+
+Raw `config.yml`, `discord.yml`, legacy `gui.yml`, language files, economy safety settings, audit history/snapshots/restores/clearing, and telemetry inspection remain full-admin-only. Delegated file listings exclude these sources. A draft containing files the player can no longer access cannot be reviewed or published; it is retained until permissions are restored or the player discards it.
+
+Every protected API route checks live permissions server-side, including direct requests, raw file operations, history restores, and publication. Publish rechecks access in the server task before installing files, so a previously saved draft or review token does not preserve revoked rights. `GET /api/permissions` and the `permissions` object in `GET /api/files` expose the current capability flags; `readOnlyFiles` lists command-bearing files locked for that user. The UI hides unavailable sections/actions, and draft saving skips inaccessible files. Returning focus to the editor or a rejected save refreshes revoked access without discarding local edits; use Reload to load newly granted sections and their file contents. Unauthorized operations return HTTP 403; expired, offline, or fully revoked sessions return HTTP 401. Draft workspaces remain per-player, not a cross-player approval queue.
 
 ## Configuration and Data
 

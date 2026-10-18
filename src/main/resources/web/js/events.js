@@ -55,7 +55,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Initial load
     populateUserInfo();
-    await Promise.all([loadActivityLog(), loadAllFiles(true)]);
+    await loadAllFiles(true);
+    await loadActivityLog();
     if (typeof updateQuickTips === 'function') {
         updateQuickTips(currentTab || 'mainmenu');
     }

@@ -339,6 +339,7 @@ function buildShopTooltipLoreParity(item) {
 }
 
 function switchTab(tabName) {
+    if (window.EditorPermissions && tabName !== 'restricted' && !EditorPermissions.tabAllowed(tabName)) return;
     setEditorState('currentTab', tabName);
     updateQuickTips(tabName);
 
@@ -404,6 +405,7 @@ function switchTab(tabName) {
     } else if (tabName === 'guisettings') {
         renderGuiSettings();
     }
+    if (window.EditorPermissions) EditorPermissions.refresh();
 }
 
 function updatePreviewSettingsBar() {
@@ -853,6 +855,7 @@ function switchShop(filename) {
     if (filename === currentShopFile) return;
     if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) allShops[currentShopFile] = EditorYaml.writeShop();
     loadShopFromData(filename);
+    if (window.EditorPermissions) EditorPermissions.refresh();
 }
 
 function toggleNavDropdown(event) {
@@ -2407,7 +2410,7 @@ function renderGuiSettings() {
             </div>
         </div>
 
-        <div class="settings-group card-base full-width" style="grid-column: 1 / -1;">
+        <div class="settings-group card-base full-width" style="grid-column: 1 / -1;" ${window.EditorPermissions && !EditorPermissions.can('admin') ? 'hidden' : ''}>
             <div class="flex justify-between items-center mb-16">
                 <h3 class="group-title m-0">Economy Safety Guards</h3>
                 <div class="flex items-center gap-8">

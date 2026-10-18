@@ -27,6 +27,7 @@
                 ? await global.EditorRevisions.request(url, { ...options, headers }, file, localOverride)
                 : await fetch(url, { ...options, headers });
             const data = await response.clone().json().catch(() => ({}));
+            if (response.status === 403 && global.EditorPermissions) await EditorPermissions.recheck();
             if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
             if (data.draft) setState(data.draft);
             return response;
@@ -77,6 +78,7 @@
         const footer = element('footer');
         publishButton = button('Publish', 'upload', publish, 'btn-success');
         publishButton.id = 'draft-publish';
+        publishButton.hidden = !!global.EditorPermissions && !EditorPermissions.can('publish');
         footer.append(button('Discard draft', 'trash', discard, 'btn-secondary'),
             button('Validate again', 'check', () => review(false), 'btn-secondary'), publishButton);
         dialog.append(header, content, footer);
@@ -91,7 +93,8 @@
     function setBusy(value) {
         busy = value;
         dialog.querySelectorAll('button').forEach(control => { control.disabled = value; });
-        publishButton.disabled = value || !reviewToken;
+        publishButton.disabled = value || !reviewToken || (!!global.EditorPermissions && !EditorPermissions.can('publish'));
+        publishButton.hidden = !!global.EditorPermissions && !EditorPermissions.can('publish');
     }
 
     function showError(error) {
@@ -161,6 +164,7 @@
     }
 
     async function publish() {
+        if (global.EditorPermissions && !EditorPermissions.can('publish')) return;
         if (!reviewToken || busy) return;
         const token = reviewToken;
         setBusy(true);

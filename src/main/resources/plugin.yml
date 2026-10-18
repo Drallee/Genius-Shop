@@ -18,6 +18,21 @@ permissions:
   geniusshop.ledger:
     description: Allows searching completed transactions with /shop ledger
     default: op
+  geniusshop.editor.analytics:
+    description: Allows web editor login and viewing stock analytics
+    default: false
+  geniusshop.editor.drafts:
+    description: Allows editing shop, menu, campaign, and custom-item drafts without publishing
+    default: false
+  geniusshop.editor.publish:
+    description: Allows publishing reviewed drafts; editing permissions for every changed file are also required
+    default: false
+  geniusshop.editor.commands:
+    description: Allows managing custom command drafts and command-bearing files (other file permissions still apply)
+    default: false
+  geniusshop.editor.database:
+    description: Allows reading and modifying live database rows in the web editor
+    default: false
   geniusshop.giveitem:
     description: Allows giving configured custom items to online players
     default: op
@@ -78,6 +93,11 @@ permissions:
       geniusshop.use: true
       geniusshop.ledger: true
       geniusshop.refunds: true
+      geniusshop.editor.analytics: true
+      geniusshop.editor.drafts: true
+      geniusshop.editor.publish: true
+      geniusshop.editor.commands: true
+      geniusshop.editor.database: true
       geniusshop.reload: true
       geniusshop.sell: true
       geniusshop.resetstock: true
