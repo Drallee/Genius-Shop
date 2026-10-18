@@ -1,483 +1,304 @@
-# Shop Configuration Examples
+# Configuration Examples
 
-This guide provides real-world examples of shop configurations. Each shop file should be placed in the `plugins/GeniusShop/shops/` directory.
-
-## Table of Contents
-
-- [Shop Structure](#shop-structure)
-- [Basic Shop](#basic-shop)
-- [Enchanted Items Shop](#enchanted-items-shop)
-- [Spawner Shop](#spawner-shop)
-- [Potion Shop](#potion-shop)
-- [VIP-Only Shop](#vip-only-shop)
-- [Time-Limited Shop](#time-limited-shop)
-- [Advanced Features](#advanced-features)
-
----
-
-## Shop Structure
-
-Each shop file follows this structure:
-
-```yaml
-gui-name: '&8Shop Name'
-rows: 3
-permission: ''
-available-times:
-  - Monday-Friday
-  - "08:00-17:00"
-items:
-  - material: ITEM_NAME
-    name: '&fDisplay Name'
-    lore:
-      - '&7Description line 1'
-      - '&7Description line 2'
-    price: 100
-    sell-price: 50
-    amount: 1
-```
-
-### Configuration Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `gui-name` | String | Shop menu title (supports `&` color codes) |
-| `rows` | Integer | GUI rows (1-6) |
-| `permission` | String | Required permission (empty = no permission) |
-| `available-times` | List | Time restrictions (optional) |
-| `items` | List | List of shop items |
-
-### Item Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `material` | String | Minecraft material name |
-| `name` | String | Display name (supports `&` color codes) |
-| `lore` | List | Item description lines |
-| `price` | Number | Buy price (omit, set to 0, or set to negative = can't buy) |
-| `sell-price` | Number | Sell price (omit, set to 0, or set to negative = can't sell) |
-| `amount` | Integer | Default quantity |
-| `enchantments` | Map | Enchantments (ENCHANTMENT: LEVEL) |
-| `spawner-type` | String | For spawners (PIG, ZOMBIE, etc.) |
-| `potion-type` | String | For potions (SPEED, STRENGTH, etc.) |
-
----
+These are configuration examples, not balanced prices for every server. Test on a staging server, run `/shop validate-prices`, and back up files/data before publishing. Paths are relative to the plugin data directory.
 
 ## Basic Shop
 
-Simple shop for building blocks.
-
-**File:** `shops/blocks.yml`
+Create `shops/building.yml`:
 
 ```yaml
-gui-name: '&6&lBlocks Shop'
+gui-name: '&aBuilding Shop'
 rows: 3
 permission: ''
 items:
-  - material: STONE
+  - item-key: stone
+    material: STONE
+    slot: 10
     name: '&fStone'
-    lore:
-      - '&7A basic building block'
-      - ''
-      - '&aBuy: &6$10'
-      - '&cSell: $5'
+    amount: 1
     price: 10
     sell-price: 5
-    amount: 64
-
-  - material: DIRT
-    name: '&6Dirt'
     lore:
-      - '&7For landscaping'
-      - ''
-      - '&aBuy: &6$5'
-      - '&cSell: $2'
-    price: 5
-    sell-price: 2
-    amount: 64
-
-  - material: OAK_LOG
-    name: '&eOak Wood'
-    lore:
-      - '&7Essential for building'
-      - ''
-      - '&aBuy: &6$20'
-      - '&cSell: $10'
+      - '&7Build something new.'
+  - item-key: logs-bundle
+    material: OAK_LOG
+    slot: 11
+    name: '&6Four Oak Logs'
+    amount: 4
     price: 20
-    sell-price: 10
-    amount: 64
+    sell-price: 8
+    buy-price-per-item: false
+    sell-price-per-item: false
 ```
 
----
+Stone uses per-item pricing by default. Four logs cost 20 in total because that entry uses bundle pricing. A shop key is `building`, not `building.yml`.
 
-## Enchanted Items Shop
-
-Shop selling pre-enchanted items.
-
-**File:** `shops/enchanted.yml`
+Add a button under the existing `items:` mapping in `menus/main-menu.yml`:
 
 ```yaml
-gui-name: '&5&lEnchanted Items'
-rows: 3
-permission: ''
-items:
-  - material: DIAMOND_SWORD
-    name: '&b&lWarrior Blade'
-    lore:
-      - '&7A legendary sword'
-      - ''
-      - '&9Sharpness V'
-      - '&9Unbreaking III'
-      - '&9Fire Aspect II'
-      - ''
-      - '&aBuy: &6$5,000'
-    price: 5000
-    amount: 1
-    enchantments:
-      SHARPNESS: 5
-      UNBREAKING: 3
-      FIRE_ASPECT: 2
-
-  - material: DIAMOND_PICKAXE
-    name: '&3&lMiner''s Dream'
-    lore:
-      - '&7Mine faster and longer'
-      - ''
-      - '&9Efficiency V'
-      - '&9Unbreaking III'
-      - '&9Fortune III'
-      - ''
-      - '&aBuy: &6$4,500'
-    price: 4500
-    amount: 1
-    enchantments:
-      EFFICIENCY: 5
-      UNBREAKING: 3
-      FORTUNE: 3
-
-  - material: BOW
-    name: '&c&lHunter''s Bow'
-    lore:
-      - '&7For precise shots'
-      - ''
-      - '&9Power V'
-      - '&9Infinity I'
-      - '&9Flame I'
-      - ''
-      - '&aBuy: &6$3,000'
-    price: 3000
-    amount: 1
-    enchantments:
-      POWER: 5
-      INFINITY: 1
-      FLAME: 1
+building:
+  slot: 10
+  material: BRICKS
+  name: '&aBuilding Shop'
+  lore:
+    - '&7Blocks and materials.'
+  shop-key: building
 ```
 
-**Common Enchantments:**
-- Weapon: `SHARPNESS`, `SMITE`, `BANE_OF_ARTHROPODS`, `FIRE_ASPECT`, `KNOCKBACK`, `LOOTING`
-- Armor: `PROTECTION`, `FIRE_PROTECTION`, `BLAST_PROTECTION`, `THORNS`, `FEATHER_FALLING`
-- Tool: `EFFICIENCY`, `FORTUNE`, `SILK_TOUCH`, `UNBREAKING`, `MENDING`
-- Bow: `POWER`, `PUNCH`, `FLAME`, `INFINITY`
+Choose a free menu slot. Do not create a second top-level `items:` key; merge the button into the existing mapping. Reload and test.
 
----
-
-## Spawner Shop
-
-High-value spawner shop.
-
-**File:** `shops/spawners.yml`
+## Buy-Only, Sell-Only, and Display-Only Entries
 
 ```yaml
-gui-name: '&6&lSpawner Shop'
+gui-name: '&8Trading Options'
 rows: 3
-permission: ''
 items:
-  - material: SPAWNER
-    name: '&6Pig Spawner'
-    lore:
-      - '&7Spawns pigs'
-      - ''
-      - '&aBuy: &6$50,000'
-      - '&cSell: $25,000'
-    price: 50000
-    sell-price: 25000
-    amount: 1
-    spawner-type: PIG
-
-  - material: SPAWNER
-    name: '&cZombie Spawner'
-    lore:
-      - '&7Spawns zombies'
-      - ''
-      - '&aBuy: &6$100,000'
-      - '&cSell: $50,000'
-    price: 100000
-    sell-price: 50000
-    amount: 1
-    spawner-type: ZOMBIE
-
-  - material: SPAWNER
-    name: '&5Enderman Spawner'
-    lore:
-      - '&7Spawns endermen'
-      - ''
-      - '&aBuy: &6$500,000'
-      - '&cSell: $250,000'
-    price: 500000
-    sell-price: 250000
-    amount: 1
-    spawner-type: ENDERMAN
-```
-
-**Common Mob Types:** `PIG`, `COW`, `CHICKEN`, `SHEEP`, `ZOMBIE`, `SKELETON`, `CREEPER`, `SPIDER`, `ENDERMAN`, `BLAZE`, `IRON_GOLEM`
-
----
-
-## Potion Shop
-
-Shop for various potions.
-
-**File:** `shops/potions.yml`
-
-```yaml
-gui-name: '&5&lPotion Shop'
-rows: 3
-permission: ''
-items:
-  - material: POTION
-    name: '&bSpeed Potion'
-    lore:
-      - '&7Move faster'
-      - ''
-      - '&aBuy: &6$100'
+  - item-key: buy-diamond
+    material: DIAMOND
+    slot: 10
     price: 100
     amount: 1
-    potion-type: SPEED
-
-  - material: POTION
-    name: '&cStrength Potion'
-    lore:
-      - '&7Increase damage'
-      - ''
-      - '&aBuy: &6$150'
-    price: 150
-    amount: 1
-    potion-type: STRENGTH
-
-  - material: SPLASH_POTION
-    name: '&cHealing Splash Potion'
-    lore:
-      - '&7Instant healing'
-      - ''
-      - '&aBuy: &6$200'
-    price: 200
-    amount: 1
-    potion-type: INSTANT_HEAL
-
-  - material: TIPPED_ARROW
-    name: '&5Poison Arrow'
-    lore:
-      - '&7Arrows with poison effect'
-      - ''
-      - '&aBuy: &6$50'
-    price: 50
-    amount: 8
-    potion-type: POISON
-```
-
-**Common Potion Types:** `SPEED`, `STRENGTH`, `REGENERATION`, `FIRE_RESISTANCE`, `WATER_BREATHING`, `INVISIBILITY`, `NIGHT_VISION`, `WEAKNESS`, `POISON`, `INSTANT_HEAL`, `INSTANT_DAMAGE`
-
----
-
-## VIP-Only Shop
-
-Exclusive shop for VIP players with custom permission.
-
-**File:** `shops/vip.yml`
-
-```yaml
-gui-name: '&d&lVIP Shop'
-rows: 3
-permission: 'myserver.vip'  # Custom permission required
-items:
-  - material: DIAMOND
-    name: '&bDiamond'
-    lore:
-      - '&7VIP Price!'
-      - ''
-      - '&aBuy: &6$50'
-      - '&cSell: $40'
-    price: 50
-    sell-price: 40
-    amount: 1
-
-  - material: EMERALD
-    name: '&aEmerald'
-    lore:
-      - '&7VIP Price!'
-      - ''
-      - '&aBuy: &6$75'
-      - '&cSell: $60'
-    price: 75
-    sell-price: 60
-    amount: 1
-
-  - material: NETHERITE_INGOT
-    name: '&4Netherite Ingot'
-    lore:
-      - '&7Exclusive VIP Item'
-      - ''
-      - '&aBuy: &6$1,000'
-      - '&cSell: $800'
-    price: 1000
-    sell-price: 800
-    amount: 1
-```
-
-**Setup:** Give VIP permission with LuckPerms:
-```
-lp group vip permission set myserver.vip true
-```
-
----
-
-## Time-Limited Shop
-
-Weekend market available only on weekends.
-
-**File:** `shops/weekend_market.yml`
-
-```yaml
-gui-name: '&e&lWeekend Market'
-rows: 3
-permission: ''
-available-times:
-  - Saturday-Sunday
-  - "00:00-23:59"
-items:
-  - material: DIAMOND
-    name: '&b&lWeekend Deal: Diamond'
-    lore:
-      - '&7Special weekend price!'
-      - '&750% off regular price'
-      - ''
-      - '&aBuy: &6$40'
-      - '&cSell: $35'
-    price: 40
-    sell-price: 35
-    amount: 1
-
-  - material: GOLDEN_APPLE
-    name: '&6&lWeekend Special'
-    lore:
-      - '&7Only available on weekends'
-      - ''
-      - '&aBuy: &6$100'
-    price: 100
-    amount: 1
-```
-
-**Time Format Examples:**
-- Day ranges: `Monday-Friday`, `Saturday-Sunday`
-- Time ranges: `08:00-17:00`, `18:00-23:59`
-- Date ranges: `2024-12-01 to 2024-12-31`
-
----
-
-## Advanced Features
-
-### Color Codes
-
-Use `&` followed by a color/format code:
-
-| Code | Color | Code | Format |
-|------|-------|------|--------|
-| `&0` | Black | `&l` | **Bold** |
-| `&1` | Dark Blue | `&o` | *Italic* |
-| `&2` | Dark Green | `&n` | <u>Underline</u> |
-| `&3` | Dark Aqua | `&m` | ~~Strikethrough~~ |
-| `&4` | Dark Red | `&r` | Reset |
-| `&5` | Purple |
-| `&6` | Gold |
-| `&7` | Gray |
-| `&8` | Dark Gray |
-| `&9` | Blue |
-| `&a` | Green |
-| `&b` | Aqua |
-| `&c` | Red |
-| `&d` | Pink |
-| `&e` | Yellow |
-| `&f` | White |
-
-### Sell-Only Items
-
-To make items sell-only (cannot be purchased), you can:
-- Omit the `price` field entirely
-- Set `price: 0`
-- Set `price: -1` (or any negative number)
-
-```yaml
-items:
-  - material: COBBLESTONE
-    name: '&7Cobblestone'
-    lore:
-      - '&7Sell your excess cobblestone'
-      - ''
-      - '&cSell: $1'
-    price: 0  # or -1, or omit this line
+  - item-key: sell-cobblestone
+    material: COBBLESTONE
+    slot: 11
+    price: 0
     sell-price: 1
-    amount: 64
+    amount: 1
+  - item-key: information
+    material: BOOK
+    slot: 13
+    name: '&eInformation'
+    price: 0
+    lore:
+      - '&7This entry is not for sale.'
 ```
 
-### Buy-Only Items
+Omitting `sell-price` disables selling. Non-positive buy pricing disables buying. Keep display-only entries free of purchase commands unless you deliberately want command behavior.
 
-To make items buy-only (cannot be sold), you can:
-- Omit the `sell-price` field entirely
-- Set `sell-price: 0`
-- Set `sell-price: -1` (or any negative number)
+## Dynamic Prices with Restocking
 
 ```yaml
+gui-name: '&bOre Market'
+rows: 3
+sell-adds-to-stock: true
+allow-sell-stock-overflow: false
+stock-reset:
+  enabled: true
+  type: DAILY
+  time: '06:00'
+  timezone: server
 items:
-  - material: GOLDEN_APPLE
-    name: '&6Golden Apple'
-    lore:
-      - '&7Cannot be sold back'
-      - ''
-      - '&aBuy: &6$100'
+  - item-key: iron-block
+    material: IRON_BLOCK
+    slot: 10
     price: 100
-    sell-price: -1  # or 0, or omit this line
+    sell-price: 50
     amount: 1
+    dynamic-pricing: true
+    price-change: 1
+    min-price: 25
+    max-price: 200
+    global-limit: 100
+    limit: 20
+    show-stock: true
+    show-stock-reset-timer: true
 ```
 
-### Display-Only Items
+Purchases affect the global counter and therefore dynamic pricing. Restocking through sales is explicitly enabled here. The daily reset affects global stock/dynamic-price state; it is not a daily reset of every player's `limit`. There is no gradual time-based price decay.
 
-To make items display-only (cannot buy or sell), disable both prices:
+Review `economy-safety.anti-spike` separately. With raw buy price 100 and maximum base multiplier 1.5, a computed unit price above 150 is rejected even if `max-price` is 200.
+
+## Item-Level Reset Schedule
+
+An item can have its own reset schedule. Add this mapping to the intended item:
 
 ```yaml
+stock-reset:
+  enabled: true
+  type: WEEKLY
+  day-of-week: MONDAY
+  time: '08:00'
+  timezone: Europe/Copenhagen
+```
+
+For a minute interval, use `type: MINUTE_INTERVAL` and a positive `interval`, for example 30. Shop-wide schedules still reset all shop items, including items with their own rule. If you want independent item-only schedules, leave the shop-wide rule disabled. Disabling an item's rule does not exclude it from a shop-wide reset.
+
+## Permissions and Availability
+
+```yaml
+gui-name: '&dWeekend VIP Market'
+rows: 3
+permission: rank.vip
+available-times:
+  - 'FRIDAY-SUNDAY'
+  - '10:00AM-10:00PM'
 items:
-  - material: NETHER_STAR
-    name: '&d&lComing Soon!'
-    lore:
-      - '&7This item will be available in the future'
-    price: 0  # or -1, or omit
-    sell-price: 0  # or -1, or omit
+  - item-key: vip-diamond
+    material: DIAMOND
+    slot: 10
+    name: '&bVIP Diamond'
+    price: 80
+    sell-price: 30
+    min-player-level: 10
+    required-gamemode: SURVIVAL
+    allowed-worlds: [world]
+```
+
+Also set the main-menu button permission if it should be restricted. World names and ranks must match your server. The availability window uses the server's time handling, not the player's browser timezone.
+
+## Price Formula
+
+Add formulas to a priced item, with its dynamic settings:
+
+```yaml
+dynamic-pricing: true
+price-change: 0.5
+min-price: 5
+max-price: 100
+buy-price-formula: 'max(min_price, dynamic)'
+sell-price-formula: 'max(0.01, min(dynamic * 0.5, base))'
+```
+
+`base` refers to the configured buy or sell price for that direction. `dynamic` is the calculated dynamic price for that direction. Formula `amount` is the configured item amount, not automatically the player's selected transaction quantity. See [Configuration](Configuration#pricing-and-safety) for available variables.
+
+## Campaign
+
+Create/configure `campaigns.yml`:
+
+```yaml
+campaigns:
+  - key: launch-sale
+    name: Launch Sale
+    start: '2030-01-01 00:00'
+    end: '2030-01-03 23:59'
+    timezone: server
+    buy-multiplier: 0.9
+    sell-multiplier: 1.0
+```
+
+Replace the illustrative dates with your actual campaign window. Add `campaign: launch-sale` to a shop or item. A shop can also contain its own `campaigns:` list. Use the Campaigns section to check assignments, and verify resulting prices in-game before enabling overlapping campaigns.
+
+## Spawners and Potions
+
+```yaml
+gui-name: '&aSpecial Items'
+rows: 3
+items:
+  - item-key: pig-spawner
+    material: SPAWNER
+    slot: 10
+    spawner-type: PIG
+    name: '&aPig Spawner'
+    price: 50000
+    amount: 1
+  - item-key: speed-potion
+    material: POTION
+    slot: 11
+    potion-type: SPEED
+    potion-level: 1
+    name: '&bSpeed Potion'
+    price: 100
     amount: 1
 ```
 
-## Best Practices
+When enabled and available, SmartSpawner creation API support supplies its native spawner metadata. Exact imported `item-stack` data takes precedence. The legacy-named `smart-spawner-command-fallback` config option now controls API fallback, not an automatically generated give command.
 
-💡 **Pricing**: Sell prices are typically 25-50% of buy prices
-💡 **GUI Size**: Choose row count based on items (9 items per row)
-💡 **Permissions**: Use custom permissions for VIP/premium shops
-💡 **Organization**: Group related items in the same shop
-💡 **Naming**: Use descriptive filenames (`tools.yml`, `food.yml`)
+For exact custom potions, enchanted equipment, plugin-specific items, or other metadata, hold the actual item, run `/shop exportitem [name]`, and import the resulting JSON through the editor. Do not fabricate serialized item-stack data manually.
 
-## Next Steps
+## Enchanted Items
 
-- **[Configuration](Configuration)** - Learn more about config options
-- **[Web Editor](Web-Editor)** - Use visual editor for easier setup
-- **[Commands & Permissions](Commands-and-Permissions)** - Set up permissions
+```yaml
+gui-name: '&bEquipment'
+rows: 3
+items:
+  - item-key: enchanted-sword
+    material: DIAMOND_SWORD
+    slot: 10
+    name: '&bEnchanted Sword'
+    price: 2000
+    enchantments:
+      minecraft:sharpness: 3
+      minecraft:unbreaking: 2
+    hide-attributes: true
+    require-name: true
+```
 
----
+Use enchantment identifiers supported by your server. `require-name`/`require-lore` influence item matching; do not enable them casually on generic materials you expect players to sell.
 
-Need help? [Create an issue](https://github.com/Drallee/Genius-Shop/issues) on GitHub!
+## Item Variants
+
+```yaml
+gui-name: '&bPotion Variants'
+rows: 3
+items:
+  - material: POTION
+    slot: 10
+    amount: 1
+    price: 100
+    variant-menu: true
+    variant-group: utility-potions
+    variants:
+      - item-key: utility-speed
+        name: '&bSpeed'
+        potion-type: SPEED
+        potion-level: 1
+      - item-key: utility-strength
+        name: '&cStrength'
+        potion-type: STRENGTH
+        potion-level: 1
+        price: 150
+```
+
+Variants inherit the parent material, amount, and price unless overridden. Give each variant a distinct stable identifier. Nested variants are an advanced YAML feature; review the saved/exported structure when combining them with editor workflows.
+
+## Explicit Command-Only Delivery
+
+For a plugin that exposes its own give command, replace this illustrative command with the actual syntax of that plugin:
+
+```yaml
+gui-name: '&eCommand Rewards'
+rows: 3
+items:
+  - item-key: external-reward
+    material: PAPER
+    slot: 10
+    name: '&eExternal Reward'
+    price: 1000
+    amount: 1
+    run-as: console
+    run-command-only: true
+    commands:
+      - 'yourplugin give %player% reward %amount%'
+```
+
+The command is an example, not a Genius-Shop command. Test it manually first. Command-only delivery does not deliver the displayed PAPER item, and the receiving plugin is responsible for inventory handling and command errors. Set `run-command-only: false` only when you intentionally want both ordinary item delivery and commands.
+
+## Custom Sell-All Command
+
+Add a unique entry under the existing `commands:` mapping in `commands.yml`:
+
+```yaml
+sell-inventory:
+  enabled: true
+  aliases: [sell-bag]
+  description: 'Sell eligible inventory items'
+  usage: '/sell-inventory'
+  permission: 'geniusshop.command.sell-inventory'
+  action:
+    type: SELL_ALL
+```
+
+Add `shop: building` under `action` to restrict the search to that shop. Grant the command permission and relevant shop/item access. This is separate from `/shop sell`, which opens a GUI.
+
+## Language References
+
+In a menu, `name: menus.main.items.blocks.name` refers to `messages.menus.main.items.blocks.name` in the selected language file. You can replace it with literal text, for example `name: '&aBuilding Blocks'`, or change the shared translation in the language file.
+
+The editor displays the resolved text. Unedited references survive saving; edited text becomes a literal override. For shared language keys that resemble YAML booleans, quote the key:
+
+```yaml
+messages:
+  "on": " on "
+```
+
+[Configuration](Configuration) | [Commands and Permissions](Commands-and-Permissions) | [Web Editor](Web-Editor)

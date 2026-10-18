@@ -115,11 +115,11 @@ async function deleteDatabaseEntry(table, payload) {
     return data;
 }
 
-async function loadAllFiles() {
+async function loadAllFiles(isSilent = false) {
     try {
         setEditorState('isLoadingFiles', true);
         console.log('[LOAD] Starting to load files');
-        showToast(t('web-editor.shop.loading'), 'info');
+        if (!isSilent) showToast(t('web-editor.shop.loading'), 'info');
         if (typeof renderSkeletons === 'function') {
             renderSkeletons();
         } else {
@@ -261,7 +261,7 @@ async function loadAllFiles() {
         renderCampaignsTab();
         if (typeof renderCommandsTab === 'function') renderCommandsTab();
 
-        showToast(t('web-editor.modals.loaded'), 'success');
+        if (!isSilent) showToast(t('web-editor.modals.loaded'), 'success');
         if (window.EditorTelemetry) window.EditorTelemetry.track('editor_load', { source: 'api/files' }, true);
         setEditorState('isLoadingFiles', false);
         setUnsavedChanges([]);

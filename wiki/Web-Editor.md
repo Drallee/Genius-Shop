@@ -1,330 +1,153 @@
-# Web Editor Guide
+# Web Editor
 
-The Genius Shop Web Editor provides a modern web interface for managing your shops directly from your browser.
+The editor is served by Genius-Shop's built-in HTTP/HTTPS API. It edits the server's configuration files; it is not a separate hosted copy of your shops.
 
-## Features
+## Enable and Connect
 
-✨ **Live Visual Editor** - Edit shops with a visual Minecraft-style preview
-🔐 **Secure Authentication** - Token-based login system
-💾 **Direct File Editing** - Changes are saved directly to YAML files
-🎨 **Color Code Support** - Preview Minecraft color codes in real-time
-📱 **Responsive Design** - Works on desktop, tablet, and mobile
+1. Review `api` in `config.yml`, set a unique secret, and choose an available TCP port.
+2. On managed hosting, request an additional port allocation and confirm the correct public address.
+3. Restart the server after changing API enablement, port, or TLS settings. Check the API startup log.
+4. Join the Minecraft server with `geniusshop.admin` and run `/shop editor`.
+5. Open the generated login link, or enter the generated login code in the editor's login page.
 
----
+Auto-login tokens expire after five minutes. Sessions last approximately one hour. Keep links, codes, session tokens, and configuration secrets private. A fresh link is needed after expiration or a server restart.
 
-## Getting Started
+## Network Access and Ports
 
-### Step 1: Enable the Web Editor
+### Port 8080 Is Optional
 
-In `config.yml`:
+`api.port: 8080` is the default. You can use another available TCP port, such as `8081`, or the port assigned by your host. It must be in the range `1-65535`; prefer ports above `1023` unless you have intentionally configured privileged binding. Do not reuse your occupied Minecraft, proxy, database, or other plugin port.
+
+Example using a host-assigned port:
 
 ```yaml
 api:
   enabled: true
-  port: 8080
-  api-key: "change-this-to-a-secure-random-key"
+  port: 25590
+  domain: 'http://editor.example.com:25590'
 ```
 
-**Important**:
-- The web editor automatically binds to `0.0.0.0` (all network interfaces) so it can be accessed from your local network
-- Change the `api-key` to a secure random value for security
-- The default port is `8080` - make sure it's not blocked by your firewall
+This is a configuration excerpt, not a complete file. Substitute your allocated port and address; `25590` is not automatically available. Restart, then use the matching URL and regenerate `/shop editor` links.
 
-Reload the plugin: `/shop reload`
+### Hosting Services
 
-### Step 2: Generate Login Token
+Check the provider's port-allocation/network panel or contact support before selecting a port. Ask:
 
-The web editor uses an auto-login token system for secure authentication.
+- Does this plan allow an additional TCP port for a plugin HTTP/HTTPS server?
+- Which internal port should Genius-Shop bind to?
+- Which public hostname and external port should administrators connect to?
+- Are additional firewall rules, proxy settings, or allocations required?
 
-**In-game command:**
-```
-/shop editor
-```
+A process can successfully listen inside a container while remaining unreachable externally. Changing `api.port` alone does not reserve a hosting allocation or open a firewall. Providers may restrict additional listeners or require a paid allocation.
 
-This will:
-1. Generate a one-time use token (valid for 5 minutes)
-2. Display a clickable link with the token embedded
-3. The token automatically logs you in when you click the link
+### Diagnose the Failure
 
-**Example output:**
-```
-§a§l[Shop Editor]
-§7Click the link below to open the shop editor:
-http://192.168.1.100:8080/?token=abc123...
-§7This token expires in 5 minutes
-```
+| Symptom | Checks |
+| --- | --- |
+| API startup says address already in use | Another service owns the port. Select a different free/allocated port or intentionally reconfigure the conflicting service. |
+| API cannot bind or reports permission denied | Check port range, privileged-port restrictions, and hosting policy. |
+| API started, but browser times out remotely | Check OS/provider firewalls, hosting allocation, router/container TCP forwarding, and the public address. |
+| Local connection refused | Check API enablement, startup errors, actual listener port, and HTTP/HTTPS scheme. |
+| Page opens, but API/login requests fail | Check the reverse-proxy route, session expiration, IP matching, and browser/server logs. |
+| Generated link uses a private IP or localhost | Configure a reachable `api.domain` and generate a new link. |
 
-### Step 3: Access the Editor
+Check local access on the server machine using `http://127.0.0.1:PORT` (or HTTPS if enabled). On another computer, use the server's reachable address. `0.0.0.0` is a bind address, not a browser destination, and `localhost` means the computer running the browser.
 
-**Option A: Click the link** (recommended)
-- Click the link shown in-game
-- You'll be automatically logged in with the token
+Optional read-only diagnostics, replacing `8080` with your port:
 
-**Option B: Manual login**
-- Navigate to `http://your-server-ip:8080`
-- Enter your Minecraft username
-- Enter your player UUID as password
-- Click "LOGIN"
-
-**How to get your UUID:**
-- Check at https://mcuuid.net/
-- The login page provides a link to check your UUID
-
----
-
-## Authentication System
-
-### Auto-Login Tokens
-
-When you run `/shop editor`:
-- A unique one-time token is created
-- Token expires after 5 minutes
-- Token is tied to your IP address
-- Token is consumed after first use (one-time only)
-- Creates a session that lasts 1 hour
-
-### Session Management
-
-- Sessions last for 1 hour after login
-- You must be online in-game to use the editor
-- Sessions are validated on each API request
-- Logging out invalidates your session immediately
-
-### Security Features
-
-✅ **IP Verification**: Tokens are tied to your IP address
-✅ **Permission Check**: Requires `geniusshop.admin` or `shop.admin` permission
-✅ **Online Verification**: Player must be online in-game
-✅ **One-Time Tokens**: Each token can only be used once
-✅ **Time Expiration**: Tokens expire after 5 minutes, sessions after 1 hour
-✅ **Local Network Support**: Works with localhost and local network IPs
-
----
-
-## Network Access
-
-### Accessing from Different Devices
-
-The web editor binds to `0.0.0.0` (all interfaces), which means:
-
-✅ **Same Computer**: `http://localhost:8080`
-✅ **Local Network**: `http://192.168.1.XXX:8080` (use your server's IP)
-✅ **Other Devices**: Any device on your local network can access it
-
-### Firewall Configuration
-
-If you can't connect:
-1. Check if port 8080 is open on your server
-2. Allow port 8080 in Windows Firewall / Linux iptables
-3. Check your router's firewall settings if accessing from another device
-
-### Remote Access (Advanced)
-
-⚠️ **Not Recommended**: Exposing the editor to the internet is not recommended without additional security measures (VPN, reverse proxy with HTTPS, etc.)
-
-If you need remote access:
-- Use a VPN to connect to your local network
-- Set up a reverse proxy with HTTPS (nginx, Apache)
-- Use SSH port forwarding: `ssh -L 8080:localhost:8080 user@server`
-
----
-
-## Using the Editor
-
-### Interface Overview
-
-The web editor consists of:
-
-**Left Panel:**
-- Shop selector dropdown
-- File selector (shops, main menu, settings)
-- Edit forms for items and settings
-
-**Right Panel:**
-- Live Minecraft-style GUI preview
-- Shows exactly how the shop looks in-game
-- Updates in real-time as you edit
-
-**Top Bar:**
-- Current user and session info
-- Save button
-- Logout button
-
-### Editing Shop Items
-
-1. Select a shop from the dropdown
-2. The shop items will load in the editor
-3. Edit item properties:
-   - Material (Minecraft item type)
-   - Display name (supports `&` color codes)
-   - Lore (description lines)
-   - Price (buy price - omit, set to 0, or -1 to disable buying)
-   - Sell Price (sell price - omit, set to 0, or -1 to disable selling)
-   - Amount (default quantity)
-   - Enchantments (for enchanted items)
-   - Spawner Type (for spawners)
-   - Potion Type (for potions)
-
-4. Click "SAVE" to write changes to disk
-5. Changes take effect immediately (no reload needed for most changes)
-
-### Editing Shop Settings
-
-Modify global shop properties:
-- GUI Name (shop title)
-- Rows (GUI size, 1-6)
-- Permission (required permission, leave empty for none)
-- Available Times (time restrictions for shop availability)
-
-### Editing Main Menu
-
-Configure the shop selection menu:
-- Add/remove shop buttons
-- Set button positions
-- Configure button icons and text
-- Link buttons to shop files
-
----
-
-## Color Codes
-
-Use Minecraft color codes in names and lore:
-
-| Code | Color | Code | Format |
-|------|-------|------|--------|
-| `&0` | Black | `&l` | **Bold** |
-| `&1` | Dark Blue | `&o` | *Italic* |
-| `&2` | Dark Green | `&n` | <u>Underline</u> |
-| `&3` | Dark Aqua | `&m` | ~~Strikethrough~~ |
-| `&4` | Dark Red | `&r` | Reset |
-| `&5` | Purple |
-| `&6` | Gold |
-| `&7` | Gray |
-| `&8` | Dark Gray |
-| `&9` | Blue |
-| `&a` | Green |
-| `&b` | Aqua |
-| `&c` | Red |
-| `&d` | Pink |
-| `&e` | Yellow |
-| `&f` | White |
-
-**Example:**
-```
-&6&lDiamond Sword
-&7A legendary weapon
-&aBuy: &6$1,000
+```powershell
+# On Windows: check local listeners and test TCP access.
+Get-NetTCPConnection -LocalPort 8080 -State Listen
+Test-NetConnection -ComputerName YOUR_SERVER_HOST -Port 8080
 ```
 
----
+```bash
+# On Linux: inspect listeners and test the local HTTP endpoint.
+ss -ltnp
+curl -I http://127.0.0.1:8080/
+```
 
-## Troubleshooting
+A TCP connection test does not prove the firewall is reachable from every network or that login/proxy routing works. Do not terminate an unfamiliar process merely to free its port. On shared hosting, ask support to identify a conflict.
 
-### Can't Connect to Web Editor
+### Firewalls and Forwarding
 
-**Problem**: Browser shows "Can't reach this page"
+Allow inbound TCP on the selected editor port only from intended networks when practical. Home-hosted servers may need router forwarding to the server's internal address. Containers may need a published port, and cloud/hosting firewalls may be separate from the OS firewall. Never disable the entire firewall as a troubleshooting shortcut.
 
-**Solutions:**
-1. Verify API is enabled: `api.enabled: true` in config.yml
-2. Check the server console for "Web config API started on port 8080"
-3. Ensure port 8080 is not blocked by firewall
-4. Try accessing from the server itself first: `http://localhost:8080`
-5. Check if another program is using port 8080
+### Domains and HTTPS
 
-### Token Expired
+`api.domain` changes the advertised address. It does not configure DNS, reserve a port, open a firewall, or install a certificate. Use an explicit URL such as `https://editor.example.com` for a correctly configured HTTPS proxy.
 
-**Problem**: "Invalid or expired token" error
+The default listener is HTTP unless `api.ssl.enabled` is true. For native HTTPS, configure a valid keystore and restart:
 
-**Solutions:**
-- Tokens expire after 5 minutes
-- Run `/shop editor` again to generate a new token
-- Click the link immediately after generating it
+```yaml
+api:
+  ssl:
+    enabled: true
+    keystore: 'ssl/keystore.p12'
+    keystore-password: 'REPLACE_WITH_KEYSTORE_PASSWORD'
+    key-password: ''
+    keystore-type: PKCS12
+```
 
-### Authentication Failed
+Relative keystore paths are relative to the plugin data directory. An empty key password reuses the keystore password. Certificates must be trusted and valid for the hostname used by the browser. Alternatively, use an HTTPS reverse proxy and restrict direct access to the backend listener. Route both editor assets and `/api/` requests to the same plugin service.
 
-**Problem**: Login page shows "Authentication failed"
+The backend checks the request's remote IP. A reverse proxy can change that IP; do not assume forwarded headers automatically satisfy the login check. Test the IP-confirmation flow and provider/proxy configuration before exposing the editor publicly.
 
-**Solutions:**
-- Ensure you're online on the Minecraft server
-- Verify you have `geniusshop.admin` or `shop.admin` permission
-- Double-check your UUID is correct (use https://mcuuid.net/)
-- Username is case-sensitive - use exact Minecraft username
+## Authentication
 
-### Player Not Online Error
+The player must be online and have administrative access to authenticate. IP matching protects the login/session. If `api.allow-ip-bypass` is enabled and the player has `geniusshop.login.ip.bypass`, an untrusted different-IP login can require `/shop confirmlogin <token>` in-game. Confirm only your own request. Trusted addresses are stored in `trusted-ips.yml`.
 
-**Problem**: "Player is no longer online" error
+Authenticated API operations use `X-Session-Token`. The configured API key is not a substitute for a valid editor session. Do not publish tokens in shared URLs or use an administrator account for untrusted automation.
 
-**Solutions:**
-- You must remain logged into the Minecraft server while using the editor
-- If you disconnect from the server, your session is invalidated
-- Log back into Minecraft and run `/shop editor` again
+## Navigation and Editing
 
-### IP Address Mismatch
+The sidebar can collapse to an icon rail on desktop and opens as a drawer on narrow screens. The Minecraft preview is the focus for menu and shop editing; supporting settings sit below it. Previewed text resolves language references and color codes, but preview prices and conditions do not replace in-game testing.
 
-**Problem**: "IP address mismatch" error
+| Section | What it edits/shows |
+| --- | --- |
+| Main Menu | Category buttons, title, rows, actions, permissions, and lore. |
+| Shop | Shop selection, items, pricing, metadata, conditions, schedules, and variants. |
+| Purchase / Sell | Transaction layouts, buttons, quantities, and titles. |
+| GUI Settings | Shared navigation/lore templates and economy safety settings. |
+| Campaigns | Campaign definitions and shop/item assignments. |
+| Commands | Custom command names, aliases, actions, and validation. |
+| Stock | Stock analytics and filters; long identifiers wrap within their cells. |
+| Data Editor | Persisted player/global counts and reset data; changes affect live state. |
 
-**Solutions:**
-- Tokens are tied to your IP address for security
-- If your IP changes (VPN, network switch), generate a new token
-- Make sure you're accessing from the same device/network where you ran the command
+Click an item/button to open its form and preview. Drag items between slots where supported. Check page and slot numbers when editing multi-page shops. Use stable item keys for custom-command targets and persisted state.
 
-### Changes Not Saving
+### Resolved Language Text
 
-**Problem**: Edits don't persist after clicking save
+Names, titles, and lore fields show resolved values instead of paths such as `menus.main.title`. Untouched references remain references on save. Editing the visible text creates a literal configuration override, not a language-file edit. Edit `languages/*.yml` directly when you want to update the shared translation.
 
-**Solutions:**
-- Check server console for error messages
-- Verify file permissions (server must be able to write to plugins/GeniusShop/)
-- Ensure your session hasn't expired (sessions last 1 hour)
-- Try logging out and back in
+### YAML Preservation
 
----
+The structured YAML editor keeps comments separate from editable values. Unchanged supported documents round-trip without rewriting their source, and supported edits retain comments and unknown fields. Malformed YAML, duplicate keys, and invalid shapes can block saving. Formatting may change around edited values; this is not a general-purpose arbitrary-YAML editor.
 
-## Best Practices
+## Save, Reload, and Publish
 
-💡 **Test Changes**: Preview your changes in the live preview before saving
-💡 **Stay Online**: Keep your Minecraft client connected while editing
-💡 **Save Frequently**: Click save after making important changes
-💡 **Check Console**: Monitor server console for errors
-💡 **Backup First**: Backup your config files before major changes
-💡 **Use HTTPS**: If exposing remotely, use a reverse proxy with HTTPS
+- **Save Tab** saves the active section after validation/confirmation.
+- **Publish All** saves the supported editor sections; successful backend file saves apply configuration reloads.
+- **Reload** fetches the server's files back into the editor and discards unsaved editor changes; it is not the in-game `/shop reload` command.
+- **History** shows recorded changes and available rollback actions.
+- **Auto-save**, when enabled, can save changes before you press Publish All.
 
----
+Successful backend file saves reload the plugin configuration; custom-command saves also reload that subsystem. Save Tab and auto-save can therefore affect the live server immediately. A full project import or Publish All is not an atomic database transaction: check failures and test the resulting server state.
 
-## Technical Details
+Use `/shop reload` after manual configuration edits. A port, API enablement, or TLS change still needs a restart. Replacing the plugin JAR always requires a restart.
 
-### API Endpoints
+## Import, Export, and History
 
-The web editor uses these API endpoints:
+The editor supports shop/item YAML and JSON workflows and project import/export through its dialogs. For exact custom metadata, hold the intended item, run `/shop exportitem [name]`, then import the generated JSON from `item-exports/`.
 
-- `POST /api/login` - Username/UUID authentication
-- `POST /api/auto-login` - Token-based auto-login
-- `GET /api/shops` - List all shop files
-- `GET /api/shop/{name}` - Get shop configuration
-- `POST /api/shop/{name}` - Save shop configuration
-- `GET /api/main-menu` - Get main menu config
-- `POST /api/main-menu` - Save main menu config
-- `GET /api/gui-settings` - Get GUI settings
-- `POST /api/gui-settings` - Save GUI settings
+Review the destination shop, item keys, and prices before confirming an import. Keep an independent backup of configuration and `data.db`; an editor export/history rollback is not a complete server backup. History compares semantic values rather than treating YAML comments as edited fields. File rollback restores recorded configuration, not previous economy balances or all runtime counters.
 
-### File Locations
+## Troubleshooting Edits
 
-The web editor directly modifies these files:
+If saving fails, read the validation errors, check YAML shape and duplicate keys, check command-name/alias conflicts, and confirm the session is still valid. Review server logs for write-permission or backend errors. Preserve the current export before reloading a broken document.
 
-- `plugins/GeniusShop/shops/*.yml` - Shop definitions
-- `plugins/GeniusShop/menus/main-menu.yml` - Main menu layout
-- `plugins/GeniusShop/menus/gui-settings.yml` - GUI text/lore settings
-- `plugins/GeniusShop/menus/purchase-menu.yml` - Purchase GUI (read-only)
-- `plugins/GeniusShop/menus/sell-menu.yml` - Sell GUI (read-only)
+If a price is unexpected, check per-item/bundle mode, dynamic counters, formulas, and active campaigns. If safety rules reject a transaction, inspect `economy-safety` and the raw configured base price. See [Configuration](Configuration#pricing-and-safety).
 
----
+The editor's telemetry is opt-in and separate from plugin bStats. When enabled, it records editor actions with section/mode, success, and operation metadata such as duration or failure reason. Review the installed build's controls before enabling it.
 
-## Next Steps
-
-- **[Configuration](Configuration)** - Learn about all config files
-- **[Examples](Examples)** - See example shop configurations
-- **[Commands & Permissions](Commands-and-Permissions)** - Admin commands reference
-
----
-
-Need help? [Create an issue](https://github.com/Drallee/Genius-Shop/issues) on GitHub!
+[Installation](Installation) | [Configuration](Configuration) | [Examples](Examples) | [Developer API](Developer-API)

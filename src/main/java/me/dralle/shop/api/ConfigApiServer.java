@@ -27,11 +27,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.zip.GZIPOutputStream;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 public class ConfigApiServer {
     private final ShopPlugin plugin;
@@ -2055,25 +2059,64 @@ public class ConfigApiServer {
         sendJsonResponse(exchange, statusCode, errorResponse);
     }
 
+    private static final Pattern WEB_ASSET_REFERENCE = Pattern.compile(
+            "(\\b(?:src|href)=\")([A-Za-z0-9_./-]+\\.(?:css|js))(?:\\?[^\"<>]*)?(\")");
+
+    private byte[] readWebAsset(String filename) throws IOException {
+        try (InputStream bundled = plugin.getResource("web/" + filename)) {
+            if (bundled != null) return bundled.readAllBytes();
+        }
+        File fallback = new File(plugin.getDataFolder(), "web/" + filename);
+        return fallback.isFile() ? Files.readAllBytes(fallback.toPath()) : null;
+    }
+
+    private static String assetHash(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private String versionWebAssets(String html) throws IOException {
+        Matcher references = WEB_ASSET_REFERENCE.matcher(html);
+        StringBuilder result = new StringBuilder();
+        Map<String, String> versions = new HashMap<>();
+        while (references.find()) {
+            String path = references.group(2);
+            if (path.contains("..")) continue;
+            String version = versions.get(path);
+            if (version == null) {
+                byte[] asset = readWebAsset(path);
+                if (asset == null) continue;
+                version = assetHash(asset);
+                versions.put(path, version);
+            }
+            references.appendReplacement(result, Matcher.quoteReplacement(
+                    references.group(1) + path + "?v=" + version + references.group(3)));
+        }
+        references.appendTail(result);
+        return result.toString();
+    }
+
+    private static boolean matchesAssetTag(String requested, String tag) {
+        if (requested == null) return false;
+        return Arrays.stream(requested.split(",")).map(String::trim)
+                .anyMatch(value -> value.equals("*") || value.replaceFirst("^W/", "").equals(tag.replaceFirst("^W/", "")));
+    }
+
     private void serveWebFile(HttpExchange exchange, String filename) throws IOException {
         if (filename.contains("..") || filename.contains("//") || filename.startsWith("/") || filename.startsWith("\\")) {
             sendError(exchange, 400, "Invalid Path", "The requested path contains illegal characters");
             return;
         }
         try {
-            // Try to load from plugin resources
-            InputStream resourceStream = plugin.getResource("web/" + filename);
-
-            if (resourceStream == null) {
-                // Fall back to file in plugin data folder
-                File webFile = new File(plugin.getDataFolder(), "web/" + filename);
-                if (!webFile.exists()) {
-                    Map<String, Object> errorData = new HashMap<>();
-                    errorData.put("filename", filename);
-                    sendError(exchange, 404, "File Not Found", "The requested web file does not exist in resources or data folder", errorData);
-                    return;
-                }
-                resourceStream = new FileInputStream(webFile);
+            byte[] bytes = readWebAsset(filename);
+            if (bytes == null) {
+                Map<String, Object> errorData = new HashMap<>();
+                errorData.put("filename", filename);
+                sendError(exchange, 404, "File Not Found", "The requested web file does not exist in resources or data folder", errorData);
+                return;
             }
 
             // Determine content type and if file is binary
@@ -2095,27 +2138,24 @@ public class ConfigApiServer {
                 contentType = "application/javascript; charset=UTF-8";
             }
 
-            byte[] bytes;
-
-            if (isBinary) {
-                // Read binary content directly
-                bytes = resourceStream.readAllBytes();
-                resourceStream.close();
-
-                // Send response with long caching for static images
-                exchange.getResponseHeaders().add("Content-Type", contentType);
-                exchange.getResponseHeaders().add("Cache-Control", "public, max-age=86400"); // 24 hours
-            } else {
-                // Read text content and process
-                String content = new String(resourceStream.readAllBytes(), StandardCharsets.UTF_8);
-                resourceStream.close();
-
-                exchange.getResponseHeaders().add("Content-Type", contentType);
-                exchange.getResponseHeaders().add("Cache-Control", "no-cache, no-store, must-revalidate");
-                exchange.getResponseHeaders().add("Pragma", "no-cache");
-                exchange.getResponseHeaders().add("Expires", "0");
-
-                bytes = content.getBytes(StandardCharsets.UTF_8);
+            boolean html = filename.endsWith(".html");
+            if (html) {
+                bytes = versionWebAssets(new String(bytes, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
+            }
+            String hash = assetHash(bytes);
+            String tag = "W/\"" + hash + "\"";
+            String query = exchange.getRequestURI().getRawQuery();
+            boolean versioned = query != null && Arrays.asList(query.split("&")).contains("v=" + hash);
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.getResponseHeaders().set("Cache-Control", html ? "no-cache"
+                    : versioned ? "public, max-age=31536000, immutable"
+                    : isBinary ? "public, max-age=86400" : "no-cache");
+            exchange.getResponseHeaders().set("ETag", tag);
+            exchange.getResponseHeaders().set("Vary", "Accept-Encoding");
+            if (matchesAssetTag(exchange.getRequestHeaders().getFirst("If-None-Match"), tag)) {
+                exchange.sendResponseHeaders(304, -1);
+                exchange.close();
+                return;
             }
 
             // Check if client accepts gzip compression
@@ -2130,6 +2170,12 @@ public class ConfigApiServer {
                 exchange.getResponseHeaders().add("Content-Encoding", "gzip");
             }
 
+            if ("HEAD".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.getResponseHeaders().set("Content-Length", String.valueOf(bytes.length));
+                exchange.sendResponseHeaders(200, -1);
+                exchange.close();
+                return;
+            }
             exchange.sendResponseHeaders(200, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(bytes);

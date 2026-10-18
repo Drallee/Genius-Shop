@@ -1,114 +1,90 @@
-# Installation Guide
+# Installation
 
 ## Requirements
 
-Before installing Genius Shop, ensure your server meets these requirements:
+- A compatible Minecraft 1.21 server; the plugin targets the Spigot API and is also used on Paper-based servers.
+- Java 21.
+- Vault and a working Vault-compatible economy provider. Vault itself does not supply balances.
+- Optional SmartSpawner for its native spawner items.
+- An additional available TCP port if you want remote access to the web editor.
 
-- **Minecraft Version**: 1.21 or higher
-- **Java Version**: Java 21 or higher
-- **Economy Plugin**: Vault (or compatible economy plugin)
-- **Server Software**: Spigot, Paper, or compatible fork
+## First Startup
 
-## Step 1: Download the Plugin
+1. Stop the server and back up existing plugin data.
+2. Put the Genius-Shop release JAR, Vault, and your economy provider in `plugins/`. Keep only one Genius-Shop JAR installed.
+3. Start the server and check the console for dependency, economy, YAML, or API-startup errors.
+4. Locate the generated data directory. With the current plugin name, it is normally `plugins/Genius-Shop/`; use the directory your server actually created.
+5. Review `config.yml`, `shops/`, `menus/`, and `languages/`. Configure permissions before granting editor access.
+6. Test `/shop`, a small purchase, and a sale. Run `/shop validate-prices` before making a shop public.
 
-1. Go to the [Releases page](https://github.com/Drallee/Genius-Shop/releases)
-2. Download the latest `GeniusShop-X.X.X.jar` file
-3. Alternatively, download from [SpigotMC](https://www.spigotmc.org/) or [Modrinth](https://modrinth.com/)
+Default shop files are controlled by `create-default-shops`. The bundled examples include blocks, farming, ores, potions, miscellaneous items, premium items, spawners, and a weekend market. Customize their prices and access rules for your economy.
 
-## Step 2: Install the Plugin
+## Web Editor Setup
 
-1. Stop your Minecraft server
-2. Place `GeniusShop-X.X.X.jar` into your server's `plugins` folder
-3. Start your server
-
-The plugin will automatically generate default configuration files:
-```
-plugins/GeniusShop/
-├── config.yml
-├── messages.yml
-├── discord.yml
-├── menus/
-│   ├── gui-settings.yml
-│   ├── main-menu.yml
-│   ├── purchase-menu.yml
-│   └── sell-menu.yml
-└── shops/
-    ├── blocks.yml
-    ├── farming.yml
-    ├── misc.yml
-    └── README.md
-```
-
-## Step 3: Configure Economy
-
-Genius Shop requires an economy plugin. Install one of these:
-
-- **Vault** (recommended) - [Download](https://www.spigotmc.org/resources/vault.34315/)
-- Any Vault-compatible economy plugin (EssentialsX, etc.)
-
-## Step 4: Grant Permissions
-
-Give yourself admin permissions to access all features:
+The editor and its HTTP API share a listening port. The Minecraft game port is a separate service.
 
 ```yaml
-# In your permissions plugin (LuckPerms, PermissionsEx, etc.)
-geniusshop.admin  # Full admin access
-geniusshop.use    # Use shops
+api:
+  enabled: true
+  port: 8080
+  api-key: "REPLACE_WITH_A_UNIQUE_SECRET"
+  enable-editor-command: true
+  domain: ""
+  allow-ip-bypass: false
+  ssl:
+    enabled: false
 ```
 
-## Step 5: Test the Plugin
+Use the generated configuration rather than replacing the whole file with this excerpt. Restart after changing API enablement, port, or TLS settings.
 
-1. Join your server
-2. Run `/shop` to open the main shop menu
-3. Try buying/selling items
+Join as an administrator and run `/shop editor`. Open the generated link within five minutes. See [Web Editor](Web-Editor) for login methods, IP checks, HTTPS, and session expiration.
 
-## Step 6: Access Web Editor (Optional)
+### Choosing a Port
 
-The web editor provides a powerful interface for managing shops:
+`8080` is the default only. Another available port, such as `8081` or a port assigned by your host, can be set in `api.port`. Use a port from `1` through `65535`, preferably an unprivileged port above `1023`. It must not already be used by Minecraft, another plugin, a proxy, a web server, or another process.
 
-1. Ensure you're logged into your Minecraft server
-2. Run `/shop editor` in-game to get your authentication token
-3. Open your browser to `http://your-server-ip:8080`
-4. Login with your Minecraft username and UUID
+On a hosting service, check its network/allocations panel or contact support. Ask whether your plan allows an additional **TCP port for an HTTP/HTTPS listener**, which port to configure inside the server, and which external hostname/port to use. An arbitrary unused port inside a container may still be inaccessible from the internet. Do not assume port `8080` is allocated to you.
 
-> **Security Note**: The web editor is bound to `localhost` by default. To access remotely, configure `api.bind-address` in `config.yml`
+### If the Editor Will Not Connect
 
-## Verification
+1. Check the startup log. If the API failed to start with an address-in-use error, choose an unused or host-assigned port and restart. Opening a firewall cannot fix a port conflict.
+2. Confirm `api.enabled` is true and the URL uses the configured port and correct `http://` or `https://` scheme.
+3. On the server machine, try `http://127.0.0.1:8080` with the actual port. `localhost` in a browser on another computer refers to that computer, not the Minecraft server.
+4. If local access works but remote access does not, check the operating-system firewall, host firewall, hosting allocation, and router/container TCP forwarding.
+5. Ask your hosting provider whether the port is available and externally reachable. Request the public address and port if they differ from the internal listener.
+6. Generate a fresh `/shop editor` link after correcting the address. Set `api.domain` when automatic address detection produces an unusable address.
 
-To verify successful installation:
+Full diagnostics and optional terminal checks are in [Web Editor: Network Access](Web-Editor#network-access-and-ports).
 
-```
-/shop         # Should open the shop menu
-/shop reload  # Should reload configs
-/shop editor   # Should generate auth token (admins only)
-```
+## Upgrading
+
+1. Stop the server. Back up the entire plugin data directory, including `data.db` and any SQLite companion files.
+2. Replace the old JAR with the new release; do not install both versions together.
+3. Start the server and review startup warnings and generated/migrated configuration.
+4. Check permissions, custom command names, item keys, prices, and integrations. Test transactions on a staging server when practical.
+
+`merge-missing-defaults` controls the configuration updater. It is not a substitute for backups. Existing menu files are intentionally not populated with missing default entries. `/shop reload` reloads configuration, not plugin code. Do not use server-wide `/reload` to install an update.
 
 ## Troubleshooting
 
-### Plugin doesn't load
-- Check your Java version: `java -version` (must be 21+)
-- Check server logs for errors
-- Ensure you're running Minecraft 1.21+
+### Economy Is Unavailable
 
-### Economy not working
-- Install Vault and an economy plugin
-- Check `/plugins` shows both Vault and your economy plugin as green
+Check that Vault and an economy provider loaded successfully and that the provider registered with Vault. A displayed fallback currency symbol does not create an economy provider.
 
-### Web editor won't connect
-- Check if port 8080 is open
-- Verify `config.yml` has `api.enabled: true`
-- Check firewall settings
+### Purchase Is Blocked
 
-### Permission denied errors
-- Ensure you have `geniusshop.admin` permission
-- Check your permissions plugin configuration
+Check funds, inventory space, permissions, availability, item conditions, limits, and `economy-safety`. Ordinary item purchases require room for the entire delivery and do not intentionally drop overflow onto the ground. External command-only deliveries are controlled by the receiving plugin.
 
-## Next Steps
+### Missing `messages.on`
 
-- **[Configuration](Configuration)** - Configure your shops
-- **[Web Editor](Web-Editor)** - Learn to use the web interface
-- **[Commands & Permissions](Commands-and-Permissions)** - View all commands
+Older files used an unquoted `on` YAML key, which can parse as `true`. Use `"on": " on "` under `messages:` or its translated value. Current builds also read legacy `messages.true` when `messages.on` is absent.
 
----
+### Async Command Builder Exception
 
-Need help? [Create an issue](https://github.com/Drallee/Genius-Shop/issues) on GitHub!
+An exception in Paper's `Commands.sendAsync` concerns client command-tree generation. Current reloads run on the server thread and refresh player commands after registration. Restart after upgrading. If it persists, record the triggering action, Paper build, and plugins; [Paper issue #11101](https://github.com/PaperMC/Paper/issues/11101) tracks a related upstream race.
+
+### Debugging
+
+Temporarily enable `debug` in `config.yml`. With `debug-error-log.enabled`, errors can be recorded at the configured path, normally `debug/error.log` relative to the data directory. Remove API keys, login tokens, webhook URLs, and personal details before sharing logs.
+
+[Configuration](Configuration) | [Web Editor](Web-Editor) | [Commands and Permissions](Commands-and-Permissions) | [Examples](Examples)
