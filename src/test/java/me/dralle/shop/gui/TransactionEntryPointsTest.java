@@ -150,6 +150,8 @@ class TransactionEntryPointsTest {
         when(plugin.getEconomy().getBalance(player)).thenReturn(1000D);
         when(plugin.getEconomy().tryWithdraw(player, 20D)).thenReturn(new EconomyHook.EconomyOperationResult(true, null));
         when(plugin.getEconomy().tryDeposit(player, 20D)).thenReturn(new EconomyHook.EconomyOperationResult(true, null));
+        when(plugin.refundFailedPurchase(any(UUID.class), eq(player), eq(20D), anyString()))
+                .thenAnswer(call -> plugin.getEconomy().tryDeposit(player, 20D));
         try (var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS); var singleton = mockStatic(ShopPlugin.class)) {
             bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             bukkit.when(() -> Bukkit.dispatchCommand(any(), eq("broken"))).thenThrow(new IllegalStateException("command failure"));

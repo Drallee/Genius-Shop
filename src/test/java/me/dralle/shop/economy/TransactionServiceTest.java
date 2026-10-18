@@ -43,6 +43,13 @@ class TransactionServiceTest {
         when(economy.isReady()).thenReturn(true);
         when(economy.tryWithdraw(player, 100D)).thenReturn(new EconomyHook.EconomyOperationResult(true, null));
         when(economy.tryDeposit(player, 100D)).thenReturn(new EconomyHook.EconomyOperationResult(true, null));
+        when(plugin.refundFailedPurchase(any(UUID.class), eq(player), anyDouble(), anyString())).thenAnswer(call -> {
+            try {
+                return economy.tryDeposit(player, call.getArgument(2));
+            } catch (RuntimeException failure) {
+                return new EconomyHook.EconomyOperationResult(false, failure.toString(), true);
+            }
+        });
         when(stack.clone()).thenReturn(stack);
         when(stack.getAmount()).thenReturn(4);
         when(storage.approveSale(anyMap(), eq(100D))).thenReturn(true);
@@ -54,6 +61,29 @@ class TransactionServiceTest {
 
     private TransactionResult buy() { return TransactionService.purchase(plugin, player, context, 100, delivery, restore, stock); }
     private TransactionResult sell() { return TransactionService.sale(plugin, player, context, 100, storage, new ItemStack[]{stack}, Map.of(0, 2), stock); }
+
+    @Test
+    void failedPurchaseUsesItsSettlementIdForPersistentRefundRecovery() {
+        doThrow(new IllegalStateException("delivery")).when(delivery).run();
+        when(economy.tryDeposit(player, 100D)).thenReturn(new EconomyHook.EconomyOperationResult(false, "denied"));
+        var result = buy();
+        assertEquals(COMPENSATION_FAILED, result.status());
+        verify(plugin).refundFailedPurchase(eq(result.id()), eq(player), eq(100D), contains("delivery"));
+        verify(economy).tryDeposit(player, 100D);
+        verifyNoInteractions(stock);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void ambiguousSalePaymentDoesNotRestorePotentiallyPaidItems(boolean success) {
+        when(economy.tryDeposit(player, 100D)).thenReturn(new EconomyHook.EconomyOperationResult(success, "partial", true));
+        var result = sell();
+        assertEquals(COMPENSATION_FAILED, result.status());
+        assertEquals(PAYMENT_FAILED, result.failureReason());
+        verify(storage, never()).restoreItems(any());
+        verifyNoInteractions(stock);
+        verify(plugin, never()).recordTransactions(any(UUID.class), any(), any(), anyList());
+    }
 
     @Test
     void completedPurchaseRecordsOnceWithSettlementIdBeforeStockFailure() {
@@ -167,6 +197,7 @@ class TransactionServiceTest {
         assertEquals(COMPENSATION_FAILED, result.status());
         assertFalse(result.completed());
         verify(economy, never()).tryDeposit(any(), anyDouble());
+        verify(plugin, never()).refundFailedPurchase(any(), any(), anyDouble(), any());
         verifyNoInteractions(stock);
         verify(plugin.getLogger()).log(eq(Level.SEVERE), contains(result.id().toString()));
     }

@@ -45,7 +45,7 @@ amount, and context. Do not retry a payment to repair an uncertain provider outc
 
 ## Combined Branch Testing
 
-The `integration/shop-testing` branch combines #23, #24, #25, #26, #27, #29, #34,
+The `integration/shop-testing` branch combines #23, #24, #25, #26, #27, #28, #29, #34,
 and #35, including the tested ledger display, debug logging, and packaging fixes.
 Built-in purchase, sale, bulk-sale, command,
 and wand entry points pass ledger lines into the shared settlement context. The service
@@ -68,3 +68,12 @@ The shared transaction service and price simulation both use the configured time
 For #29, run `/shop validate-prices` with representative quantities, stock counts,
 campaign times, and player permissions. Confirm reports distinguish intentional
 profitable routes and that balances, inventory, stock, and ledger totals remain unchanged.
+
+For #28, use `/shop refunds list`, `inspect <id>`, and `retry <id>` with an injected
+delivery failure followed by a refused refund. The shared transaction ID must match
+the recovery case and the player's reference. Verify restart persistence, recorded
+recovery actor/time, and that repeated/concurrent retries cannot pay twice. Uncertain
+refunds must require provider review before repayment. Failed inventory restoration
+must not enqueue an automatic money refund. Ambiguous sale payments must not also
+return potentially paid items. Failed/refunded purchases must remain absent from
+completed ledger entries and Sales analytics.

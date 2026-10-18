@@ -854,6 +854,9 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                   TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_BUY, itemKey, settledUnitPrice);
               });
         if (!result.completed()) {
+            if (result.status() == me.dralle.shop.economy.TransactionResult.Status.COMPENSATION_FAILED) {
+                player.sendMessage("Refund / transaction reference: " + result.id());
+            }
             String message = result.failureReason() == me.dralle.shop.economy.TransactionResult.FailureReason.PAYMENT_FAILED
                     ? "economy-error-purchase" : "purchase-rollback-failed";
             player.sendMessage(plugin.getMessages().getMessage(message));

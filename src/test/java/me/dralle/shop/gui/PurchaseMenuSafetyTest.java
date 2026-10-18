@@ -50,6 +50,7 @@ class PurchaseMenuSafetyTest {
         verify(plugin.getDataManager(), never()).incrementGlobalCount(anyString(), anyInt());
         verify(player, never()).getInventory();
         verify(plugin, never()).recordTransactions(any(java.util.UUID.class), any(), any(), anyList());
+        verify(plugin, never()).refundFailedPurchase(any(), any(), anyDouble(), any());
     }
 
     @Test
@@ -91,6 +92,7 @@ class PurchaseMenuSafetyTest {
         verify(plugin.getDataManager(), never()).incrementPlayerCount(any(), anyString(), anyInt());
         verify(player.getInventory(), never()).addItem(any(ItemStack[].class));
         verify(plugin, never()).recordTransactions(any(java.util.UUID.class), any(), any(), anyList());
+        verify(plugin, never()).refundFailedPurchase(any(), any(), anyDouble(), any());
     }
 
     private void finalizePurchase(ShopPlugin plugin, Player player, String itemKey, int amount, double price) throws Exception {

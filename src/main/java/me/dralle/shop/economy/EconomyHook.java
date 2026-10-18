@@ -1,8 +1,8 @@
 package me.dralle.shop.economy;
 
 import me.dralle.shop.ShopPlugin;
-import net.milkbowl.vault.economy.EconomyResponse;
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -60,7 +60,11 @@ public class EconomyHook {
         tryDeposit(player, amount);
     }
 
-    public record EconomyOperationResult(boolean success, String errorMessage) {}
+    public record EconomyOperationResult(boolean success, String errorMessage, boolean ambiguous) {
+        public EconomyOperationResult(boolean success, String errorMessage) {
+            this(success, errorMessage, false);
+        }
+    }
 
     public EconomyOperationResult tryWithdraw(Player player, double amount) {
         if (!isReady()) return new EconomyOperationResult(false, "Economy provider is not ready.");
@@ -92,17 +96,17 @@ public class EconomyHook {
         try {
             EconomyResponse response = economy.depositPlayer(player, amount);
             if (response == null) {
-                return new EconomyOperationResult(false, "Economy response was null.");
+                return new EconomyOperationResult(false, "Economy response was null.", true);
             }
             if (!response.transactionSuccess()) {
                 String error = response.errorMessage != null && !response.errorMessage.isEmpty()
                         ? response.errorMessage
                         : "Unknown deposit failure.";
-                return new EconomyOperationResult(false, error);
+                return new EconomyOperationResult(false, error, response.amount != 0D);
             }
-            return new EconomyOperationResult(true, null);
+            return new EconomyOperationResult(true, null, !Double.isFinite(response.amount) || Math.abs(response.amount - amount) > 1.0E-9D);
         } catch (Exception ex) {
-            return new EconomyOperationResult(false, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
+            return new EconomyOperationResult(false, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName(), true);
         }
     }
 

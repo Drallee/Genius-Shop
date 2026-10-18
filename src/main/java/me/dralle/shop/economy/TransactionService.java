@@ -172,6 +172,8 @@ public final class TransactionService {
             if (economy == null || !economy.isReady()) return result(plugin, audit, id, REJECTED, PAYMENT_FAILED, "Economy provider is not ready");
             if (buy) {
                 var payment = payment(economy, player, money, true);
+                if (payment.ambiguous()) return result(plugin, audit, id, COMPENSATION_FAILED, PAYMENT_FAILED,
+                        "Withdrawal outcome requires provider review: " + payment.errorMessage());
                 if (!payment.success()) return result(plugin, audit, id, REJECTED, PAYMENT_FAILED, payment.errorMessage());
             }
             try {
@@ -184,6 +186,8 @@ public final class TransactionService {
             }
             if (!buy) {
                 var payment = payment(economy, player, money, false);
+                if (payment.ambiguous()) return result(plugin, audit, id, COMPENSATION_FAILED, PAYMENT_FAILED,
+                        "Sale payment outcome requires provider review; items were not restored: " + payment.errorMessage());
                 if (!payment.success()) return compensate(plugin, player, audit, id, money, false, restore, PAYMENT_FAILED, payment.errorMessage());
             }
             if (context.type() != null) {
@@ -208,8 +212,11 @@ public final class TransactionService {
             return result(plugin, context, id, COMPENSATION_FAILED, reason, detail + "; restore failed: " + failure);
         }
         if (refund) {
-            var payment = payment(plugin.getEconomy(), player, money, false);
-            if (!payment.success()) return result(plugin, context, id, COMPENSATION_FAILED, reason, detail + "; refund failed: " + payment.errorMessage());
+            var payment = plugin.refundFailedPurchase(id, player, money, detail);
+            if (payment == null || !payment.success() || payment.ambiguous()) {
+                return result(plugin, context, id, COMPENSATION_FAILED, reason,
+                        detail + "; refund requires recovery: " + (payment == null ? "No refund response" : payment.errorMessage()));
+            }
         }
         return result(plugin, context, id, COMPENSATED, reason, detail);
     }
@@ -224,9 +231,9 @@ public final class TransactionService {
     private static EconomyHook.EconomyOperationResult payment(EconomyHook economy, Player player, double money, boolean withdraw) {
         try {
             var response = withdraw ? economy.tryWithdraw(player, money) : economy.tryDeposit(player, money);
-            return response == null ? new EconomyHook.EconomyOperationResult(false, "No economy response") : response;
+            return response == null ? new EconomyHook.EconomyOperationResult(false, "No economy response", true) : response;
         } catch (RuntimeException failure) {
-            return new EconomyHook.EconomyOperationResult(false, failure.toString());
+            return new EconomyHook.EconomyOperationResult(false, failure.toString(), true);
         }
     }
 

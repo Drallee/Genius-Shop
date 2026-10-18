@@ -9,9 +9,12 @@ softdepend: [SmartSpawner, SmartSpawners]
 commands:
   shop:
     description: Open the shop menu or reload the plugin
-    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem|giveitem|ledger]
+    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem|giveitem|ledger|refunds]
 
 permissions:
+  geniusshop.refunds:
+    description: Allows inspecting, retrying, and reviewing failed refunds
+    default: op
   geniusshop.ledger:
     description: Allows searching completed transactions with /shop ledger
     default: op
@@ -74,6 +77,7 @@ permissions:
     children:
       geniusshop.use: true
       geniusshop.ledger: true
+      geniusshop.refunds: true
       geniusshop.reload: true
       geniusshop.sell: true
       geniusshop.resetstock: true
