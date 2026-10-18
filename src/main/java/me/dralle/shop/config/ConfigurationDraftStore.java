@@ -2,6 +2,7 @@ package me.dralle.shop.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import me.dralle.shop.api.RevisionedFileStore;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -142,6 +143,15 @@ public final class ConfigurationDraftStore {
         else draft.changes.put(name, content);
         persist(user, draft);
         return status(draft);
+    }
+
+    public synchronized Status saveFile(String user, String name, String content, String expected) throws IOException {
+        safePath(name);
+        if (expected == null || expected.isBlank()) throw new RevisionedFileStore.RevisionRequired();
+        Draft draft = load(user);
+        var latest = RevisionedFileStore.snapshot(proposed(draft).get(name));
+        if (!expected.equals(latest.revision())) throw new RevisionedFileStore.Conflict(name, latest);
+        return save(user, name, content, revision(draft));
     }
 
     private static void checkRevision(Draft draft, String expected) {

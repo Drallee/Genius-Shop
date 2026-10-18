@@ -158,6 +158,7 @@ async function loadAllFiles(isSilent = false) {
         
         // Load server info
         if (window.EditorDrafts) window.EditorDrafts.setState(data.draft);
+        EditorRevisions.seed(data);
         if (data.serverInfo) {
             serverInfo = data.serverInfo;
             console.log('[LOAD] Server info:', serverInfo);
@@ -319,6 +320,7 @@ async function saveCommandsYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save commands.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -405,6 +407,7 @@ async function saveCurrentShop(isSilent = false) {
         }
     } catch (error) {
         console.error('Failed to save shop:', error);
+        if (error.isSaveConflict) throw error;
         if (window.EditorTelemetry) window.EditorTelemetry.track('shop_save', { silent: !!isSilent, shopFile: currentShopFile, reason: error.message }, false);
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
@@ -441,6 +444,7 @@ async function saveMainMenuYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save main-menu.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -474,6 +478,7 @@ async function savePurchaseMenuYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save purchase-menu.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -507,6 +512,7 @@ async function saveSellMenuYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save sell-menu.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -540,6 +546,7 @@ async function saveGuiSettingsYaml(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save gui-settings.yml:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -629,6 +636,7 @@ async function saveCampaignsYaml(isSilent = false) {
         }
     } catch (error) {
         console.error('Failed to save campaigns:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -664,6 +672,7 @@ async function saveEconomySafetySettings(isSilent = false) {
         return true;
     } catch (error) {
         console.error('Failed to save economy-safety settings:', error);
+        if (error.isSaveConflict) throw error;
         if (!isSilent) {
             showToast(t('web-editor.modals.save-failed'), 'error');
             showAlert(t('web-editor.modals.save-error', 'Failed to save file') + ': ' + error.message);
@@ -709,6 +718,7 @@ async function createNewShop() {
         if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) await saveCurrentShop(true);
 
         const initialYaml = `gui-name: '&8New Shop'\nrows: 3\nitems: []`;
+        if (currentShopFile && Object.hasOwn(allShops, currentShopFile)) allShops[currentShopFile] = EditorYaml.writeShop();
         allShops[filename] = initialYaml;
         
         // Add to dropdown
@@ -731,6 +741,7 @@ async function createNewShop() {
 }
 
 async function removeShopFile() {
+    if (EditorRevisions.hasPending()) { EditorRevisions.open(); return; }
     const confirmed = await showConfirm(t('web-editor.modals.remove-file-confirm', {file: currentShopFile}));
     if (confirmed) {
         try {
@@ -749,6 +760,7 @@ async function removeShopFile() {
             await loadAllFiles();
         } catch (error) {
             console.error('Failed to delete shop:', error);
+            if (error.isSaveConflict) return;
             showAlert(t('web-editor.modals.delete-error', 'Failed to delete') + ': ' + error.message, 'error');
         }
     }

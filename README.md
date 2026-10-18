@@ -123,6 +123,10 @@ overrides. New stock-reset sections contain only the relevant schedule settings;
 existing configured values, comments, unknown keys, and untouched disabled-feature
 options are retained. Repeated unchanged saves do not expand the configuration.
 
+Configuration reads include content-based file revisions. Every editor save, delete, economy-safety update, and history restore sends the originally loaded revision. A changed file, including one edited outside the browser, produces a conflict instead of overwriting it. The conflict view retains local edits, pauses autosave, and compares the loaded version, latest server version, and local changes. Keep Editing leaves those edits untouched; Download Local exports them; Reload Latest replaces only the affected file after confirmation. Reconcile opens editable YAML (JSON for economy settings), and Save Reconciled checks the latest revision again. A second conflict retains the reconciled text. Other sections' local edits are not discarded by targeted reload or reconciliation.
+
+Older browser pages and API clients without a revision receive HTTP 428 and must reload. API clients should retain `revisions` from `GET /api/files`, or `revision` from `GET /api/file/{path}` / `GET /api/economy-safety`, and send it as `X-File-Revision` on mutations. New files use the explicit revision `missing`; HTTP 409 includes the latest revision and content. Economy conflicts expose only economy settings, not API credentials. Check-and-write operations share one API lock and use atomic file replacement where the filesystem supports it. External edits completed before a save are detected by a SHA-256 content hash; external programs do not participate in the API lock.
+
 ### Integrations and Developer API
 
 - Vault economy, optional SmartSpawner/Floodgate support, and Discord transaction webhooks.

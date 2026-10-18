@@ -35,6 +35,7 @@ async function saveCurrentTabChanges(isSilent = false) {
 }
 
 async function saveAllDrafts() {
+    EditorRevisions.requireResolved();
     const start = Date.now();
     try {
         if (getEditorState('currentTab') === 'commands') {

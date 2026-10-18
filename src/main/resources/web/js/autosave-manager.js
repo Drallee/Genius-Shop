@@ -3,6 +3,7 @@
 function scheduleEditorAutoSave() {
     if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
     if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
+    if (window.EditorRevisions && window.EditorRevisions.hasPending()) return;
     if (getEditorState('isLoadingFiles')) return;
     if (localStorage.getItem('autoSaveEnabled') === 'false') return;
 
@@ -13,6 +14,7 @@ function scheduleEditorAutoSave() {
         setEditorState('autoSaveTimeout', null);
         if (window.EditorTutorial && window.EditorTutorial.isActive()) return;
         if (window.EditorDrafts && window.EditorDrafts.isReviewing()) return;
+        if (window.EditorRevisions && window.EditorRevisions.hasPending()) return;
         try {
             await saveCurrentTabChanges(true);
         } catch (error) {

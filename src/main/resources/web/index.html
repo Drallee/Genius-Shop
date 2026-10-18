@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="sales-analytics.css?v=1">
     <link rel="stylesheet" href="tutorial.css?v=1">
     <link rel="stylesheet" href="drafts.css?v=1">
+    <link rel="stylesheet" href="save-conflicts.css?v=1">
     <script>
         try {
             document.documentElement.dataset.navigationCollapsed = localStorage.getItem('editor-navigation-collapsed') === 'true';
@@ -31,7 +32,8 @@
     <script defer src="js/yaml-editor.js?v=history-yaml-1"></script>
     <script defer src="js/telemetry.js"></script>
     <script defer src="js/database.js?v=menu-placeholders-1"></script>
-    <script defer src="js/modals.js?v=history-yaml-1"></script>
+    <script defer src="js/save-conflicts.js?v=1"></script>
+    <script defer src="js/modals.js?v=draft-conflicts-1"></script>
     <script defer src="js/drafts.js?v=1"></script>
     <script defer src="js/api.js?v=drafts-1"></script>
     <script defer src="js/commands.js?v=custom-commands-model-name-4"></script>
@@ -570,6 +572,9 @@
                 <button onclick="manualSave()" class="footer-action-btn btn-primary">
                     <span class="btn-icon"></span>
                     <span>SAVE DRAFT</span>
+                </button>
+                <button id="save-conflict-notice" onclick="EditorRevisions.open()" class="footer-action-btn btn-secondary" hidden>
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Resolve conflicts
                 </button>
                 <button onclick="publishChanges()" class="footer-action-btn btn-publish">
                     <span class="btn-icon"></span>

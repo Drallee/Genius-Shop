@@ -243,7 +243,7 @@ public class ConfigApiServer {
                     // Handle API requests
                     exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
                     exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token, X-Draft-Revision, Cache-Control, Pragma");
+                    exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-API-Key, X-Session-Token, X-Draft-Revision, X-File-Revision, Cache-Control, Pragma");
 
                     if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
                         exchange.sendResponseHeaders(204, -1);
@@ -459,6 +459,23 @@ public class ConfigApiServer {
             } else {
                 sendError(exchange, 404, "Endpoint Not Found", "The requested API endpoint does not exist");
             }
+        } catch (RevisionedFileStore.Conflict e) {
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("fileName", e.fileName());
+            details.put("revision", e.latest().revision());
+            details.put("content", e.latest().content());
+            if (e.fileName().equals("config.yml")) {
+                if (path.equals("/api/economy-safety")) {
+                    YamlConfiguration config = new YamlConfiguration();
+                    try {
+                        config.loadFromString(e.latest().content() == null ? "" : e.latest().content());
+                        details.put("content", GSON.toJson(getEconomySafetySettingsMap(config)));
+                    } catch (Exception ignored) { details.put("content", null); }
+                } else details.put("content", null);
+            }
+            sendError(exchange, 409, "Save Conflict", e.getMessage(), details);
+        } catch (RevisionedFileStore.RevisionRequired e) {
+            sendError(exchange, 428, "Revision Required", e.getMessage());
         } catch (ConcurrentModificationException e) {
             sendError(exchange, 409, "Configuration Conflict", e.getMessage());
         } catch (IllegalArgumentException e) {
@@ -861,10 +878,17 @@ public class ConfigApiServer {
     }
 
     private void handleListFiles(HttpExchange exchange) throws IOException {
+        synchronized (drafts) { handleListFilesSnapshot(exchange); }
+    }
+
+    private void handleListFilesSnapshot(HttpExchange exchange) throws IOException {
         Map<String, Object> response = new HashMap<>();
         ensureEditorFilesExist();
         ConfigurationDraftStore.Workspace snapshot = drafts.workspace(getSessionUsername(exchange));
         Map<String, String> workspace = snapshot.files();
+        Map<String, String> revisions = new TreeMap<>();
+        workspace.forEach((name, content) -> revisions.put(name, RevisionedFileStore.snapshot(content).revision()));
+        response.put("revisions", revisions);
 
         // Sanitized price format config for web preview (no sensitive config values exposed).
         Map<String, Object> priceFormat = new HashMap<>();
@@ -1019,7 +1043,11 @@ public class ConfigApiServer {
     }
 
     private void handleGetEconomySafety(HttpExchange exchange) throws IOException {
-        sendJsonResponse(exchange, 200, getEconomySafetySettingsMap(draftConfig(drafts.files(getSessionUsername(exchange)))));
+        var workspace = drafts.workspace(getSessionUsername(exchange));
+        var response = getEconomySafetySettingsMap(draftConfig(workspace.files()));
+        response.put("revision", RevisionedFileStore.snapshot(workspace.files().get("config.yml")).revision());
+        response.put("draft", workspace.draft());
+        sendJsonResponse(exchange, 200, response);
     }
 
     private void handleGetStockAnalytics(HttpExchange exchange) throws IOException {
@@ -1200,10 +1228,10 @@ public class ConfigApiServer {
         setLongIfPresent(cfg, src, "adminAlertRateLimitMs", "economy-safety.admin-alerts.rate-limit-ms");
 
         String updated = cfg.saveToString();
-        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), "config.yml",
-                updated.equals(before) ? workspace.getOrDefault("config.yml", "") : updated,
-                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
-        sendJsonResponse(exchange, 200, Map.of("success", true, "economySafety", getEconomySafetySettingsMap(cfg), "draft", status));
+        String savedContent = updated.equals(before) ? workspace.getOrDefault("config.yml", "") : updated;
+        ConfigurationDraftStore.Status status = saveDraftFile(exchange, "config.yml", savedContent);
+        sendJsonResponse(exchange, 200, Map.of("success", true, "economySafety", getEconomySafetySettingsMap(cfg),
+                "draft", status, "revision", RevisionedFileStore.snapshot(savedContent).revision()));
     }
 
     private Map<String, Object> getEconomySafetySettingsMap(FileConfiguration cfg) {
@@ -1472,6 +1500,7 @@ public class ConfigApiServer {
         }
         Map<String, String> response = new HashMap<>();
         response.put("content", content);
+        response.put("revision", RevisionedFileStore.snapshot(content).revision());
         sendJsonResponse(exchange, 200, response);
     }
 
@@ -1528,9 +1557,9 @@ public class ConfigApiServer {
             }
         }
 
-        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, fileContent,
-                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
-        sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status));
+        ConfigurationDraftStore.Status status = saveDraftFile(exchange, fileName, fileContent);
+        sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status,
+                "revision", RevisionedFileStore.snapshot(fileContent).revision()));
     }
 
     private void handleDeleteFile(HttpExchange exchange, String fileName) throws IOException {
@@ -1538,9 +1567,8 @@ public class ConfigApiServer {
             sendError(exchange, 403, "Deletion Forbidden", "Only shop files can be deleted");
             return;
         }
-        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, null,
-                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
-        sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status));
+        ConfigurationDraftStore.Status status = saveDraftFile(exchange, fileName, null);
+        sendJsonResponse(exchange, 200, Map.of("success", true, "draft", status, "revision", RevisionedFileStore.MISSING));
     }
 
     private void handleGetActivityLog(HttpExchange exchange) throws IOException {
@@ -1666,9 +1694,13 @@ public class ConfigApiServer {
             sendError(exchange, 400, "Rollback Failed", "Rollback entry has no restorable previous content");
             return;
         }
-        ConfigurationDraftStore.Status status = drafts.save(getSessionUsername(exchange), fileName, restoredContent,
-                exchange.getRequestHeaders().getFirst("X-Draft-Revision"));
-        sendJsonResponse(exchange, 200, Map.of("success", true, "changed", true, "draft", status));
+        ConfigurationDraftStore.Status status = saveDraftFile(exchange, fileName, restoredContent);
+        sendJsonResponse(exchange, 200, Map.of("success", true, "changed", true, "draft", status,
+                "revision", RevisionedFileStore.snapshot(restoredContent).revision()));
+    }
+
+    private ConfigurationDraftStore.Status saveDraftFile(HttpExchange exchange, String name, String content) throws IOException {
+        return drafts.saveFile(getSessionUsername(exchange), name, content, exchange.getRequestHeaders().getFirst("X-File-Revision"));
     }
 
     private void handleClearActivityLog(HttpExchange exchange) throws IOException {

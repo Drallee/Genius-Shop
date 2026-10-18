@@ -3504,6 +3504,7 @@ function closeActivityDetailModal() {
 }
 
 async function rollbackChange() {
+    if (EditorRevisions.hasPending()) { EditorRevisions.open(); return; }
     if (!currentViewedEntry) return;
     const entry = currentViewedEntry;
 
@@ -3511,6 +3512,8 @@ async function rollbackChange() {
     if (!confirmed) return;
 
     try {
+        const file = entry.details?.fileName || entry.afterData?.fileName || entry.beforeData?.fileName;
+        const restored = entry.action === 'created' ? null : entry.beforeData?.content;
         const response = await EditorDrafts.request(`api/activity-log/rollback`, {
             method: 'POST',
             headers: {
@@ -3520,7 +3523,7 @@ async function rollbackChange() {
             body: JSON.stringify({
                 id: Number(entry.id)
             })
-        });
+        }, file, restored);
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
             throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
@@ -3534,6 +3537,7 @@ async function rollbackChange() {
         showToast('History version restored to draft', 'success');
     } catch (error) {
         console.error('Rollback failed:', error);
+        if (error.isSaveConflict) return;
         showAlert(t('web-editor.modals.rollback-failed', 'Rollback failed') + ': ' + error.message, 'error');
     }
 }

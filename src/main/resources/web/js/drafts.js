@@ -17,11 +17,15 @@
         if (status) status.textContent = value.changedFiles ? `Draft: ${value.changedFiles} changed file${value.changedFiles === 1 ? '' : 's'}` : 'Draft matches live';
     }
 
-    function request(url, options = {}) {
+    function request(url, options = {}, file, localOverride) {
         const send = async () => {
             const headers = { 'X-Session-Token': sessionToken, ...options.headers };
             if (state) headers['X-Draft-Revision'] = state.revision;
-            const response = await fetch(url, { ...options, headers });
+            const mutation = options.method && options.method !== 'GET' &&
+                (url.includes('api/file/') || url.includes('api/economy-safety') || url.includes('api/activity-log/rollback'));
+            const response = mutation && global.EditorRevisions
+                ? await global.EditorRevisions.request(url, { ...options, headers }, file, localOverride)
+                : await fetch(url, { ...options, headers });
             const data = await response.clone().json().catch(() => ({}));
             if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
             if (data.draft) setState(data.draft);
