@@ -1,7 +1,8 @@
 package me.dralle.shop.gui;
 
 import me.dralle.shop.ShopPlugin;
-import me.dralle.shop.economy.EconomyHook;
+import me.dralle.shop.economy.TransactionService;
+import me.dralle.shop.commands.SaleStorage;
 import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
@@ -99,17 +100,11 @@ public class SellMenu implements Listener {
     }
 
     private static double calculateSellPrice(ShopData shop, ShopItem item) {
-        if (item.getSellPrice() == null) return 0;
-        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(ShopPlugin.getInstance(), item);
-        return CampaignUtil.applySellCampaign(shop, item, currentPrice);
+        return TransactionService.price(ShopPlugin.getInstance(), shop, item, false, true, 1D).unit();
     }
 
     private static double calculateTransactionTotal(double unitPrice, int quantity, boolean pricePerItem, int priceUnitAmount) {
-        if (pricePerItem) {
-            return unitPrice * quantity;
-        }
-        int safeUnitAmount = Math.max(1, priceUnitAmount);
-        return unitPrice * (quantity / (double) safeUnitAmount);
+        return TransactionService.total(unitPrice, quantity, pricePerItem, priceUnitAmount);
     }
 
     private static String applyStockPlaceholders(ShopPlugin plugin, Player player, String line, String itemKey, int limit, int globalLimit) {
@@ -701,51 +696,21 @@ Inventory inv = new SellHolder().createInventory(54, title);
         int owned = Math.max(0, ownedBefore);
         ShopPlugin plugin = ShopPlugin.getInstance();
 
-        // Safety permission check
-        if (permission != null && !permission.isEmpty()) {
-            if (!player.hasPermission(permission)) {
-                player.sendMessage(plugin.getMessages().getMessage("no-permission"));
-                player.closeInventory();
-                return;
-            }
+        ShopData accessShop = shopKey == null ? null : plugin.getShopManager().getShop(shopKey);
+        var access = TransactionService.eligibility(plugin, player, accessShop, findShopItem(shopKey, itemKey), permission);
+        if (!access.allowed()) {
+            player.sendMessage(access.message());
+            player.closeInventory();
+            return;
         }
 
-        // Time restriction check
-        if (shopKey != null) {
-            ShopData shop = plugin.getShopManager().getShop(shopKey);
-            if (shop != null) {
-                // Shop availability
-                if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
-                    player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
-                            .replace("%shop%", ShopItemUtil.color(shop.getGuiName()))
-                            .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin)));
-                    player.closeInventory();
-                    return;
-                }
-                // Item availability
-                if (itemKey != null) {
-                    ShopItem si = shop.getItemByUniqueKey(itemKey);
-                    if (si != null && !ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) {
-                        player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
-                                .replace("%shop%", si.getName() != null ? ShopItemUtil.color(si.getName()) : si.getMaterial().name())
-                                .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(si.getAvailableTimes(), plugin)));
-                        player.closeInventory();
-                        return;
-                    }
-                }
-            }
+
+        var playerLimit = TransactionService.playerLimit(plugin, player, itemKey, amount, limit, false);
+        if (!playerLimit.allowed()) {
+            player.sendMessage(playerLimit.message());
+            return;
         }
 
-        // Check limit
-        if (limit > 0 && itemKey != null) {
-            int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
-            if (current + amount > limit) {
-                player.sendMessage(plugin.getMessages().getMessage("sale-limit-reached")
-                        .replace("%current%", String.valueOf(current))
-                        .replace("%limit%", String.valueOf(limit)));
-                return;
-            }
-        }
 
         plugin.debug("Sell attempt: " + player.getName() + " selling " + amount + "x " + material + " (owns: " + owned + ")");
 
@@ -766,13 +731,6 @@ Inventory inv = new SellHolder().createInventory(54, title);
         }
 
         ShopItem matchedItem = findShopItem(shopKey, itemKey);
-        if (matchedItem != null) {
-            ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, matchedItem);
-            if (!condition.allowed()) {
-                player.sendMessage(condition.message());
-                return;
-            }
-        }
         ShopData shopData = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
         boolean sellAddsToStock = resolveSellAddsToStock(shopData, matchedItem);
         boolean allowSellStockOverflow = resolveAllowSellStockOverflow(shopData, matchedItem);
@@ -791,15 +749,11 @@ Inventory inv = new SellHolder().createInventory(54, title);
         double effectiveMinPrice = minPrice;
         double effectiveMaxPrice = maxPrice;
         if (matchedItem != null && matchedItem.getSellPrice() != null) {
-            ShopData matchedShop = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
-            effectiveDynamicPricing = matchedItem.isDynamicPricing()
-                    || (matchedItem.getSellPriceFormula() != null && !matchedItem.getSellPriceFormula().trim().isEmpty());
-            effectiveMinPrice = matchedItem.getMinPrice();
-            effectiveMaxPrice = matchedItem.getMaxPrice();
-            double campaignMultiplier = CampaignUtil.getActiveSellMultiplier(matchedShop, matchedItem);
-            if (effectiveMinPrice > 0D) effectiveMinPrice *= campaignMultiplier;
-            if (effectiveMaxPrice > 0D) effectiveMaxPrice *= campaignMultiplier;
-            effectiveUnitPrice = calculateSellPrice(matchedShop, matchedItem);
+            var quote = TransactionService.price(plugin, shopData, matchedItem, false, true, 1D);
+            effectiveDynamicPricing = quote.dynamic();
+            effectiveMinPrice = quote.minimum();
+            effectiveMaxPrice = quote.maximum();
+            effectiveUnitPrice = quote.unit();
         }
         double total = calculateTransactionTotal(effectiveUnitPrice, amount, sellPricePerItem, priceUnitAmount);
         double baseUnitPrice = matchedItem != null && matchedItem.getSellPrice() != null
@@ -826,42 +780,28 @@ Inventory inv = new SellHolder().createInventory(54, title);
             return;
         }
 
-        EconomyHook eco = plugin.getEconomy();
-
-        if (eco.isReady()) {
-            EconomyHook.EconomyOperationResult depositResult = eco.tryDeposit(player, total);
-            if (!depositResult.success()) {
-                TransactionSafetyGuard.auditEconomyFailure(
-                        plugin,
-                        player,
-                        "deposit",
-                        shopKey,
-                        itemKey,
-                        material,
-                        total,
-                        depositResult.errorMessage()
-                );
-                player.sendMessage(plugin.getMessages().getMessage("economy-error-sell"));
-                return;
-            }
+        ItemStack[] snapshot = TransactionService.snapshot(player.getInventory().getContents());
+        Map<Integer, Integer> quantities = matchingQuantities(snapshot, material, spawnerType, spawnerItem,
+                potionType, enchantments, amount, customName, customLore, requireName, requireLore);
+        if (quantities.values().stream().mapToInt(Integer::intValue).sum() != amount) {
+            player.sendMessage(plugin.getMessages().getMessage("no-items-to-sell").replace("%item%", material.name()));
+            return;
         }
-
-        removeItems(player, material, spawnerType, spawnerItem, potionType, enchantments, amount, customName, customLore, requireName, requireLore);
-
-        plugin.recordTransaction(player, me.dralle.shop.data.TransactionEntry.Type.SALE,
-                shopKey, itemKey != null ? itemKey : material.name(), amount, total);
-
-        // Update counts
-        if (itemKey != null) {
-            plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), itemKey, amount);
-            boolean adjustForStock = globalLimit > 0 && sellAddsToStock;
-            boolean adjustForDynamicPricingOnly = effectiveDynamicPricing && globalLimit <= 0;
-            if (adjustForStock || adjustForDynamicPricingOnly) {
-                plugin.getDataManager().incrementGlobalCount(itemKey, -amount);
-            }
+        double settledUnitPrice = effectiveUnitPrice;
+        boolean settledDynamic = effectiveDynamicPricing;
+        var result = TransactionService.sale(plugin, player, new TransactionService.Context("sell", shopKey, itemKey,
+                        me.dralle.shop.data.TransactionEntry.Type.SALE,
+                        List.of(new me.dralle.shop.data.TransactionEntry.Line(shopKey,
+                                itemKey != null ? itemKey : material.name(), amount, total))),
+                total, SaleStorage.fullInventory(player.getInventory()), snapshot, quantities, () -> {
+                    TransactionService.updateCounts(plugin, player, itemKey, amount, false, settledDynamic, globalLimit, sellAddsToStock);
+                    TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_SELL, itemKey, settledUnitPrice);
+                });
+        if (!result.completed()) {
+            player.sendMessage(plugin.getMessages().getMessage("economy-error-sell"));
+            return;
         }
         plugin.getGenericShopGui().requestRefresh();
-        TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_SELL, itemKey, effectiveUnitPrice);
 
         plugin.itemsSold++;
         plugin.debug("Sell successful: " + player.getName() + " sold " + amount + "x " + material + " for $" + total);
@@ -927,17 +867,11 @@ Inventory inv = new SellHolder().createInventory(54, title);
     }
 
     private boolean resolveSellAddsToStock(ShopData shop, ShopItem item) {
-        if (item != null && item.getSellAddsToStock() != null) {
-            return item.getSellAddsToStock();
-        }
-        return shop != null && shop.isSellAddsToStock();
+        return TransactionService.sellAddsToStock(shop, item);
     }
 
     private boolean resolveAllowSellStockOverflow(ShopData shop, ShopItem item) {
-        if (item != null && item.getAllowSellStockOverflow() != null) {
-            return item.getAllowSellStockOverflow();
-        }
-        return shop != null && shop.isAllowSellStockOverflow();
+        return TransactionService.allowSellOverflow(shop, item);
     }
 
     /* ============================================================
@@ -980,10 +914,11 @@ Inventory inv = new SellHolder().createInventory(54, title);
         return count;
     }
 
-    private static void removeItems(Player player, Material material, String spawnerType, String spawnerItem, String potionType, Map<String, Integer> enchantments, int amount, String customName, List<String> customLore, boolean requireName, boolean requireLore) {
+    private static Map<Integer, Integer> matchingQuantities(ItemStack[] contents, Material material, String spawnerType, String spawnerItem, String potionType, Map<String, Integer> enchantments, int amount, String customName, List<String> customLore, boolean requireName, boolean requireLore) {
+        Map<Integer, Integer> quantities = new java.util.LinkedHashMap<>();
         int toRemove = amount;
-        for (int i = 0; i < player.getInventory().getSize(); i++) {
-            ItemStack it = player.getInventory().getItem(i);
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack it = contents[i];
             if (it == null || it.getType() != material) continue;
 
             if (material == Material.SPAWNER) {
@@ -1013,17 +948,12 @@ Inventory inv = new SellHolder().createInventory(54, title);
                 if (!ShopItemUtil.loreMatches(it, customLore)) continue;
             }
 
-            int stack = it.getAmount();
-            if (stack <= toRemove) {
-                player.getInventory().setItem(i, null);
-                toRemove -= stack;
-            } else {
-                it.setAmount(stack - toRemove);
-                toRemove = 0;
-            }
-
+            int quantity = Math.min(toRemove, it.getAmount());
+            if (quantity > 0) quantities.put(i, quantity);
+            toRemove -= quantity;
             if (toRemove <= 0) break;
         }
+        return quantities;
     }
 
     /* ============================================================

@@ -76,7 +76,7 @@ class ShopItemUtilEnchantmentTest {
     }
 
     @Test
-    void sellMenuCountsAndRemovesBooksWithRequiredNameLoreAndStoredEnchantments() {
+    void sellMenuCountsAndPlansBooksWithRequiredNameLoreAndStoredEnchantments() {
         withEnchantment(enchantment -> {
             Player player = mock(Player.class);
             PlayerInventory inventory = mock(PlayerInventory.class);
@@ -116,13 +116,13 @@ class ShopItemUtilEnchantmentTest {
                 assertEquals(1, count.invoke(null, player, Material.ENCHANTED_BOOK, null, null, null,
                         enchantments, "&eSharp Book", List.of(""), true, true));
 
-                var remove = SellMenu.class.getDeclaredMethod("removeItems", Player.class, Material.class,
+                var remove = SellMenu.class.getDeclaredMethod("matchingQuantities", ItemStack[].class, Material.class,
                         String.class, String.class, String.class, Map.class, int.class, String.class, List.class,
                         boolean.class, boolean.class);
                 remove.setAccessible(true);
-                remove.invoke(null, player, Material.ENCHANTED_BOOK, null, null, null,
-                        enchantments, 1, "&eSharp Book", List.of(""), true, true);
-                verify(inventory).setItem(0, null);
+                assertEquals(Map.of(0, 1), remove.invoke(null, new ItemStack[]{book}, Material.ENCHANTED_BOOK, null, null, null,
+                        enchantments, 1, "&eSharp Book", List.of(""), true, true));
+                verify(inventory, never()).setItem(anyInt(), any());
 
                 when(meta.getDisplayName()).thenReturn("Different name");
                 assertFalse(ShopItemUtil.isSameItem(book, shopItem));

@@ -6,9 +6,7 @@ import me.dralle.shop.api.PriceLookupResult;
 import me.dralle.shop.gui.MainMenu;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
-import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
-import me.dralle.shop.util.ShopTimeUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import java.util.Set;
@@ -120,28 +118,14 @@ public class GeniusShopAPIImpl implements GeniusShopAPI {
         if (shop == null || item == null) return false;
         if (shop.getItems() == null || !shop.getItems().contains(item)) return false;
 
-        // Shop permission
-        if (player != null && shop.getPermission() != null && !shop.getPermission().isEmpty()) {
-            if (!player.hasPermission(shop.getPermission())) return false;
-        }
-
-        // Item permission
-        if (player != null && item.getPermission() != null && !item.getPermission().isEmpty()) {
-            if (!player.hasPermission(item.getPermission())) return false;
-        }
-
-        // Shop availability
-        if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) return false;
-
-        // Item availability
-        return ShopTimeUtil.isShopAvailable(item.getAvailableTimes());
+        return me.dralle.shop.economy.TransactionService.eligibility(plugin, player, shop, item, null).allowed();
     }
 
     private double calculateBuyPrice(ShopItem item) {
-        return PriceFormulaUtil.resolveBuyBasePrice(plugin, item);
+        return me.dralle.shop.economy.TransactionService.price(plugin, null, item, true, false, 1D).unit();
     }
 
     private double calculateSellPrice(ShopItem item) {
-        return PriceFormulaUtil.resolveSellBasePrice(plugin, item);
+        return me.dralle.shop.economy.TransactionService.price(plugin, null, item, false, false, 1D).unit();
     }
 }

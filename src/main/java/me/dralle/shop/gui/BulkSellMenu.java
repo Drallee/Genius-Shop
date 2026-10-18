@@ -3,12 +3,11 @@ package me.dralle.shop.gui;
 import me.dralle.shop.ShopManager;
 import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.api.events.ShopSellEvent;
-import me.dralle.shop.economy.EconomyHook;
+import me.dralle.shop.economy.TransactionService;
+import me.dralle.shop.commands.SaleStorage;
 import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
-import me.dralle.shop.util.CampaignUtil;
-import me.dralle.shop.util.PriceFormulaUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -22,6 +21,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 public class BulkSellMenu implements Listener {
@@ -101,12 +101,14 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
             final int slot;
             final int soldAmount;
             final double earned;
+            final double unitPrice;
             final ShopManager.SellInfo sellInfo;
 
-            SalePlan(int slot, int soldAmount, double earned, ShopManager.SellInfo sellInfo) {
+            SalePlan(int slot, int soldAmount, double earned, double unitPrice, ShopManager.SellInfo sellInfo) {
                 this.slot = slot;
                 this.soldAmount = soldAmount;
                 this.earned = earned;
+                this.unitPrice = unitPrice;
                 this.sellInfo = sellInfo;
             }
         }
@@ -116,6 +118,8 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
         boolean stockLimitSkipped = false;
         boolean safetySkipped = false;
         List<SalePlan> plans = new ArrayList<>();
+        Map<String, Integer> planned = new java.util.HashMap<>();
+        ItemStack[] snapshot = TransactionService.snapshot(inv.getStorageContents());
 
         int confirmSlot = plugin.getMenuManager().getBulkSellMenuConfig().getInt("buttons.confirm.slot", 49);
         TransactionSafetyGuard.GuardResult cooldownGuard = TransactionSafetyGuard.checkCooldown(plugin, player, TransactionSafetyGuard.ACTION_BULK_SELL);
@@ -133,52 +137,23 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
             if (sellInfo != null) {
                 int amountToSell = item.getAmount();
 
-                // Check player limit
-                if (sellInfo.item.getLimit() > 0) {
-                    int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), sellInfo.item.getUniqueKey());
-                    if (current >= sellInfo.item.getLimit()) {
-                        continue; // Already at limit
-                    }
-                    if (current + amountToSell > sellInfo.item.getLimit()) {
-                        amountToSell = sellInfo.item.getLimit() - current;
-                    }
-                }
+                ShopData shopData = sellInfo.shopKey == null ? null : plugin.getShopManager().getShop(sellInfo.shopKey);
+                if (!TransactionService.eligibility(plugin, player, shopData, sellInfo.item, null).allowed()) continue;
+                int capacity = TransactionService.sellCapacity(plugin, player, shopData, sellInfo.item,
+                        amountToSell, planned.getOrDefault(sellInfo.item.getUniqueKey(), 0));
+                if (capacity < amountToSell && resolveSellAddsToStock(shopData, sellInfo.item)
+                        && sellInfo.item.getGlobalLimit() > 0 && !resolveAllowSellStockOverflow(shopData, sellInfo.item)) stockLimitSkipped = true;
+                amountToSell = Math.min(capacity, Integer.MAX_VALUE - totalItemsSold);
+                if (amountToSell <= 0) continue;
 
-                // Note: We don't check globalLimit here because selling generally INCREASES the available global limit (replenishes stock).
-                ShopData shopData = sellInfo.shopKey != null ? plugin.getShopManager().getShop(sellInfo.shopKey) : null;
-                boolean sellAddsToStock = resolveSellAddsToStock(shopData, sellInfo.item);
-                boolean allowSellStockOverflow = resolveAllowSellStockOverflow(shopData, sellInfo.item);
-                if (sellAddsToStock && sellInfo.item.getGlobalLimit() > 0 && !allowSellStockOverflow) {
-                    int current = plugin.getDataManager().getGlobalCount(sellInfo.item.getUniqueKey());
-                    int maxCanReplenish = Math.max(0, current);
-                    if (maxCanReplenish <= 0) {
-                        stockLimitSkipped = true;
-                        continue;
-                    }
-                    if (amountToSell > maxCanReplenish) {
-                        amountToSell = maxCanReplenish;
-                        stockLimitSkipped = true;
-                    }
-                }
-                if (amountToSell <= 0) {
-                    stockLimitSkipped = true;
-                    continue;
-                }
 
-                int sellUnitAmount = Math.max(1, sellInfo.item.getAmount());
-                ShopData priceShop = sellInfo.shopKey != null ? plugin.getShopManager().getShop(sellInfo.shopKey) : null;
-                double effectiveUnitPrice = calculateCurrentSellPrice(priceShop, sellInfo.item);
-                double price = sellInfo.item.isSellPricePerItem()
-                        ? effectiveUnitPrice * amountToSell
-                        : effectiveUnitPrice * (amountToSell / (double) sellUnitAmount);
-                double effectiveMinPrice = sellInfo.item.getMinPrice();
-                double effectiveMaxPrice = sellInfo.item.getMaxPrice();
-                double campaignMultiplier = CampaignUtil.getActiveSellMultiplier(priceShop, sellInfo.item);
-                if (effectiveMinPrice > 0D) effectiveMinPrice *= campaignMultiplier;
-                if (effectiveMaxPrice > 0D) effectiveMaxPrice *= campaignMultiplier;
+                var quote = TransactionService.price(plugin, shopData, sellInfo.item, false, true, 1D);
+                double effectiveUnitPrice = quote.unit();
+                double price = sellInfo.item.calculateSellTotal(effectiveUnitPrice, amountToSell);
+                double effectiveMinPrice = quote.minimum();
+                double effectiveMaxPrice = quote.maximum();
+                boolean effectiveDynamicPricing = quote.dynamic();
 
-                boolean effectiveDynamicPricing = sellInfo.item.isDynamicPricing()
-                        || (sellInfo.item.getSellPriceFormula() != null && !sellInfo.item.getSellPriceFormula().trim().isEmpty());
                 TransactionSafetyGuard.GuardResult perItemGuard = TransactionSafetyGuard.validateTransaction(
                         plugin,
                         player,
@@ -201,7 +176,8 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
 
                 totalEarned += price;
                 totalItemsSold += amountToSell;
-                plans.add(new SalePlan(i, amountToSell, price, sellInfo));
+                plans.add(new SalePlan(i, amountToSell, price, effectiveUnitPrice, sellInfo));
+                planned.merge(sellInfo.item.getUniqueKey(), amountToSell, Integer::sum);
             }
         }
 
@@ -226,64 +202,30 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
                 return;
             }
 
-            EconomyHook.EconomyOperationResult depositResult = plugin.getEconomy().tryDeposit(player, totalEarned);
-            if (!depositResult.success()) {
-                TransactionSafetyGuard.auditEconomyFailure(
-                        plugin,
-                        player,
-                        "bulk-deposit",
-                        null,
-                        null,
-                        Material.AIR,
-                        totalEarned,
-                        depositResult.errorMessage()
-                );
+            Map<Integer, Integer> quantities = new java.util.LinkedHashMap<>();
+            for (SalePlan plan : plans) quantities.merge(plan.slot, plan.soldAmount, Integer::sum);
+            var result = TransactionService.sale(plugin, player,
+                    new TransactionService.Context("bulk-sell", null, null,
+                            me.dralle.shop.data.TransactionEntry.Type.SALE,
+                            plans.stream().map(plan -> new me.dralle.shop.data.TransactionEntry.Line(
+                                    plan.sellInfo.shopKey, plan.sellInfo.item.getUniqueKey(), plan.soldAmount, plan.earned)).toList()), totalEarned,
+                    SaleStorage.inventory(inv), snapshot, quantities, () -> {
+                        for (SalePlan plan : plans) {
+                            ShopItem item = plan.sellInfo.item;
+                            ShopData shop = plugin.getShopManager().getShop(plan.sellInfo.shopKey);
+                            TransactionService.updateCounts(plugin, player, item.getUniqueKey(), plan.soldAmount, false,
+                                    item.isDynamicPricing(), item.getGlobalLimit(), TransactionService.sellAddsToStock(shop, item));
+                        }
+                    });
+            if (!result.completed()) {
                 player.sendMessage(plugin.getMessages().getMessage("economy-error-bulk-sell"));
                 return;
             }
-
-            // Finish inventory removal before recording success or notifying event listeners.
             for (SalePlan plan : plans) {
-                ItemStack original = inv.getItem(plan.slot);
-                if (original == null || original.getType() == Material.AIR) continue;
-                if (plan.soldAmount < original.getAmount()) {
-                    original.setAmount(original.getAmount() - plan.soldAmount);
-                } else {
-                    inv.setItem(plan.slot, null);
-                }
-            }
-            plugin.recordTransactions(player, me.dralle.shop.data.TransactionEntry.Type.SALE,
-                    plans.stream().map(plan -> new me.dralle.shop.data.TransactionEntry.Line(
-                            plan.sellInfo.shopKey, plan.sellInfo.item.getUniqueKey(), plan.soldAmount, plan.earned)).toList());
-
-            for (SalePlan plan : plans) {
-                // Fire ShopSellEvent
-                ShopSellEvent sellEvent = new ShopSellEvent(player, plan.sellInfo.item, plan.soldAmount, plan.earned, plan.sellInfo.shopKey);
-                Bukkit.getPluginManager().callEvent(sellEvent);
-
-                // Update counts
-                plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), plan.sellInfo.item.getUniqueKey(), plan.soldAmount);
-                ShopData shopData = plan.sellInfo.shopKey != null ? plugin.getShopManager().getShop(plan.sellInfo.shopKey) : null;
-                boolean sellAddsToStock = resolveSellAddsToStock(shopData, plan.sellInfo.item);
-                boolean adjustForStock = plan.sellInfo.item.getGlobalLimit() > 0 && sellAddsToStock;
-                boolean adjustForDynamicPricingOnly = plan.sellInfo.item.isDynamicPricing() && plan.sellInfo.item.getGlobalLimit() <= 0;
-                if (adjustForStock || adjustForDynamicPricingOnly) {
-                    plugin.getDataManager().incrementGlobalCount(plan.sellInfo.item.getUniqueKey(), -plan.soldAmount);
-                }
-                TransactionSafetyGuard.rememberSuccessfulUnitPrice(
-                        TransactionSafetyGuard.ACTION_SELL,
-                        plan.sellInfo.item.getUniqueKey(),
-                        plan.sellInfo.item.isDynamicPricing()
-                                ? calculateCurrentSellPrice(
-                                        plan.sellInfo.shopKey != null ? plugin.getShopManager().getShop(plan.sellInfo.shopKey) : null,
-                                        plan.sellInfo.item
-                                )
-                                : CampaignUtil.applySellCampaign(
-                                        plan.sellInfo.shopKey != null ? plugin.getShopManager().getShop(plan.sellInfo.shopKey) : null,
-                                        plan.sellInfo.item,
-                                        plan.sellInfo.item.getSellPrice()
-                                )
-                );
+                TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_SELL,
+                        plan.sellInfo.item.getUniqueKey(), plan.unitPrice);
+                Bukkit.getPluginManager().callEvent(new ShopSellEvent(player, plan.sellInfo.item,
+                        plan.soldAmount, plan.earned, plan.sellInfo.shopKey));
             }
             
             String msg = plugin.getMessages().getMessage("sell-all-success")
@@ -315,24 +257,11 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
     }
 
     private boolean resolveSellAddsToStock(ShopData shop, ShopItem item) {
-        if (item.getSellAddsToStock() != null) {
-            return item.getSellAddsToStock();
-        }
-        return shop != null && shop.isSellAddsToStock();
+        return TransactionService.sellAddsToStock(shop, item);
     }
 
     private boolean resolveAllowSellStockOverflow(ShopData shop, ShopItem item) {
-        if (item.getAllowSellStockOverflow() != null) {
-            return item.getAllowSellStockOverflow();
-        }
-        return shop != null && shop.isAllowSellStockOverflow();
+        return TransactionService.allowSellOverflow(shop, item);
     }
 
-    private double calculateCurrentSellPrice(ShopData shop, ShopItem item) {
-        if (item.getSellPrice() == null) {
-            return item.getSellPrice() != null ? item.getSellPrice() : 0D;
-        }
-        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, item);
-        return CampaignUtil.applySellCampaign(shop, item, currentPrice);
-    }
 }

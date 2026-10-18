@@ -2,6 +2,7 @@ package me.dralle.shop.gui;
 
 import me.dralle.shop.ShopPlugin;
 import me.dralle.shop.economy.EconomyHook;
+import me.dralle.shop.economy.TransactionService;
 import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
@@ -96,16 +97,11 @@ public class PurchaseMenu implements Listener {
     }
 
     private static double calculatePrice(ShopData shop, ShopItem item) {
-        double currentPrice = PriceFormulaUtil.resolveBuyBasePrice(ShopPlugin.getInstance(), item);
-        return CampaignUtil.applyBuyCampaign(shop, item, currentPrice);
+        return TransactionService.price(ShopPlugin.getInstance(), shop, item, true, true, 1D).unit();
     }
 
     private static double calculateTransactionTotal(double unitPrice, int quantity, boolean pricePerItem, int priceUnitAmount) {
-        if (pricePerItem) {
-            return unitPrice * quantity;
-        }
-        int safeUnitAmount = Math.max(1, priceUnitAmount);
-        return unitPrice * (quantity / (double) safeUnitAmount);
+        return TransactionService.total(unitPrice, quantity, pricePerItem, priceUnitAmount);
     }
 
     private static String applyStockPlaceholders(ShopPlugin plugin, Player player, String line, String itemKey, int limit, int globalLimit) {
@@ -706,41 +702,15 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
 
         ShopPlugin plugin = ShopPlugin.getInstance();
 
-        // Safety permission check
-        if (permission != null && !permission.isEmpty()) {
-            if (!player.hasPermission(permission)) {
-                player.sendMessage(plugin.getMessages().getMessage("no-permission"));
-                player.closeInventory();
-                return;
-            }
+        String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").getFirst().asString() : null;
+        ShopData accessShop = shopKey == null ? null : plugin.getShopManager().getShop(shopKey);
+        var access = TransactionService.eligibility(plugin, player, accessShop, findShopItem(shopKey, itemKey), permission);
+        if (!access.allowed()) {
+            player.sendMessage(access.message());
+            player.closeInventory();
+            return;
         }
 
-        // Time restriction check
-        String shopKey = player.hasMetadata("buy.shopKey") ? player.getMetadata("buy.shopKey").get(0).asString() : null;
-        if (shopKey != null) {
-            ShopData shop = plugin.getShopManager().getShop(shopKey);
-            if (shop != null) {
-                // Shop availability
-                if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
-                    player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
-                            .replace("%shop%", ShopItemUtil.color(shop.getGuiName()))
-                            .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin)));
-                    player.closeInventory();
-                    return;
-                }
-                // Item availability
-                if (itemKey != null) {
-                    ShopItem si = shop.getItemByUniqueKey(itemKey);
-                    if (si != null && !ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) {
-                        player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
-                                .replace("%shop%", si.getName() != null ? ShopItemUtil.color(si.getName()) : si.getMaterial().name())
-                                .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(si.getAvailableTimes(), plugin)));
-                        player.closeInventory();
-                        return;
-                    }
-                }
-            }
-        }
 
         EconomyHook eco = plugin.getEconomy();
 
@@ -749,50 +719,30 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                   return;
               }
 
-              // Check limit
-              if (limit > 0 && itemKey != null) {
-                  int current = plugin.getDataManager().getPlayerCount(player.getUniqueId(), itemKey);
-                  if (current + amount > limit) {
-                      player.sendMessage(plugin.getMessages().getMessage("purchase-limit-reached")
-                              .replace("%current%", String.valueOf(current))
-                              .replace("%limit%", String.valueOf(limit)));
-                      return;
-                  }
+              var playerLimit = TransactionService.playerLimit(plugin, player, itemKey, amount, limit, true);
+              if (!playerLimit.allowed()) {
+                  player.sendMessage(playerLimit.message());
+                  return;
+              }
+              var stockLimit = TransactionService.purchaseStock(plugin, itemKey, amount, globalLimit);
+              if (!stockLimit.allowed()) {
+                  player.sendMessage(stockLimit.message());
+                  return;
               }
 
-              // Check global limit
-              if (globalLimit > 0 && itemKey != null) {
-                  int current = plugin.getDataManager().getGlobalCount(itemKey);
-                  if (current + amount > globalLimit) {
-                      player.sendMessage(plugin.getMessages().getMessage("global-limit-reached")
-                              .replace("%current%", String.valueOf(current))
-                              .replace("%limit%", String.valueOf(globalLimit)));
-                      return;
-                  }
-              }
 
               ShopItem matchedItem = findShopItem(shopKey, itemKey);
-              if (matchedItem != null) {
-                  ItemConditionUtil.ConditionResult condition = ItemConditionUtil.check(plugin, player, matchedItem);
-                  if (!condition.allowed()) {
-                      player.sendMessage(condition.message());
-                      return;
-                  }
-              }
               double effectiveUnitPrice = price;
               double effectiveMinPrice = minPrice;
               double effectiveMaxPrice = maxPrice;
               boolean effectiveDynamicPricing = dynamicPricing;
               if (matchedItem != null) {
-                  ShopData matchedShop = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
-                  effectiveDynamicPricing = matchedItem.isDynamicPricing()
-                          || (matchedItem.getBuyPriceFormula() != null && !matchedItem.getBuyPriceFormula().trim().isEmpty());
-                  effectiveMinPrice = matchedItem.getMinPrice();
-                  effectiveMaxPrice = matchedItem.getMaxPrice();
-                  double campaignMultiplier = CampaignUtil.getActiveBuyMultiplier(matchedShop, matchedItem);
-                  if (effectiveMinPrice > 0D) effectiveMinPrice *= campaignMultiplier;
-                  if (effectiveMaxPrice > 0D) effectiveMaxPrice *= campaignMultiplier;
-                  effectiveUnitPrice = calculatePrice(matchedShop, matchedItem);
+                  ShopData matchedShop = shopKey == null ? null : plugin.getShopManager().getShop(shopKey);
+                  var quote = TransactionService.price(plugin, matchedShop, matchedItem, true, true, 1D);
+                  effectiveDynamicPricing = quote.dynamic();
+                  effectiveMinPrice = quote.minimum();
+                  effectiveMaxPrice = quote.maximum();
+                  effectiveUnitPrice = quote.unit();
               }
 
               double total = calculateTransactionTotal(effectiveUnitPrice, amount, buyPricePerItem, priceUnitAmount);
@@ -866,23 +816,15 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                   return;
               }
 
-              EconomyHook.EconomyOperationResult withdrawResult = eco.tryWithdraw(player, total);
-              if (!withdrawResult.success()) {
-                  TransactionSafetyGuard.auditEconomyFailure(
-                          plugin,
-                          player,
-                          "withdraw",
-                          shopKey,
-                          itemKey,
-                          material,
-                          total,
-                          withdrawResult.errorMessage()
-                  );
-                  player.sendMessage(plugin.getMessages().getMessage("economy-error-purchase"));
-                  return;
-              }
-
-              try {
+              ItemStack preparedTemplate = deliveryTemplate;
+              ItemStack[] originalContents = TransactionService.snapshot(player.getInventory().getContents());
+              double settledUnitPrice = effectiveUnitPrice;
+              boolean settledDynamic = effectiveDynamicPricing;
+              var result = TransactionService.purchase(plugin, player,
+                      new TransactionService.Context("purchase", shopKey, itemKey,
+                              me.dralle.shop.data.TransactionEntry.Type.PURCHASE,
+                              List.of(new me.dralle.shop.data.TransactionEntry.Line(shopKey,
+                                      itemKey != null ? itemKey : material.name(), amount, total))), total, () -> {
                   // Execute commands if present
                   if (commands != null && !commands.isEmpty()) {
                       for (String cmd : commands) {
@@ -905,49 +847,19 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                   }
 
                   if (shouldGiveItem) {
-                      giveItemTemplateSafe(player, deliveryTemplate, amount);
+                      giveItemTemplateSafe(player, preparedTemplate, amount);
                   }
-              } catch (Exception ex) {
-                  TransactionSafetyGuard.auditEconomyFailure(
-                          plugin,
-                          player,
-                          "post-withdraw",
-                          shopKey,
-                          itemKey,
-                          material,
-                          total,
-                          ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()
-                  );
-                  EconomyHook.EconomyOperationResult refundResult = eco.tryDeposit(player, total);
-                  if (!refundResult.success()) {
-                      TransactionSafetyGuard.auditEconomyFailure(
-                              plugin,
-                              player,
-                              "refund",
-                              shopKey,
-                              itemKey,
-                              material,
-                              total,
-                              refundResult.errorMessage()
-                      );
-                      ConsoleLog.error(plugin, "Automatic refund failed for " + player.getName() + ": " + refundResult.errorMessage());
-                  }
-                  player.sendMessage(plugin.getMessages().getMessage("purchase-rollback-failed"));
-                  return;
-              }
-
-        plugin.recordTransaction(player, me.dralle.shop.data.TransactionEntry.Type.PURCHASE,
-                shopKey, itemKey != null ? itemKey : material.name(), amount, total);
-
-        // Update counts
-        if (itemKey != null) {
-            plugin.getDataManager().incrementPlayerCount(player.getUniqueId(), itemKey, amount);
-            if (effectiveDynamicPricing || globalLimit > 0) {
-                plugin.getDataManager().incrementGlobalCount(itemKey, amount);
-            }
+              }, () -> player.getInventory().setContents(originalContents), () -> {
+                  TransactionService.updateCounts(plugin, player, itemKey, amount, true, settledDynamic, globalLimit, false);
+                  TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_BUY, itemKey, settledUnitPrice);
+              });
+        if (!result.completed()) {
+            String message = result.failureReason() == me.dralle.shop.economy.TransactionResult.FailureReason.PAYMENT_FAILED
+                    ? "economy-error-purchase" : "purchase-rollback-failed";
+            player.sendMessage(plugin.getMessages().getMessage(message));
+            return;
         }
         plugin.getGenericShopGui().requestRefresh();
-        TransactionSafetyGuard.rememberSuccessfulUnitPrice(TransactionSafetyGuard.ACTION_BUY, itemKey, effectiveUnitPrice);
 
         plugin.itemsBought += amount;
         plugin.debug("Purchase successful: " + player.getName() + " bought " + amount + "x " + material + " for $" + total);

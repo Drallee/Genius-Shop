@@ -14,6 +14,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.*;
 
@@ -36,6 +38,8 @@ class TransactionLedgerFlowTest {
         when(plugin.formatPrice(anyDouble())).thenReturn("money");
         when(player.getName()).thenReturn("Alice");
         when(player.getInventory().getStorageContents()).thenReturn(new ItemStack[36]);
+        when(player.getInventory().getContents()).thenReturn(new ItemStack[36]);
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
         when(player.getInventory().getMaxStackSize()).thenReturn(64);
         when(template.getMaxStackSize()).thenReturn(64);
         when(template.clone()).thenReturn(delivered);
@@ -49,6 +53,7 @@ class TransactionLedgerFlowTest {
                  default -> invocation.callRealMethod();
              })) {
             singleton.when(ShopPlugin::getInstance).thenReturn(plugin);
+            bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             var finalize = java.util.Arrays.stream(PurchaseMenu.class.getDeclaredMethods())
                     .filter(method -> method.getName().equals("finalizePurchase")).findFirst().orElseThrow();
             finalize.setAccessible(true);
@@ -60,10 +65,11 @@ class TransactionLedgerFlowTest {
             if (outcome.equals("success")) {
                 var order = inOrder(player.getInventory(), plugin);
                 order.verify(player.getInventory()).addItem(delivered);
-                order.verify(plugin).recordTransaction(player, TransactionEntry.Type.PURCHASE, null, "apples", 4, 1000D);
-                verify(plugin, times(1)).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
+                order.verify(plugin).recordTransactions(any(UUID.class), eq(player), eq(TransactionEntry.Type.PURCHASE),
+                        eq(List.of(new TransactionEntry.Line(null, "apples", 4, 1000D))));
+                verify(plugin, times(1)).recordTransactions(any(UUID.class), any(), any(), anyList());
             } else {
-                verify(plugin, never()).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
+                verify(plugin, never()).recordTransactions(any(UUID.class), any(), any(), anyList());
                 if (outcome.equals("delivery-failure")) verify(plugin.getEconomy()).tryDeposit(player, 1000D);
             }
         }
@@ -82,15 +88,21 @@ class TransactionLedgerFlowTest {
         when(plugin.getMessages().getMessage(anyString())).thenReturn("message %amount% %item% %price%");
         when(plugin.formatCurrency(anyDouble())).thenReturn("money");
         when(player.getInventory().getSize()).thenReturn(1);
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
         ItemStack stack = mock(ItemStack.class);
         when(stack.getType()).thenReturn(Material.GOLDEN_APPLE);
-        when(stack.getAmount()).thenReturn(4);
+        AtomicInteger amount = new AtomicInteger(4);
+        when(stack.getAmount()).thenAnswer(invocation -> amount.get());
+        doAnswer(invocation -> { amount.set(invocation.getArgument(0)); return null; }).when(stack).setAmount(anyInt());
+        when(stack.clone()).thenReturn(stack);
+        when(stack.isSimilar(stack)).thenReturn(true);
         when(player.getInventory().getItem(0)).thenReturn(stack);
-        when(player.getInventory().getContents()).thenReturn(new ItemStack[0]);
+        when(player.getInventory().getContents()).thenReturn(new ItemStack[]{stack});
 
         try (var singleton = mockStatic(ShopPlugin.class); var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS);
              var menu = mockStatic(SellMenu.class, invocation -> invocation.getMethod().getName().equals("open") ? null : invocation.callRealMethod())) {
             singleton.when(ShopPlugin::getInstance).thenReturn(plugin);
+            bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             var sell = java.util.Arrays.stream(SellMenu.class.getDeclaredMethods())
                     .filter(method -> method.getName().equals("sellItems")).findFirst().orElseThrow();
             sell.setAccessible(true);
@@ -99,8 +111,9 @@ class TransactionLedgerFlowTest {
             if (succeeds) {
                 var order = inOrder(player.getInventory(), plugin);
                 order.verify(player.getInventory()).setItem(0, null);
-                order.verify(plugin).recordTransaction(player, TransactionEntry.Type.SALE, null, "apples", 4, 400D);
-            } else verify(plugin, never()).recordTransaction(any(), any(), any(), any(), anyInt(), anyDouble());
+                order.verify(plugin).recordTransactions(any(UUID.class), eq(player), eq(TransactionEntry.Type.SALE),
+                        eq(List.of(new TransactionEntry.Line(null, "apples", 4, 400D))));
+            } else verify(plugin, never()).recordTransactions(any(UUID.class), any(), any(), anyList());
         }
     }
 
@@ -108,7 +121,7 @@ class TransactionLedgerFlowTest {
     @ValueSource(booleans = {true, false})
     void bulkSaleRecordsOnceAfterInventoryRemoval(boolean succeeds) throws Exception {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
-        Player player = mock(Player.class);
+        Player player = mock(Player.class, RETURNS_DEEP_STUBS);
         Inventory inventory = mock(Inventory.class);
         ItemStack stack = mock(ItemStack.class);
         var item = mock(me.dralle.shop.model.ShopItem.class);
@@ -120,15 +133,24 @@ class TransactionLedgerFlowTest {
         when(plugin.formatCurrency(anyDouble())).thenReturn("money");
         when(inventory.getSize()).thenReturn(1);
         when(inventory.getItem(0)).thenReturn(stack);
+        when(inventory.getStorageContents()).thenReturn(new ItemStack[]{stack});
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(plugin.getEconomy().isReady()).thenReturn(true);
         when(stack.getType()).thenReturn(Material.STONE);
-        when(stack.getAmount()).thenReturn(4);
+        AtomicInteger amount = new AtomicInteger(4);
+        when(stack.getAmount()).thenAnswer(invocation -> amount.get());
+        doAnswer(invocation -> { amount.set(invocation.getArgument(0)); return null; }).when(stack).setAmount(anyInt());
+        when(stack.clone()).thenReturn(stack);
+        when(stack.isSimilar(stack)).thenReturn(true);
         when(item.getUniqueKey()).thenReturn("stone");
         when(item.getSellPrice()).thenReturn(100D);
         when(item.getAmount()).thenReturn(4);
+        when(item.calculateSellTotal(100D, 4)).thenReturn(100D);
         when(plugin.getShopManager().getBestSellInfo(player, stack)).thenReturn(new me.dralle.shop.ShopManager.SellInfo(item, "blocks"));
         when(plugin.getEconomy().tryDeposit(player, 100D)).thenReturn(new EconomyHook.EconomyOperationResult(succeeds, "failure"));
 
         try (var bukkit = mockStatic(Bukkit.class, RETURNS_DEEP_STUBS); var campaigns = mockStatic(me.dralle.shop.util.CampaignUtil.class)) {
+            bukkit.when(Bukkit::isPrimaryThread).thenReturn(true);
             campaigns.when(() -> me.dralle.shop.util.CampaignUtil.applySellCampaign(any(), eq(item), anyDouble())).thenAnswer(invocation -> invocation.getArgument(2));
             var sell = BulkSellMenu.class.getDeclaredMethod("processSell", Player.class, Inventory.class);
             sell.setAccessible(true);
@@ -136,13 +158,13 @@ class TransactionLedgerFlowTest {
             if (succeeds) {
                 var order = inOrder(inventory, plugin);
                 order.verify(inventory).setItem(0, null);
-                order.verify(plugin).recordTransactions(eq(player), eq(TransactionEntry.Type.SALE), argThat(lines ->
+                order.verify(plugin).recordTransactions(any(UUID.class), eq(player), eq(TransactionEntry.Type.SALE), argThat(lines ->
                         lines.size() == 1 && lines.getFirst().quantity() == 4 && lines.getFirst().total() == 100D
                                 && lines.getFirst().shop().equals("blocks") && lines.getFirst().item().equals("stone")));
-                verify(plugin, times(1)).recordTransactions(any(), any(), anyList());
+                verify(plugin, times(1)).recordTransactions(any(UUID.class), any(), any(), anyList());
             } else {
-                verify(plugin, never()).recordTransactions(any(), any(), anyList());
-                verify(inventory, never()).setItem(anyInt(), any());
+                verify(plugin, never()).recordTransactions(any(UUID.class), any(), any(), anyList());
+                verify(inventory).setStorageContents(any());
             }
         }
     }

@@ -899,13 +899,13 @@ if (page < totalPages) {
     }
 
     private double getBaseBuyPriceForAmount(ShopItem si) {
-        double currentPrice = PriceFormulaUtil.resolveBuyBasePrice(plugin, si);
+        double currentPrice = me.dralle.shop.economy.TransactionService.price(plugin, null, si, true, false, 1D).unit();
         return si.calculateBuyTotal(currentPrice, Math.max(1, si.getAmount()));
     }
 
     private Double getBaseSellPriceForAmount(ShopItem si) {
         if (si.getSellPrice() == null) return null;
-        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, si);
+        double currentPrice = me.dralle.shop.economy.TransactionService.price(plugin, null, si, false, false, 1D).unit();
         return si.calculateSellTotal(currentPrice, Math.max(1, si.getAmount()));
     }
 
@@ -917,13 +917,11 @@ if (page < totalPages) {
     }
 
     private double getCurrentBuyPrice(ShopData shop, ShopItem si) {
-        double currentPrice = PriceFormulaUtil.resolveBuyBasePrice(plugin, si);
-        return CampaignUtil.applyBuyCampaign(shop, si, currentPrice);
+        return me.dralle.shop.economy.TransactionService.price(plugin, shop, si, true, true, 1D).unit();
     }
 
     private Double getCurrentSellPrice(ShopData shop, ShopItem si) {
         if (si.getSellPrice() == null) return null;
-        double currentPrice = PriceFormulaUtil.resolveSellBasePrice(plugin, si);
-        return CampaignUtil.applySellCampaign(shop, si, currentPrice);
+        return me.dralle.shop.economy.TransactionService.price(plugin, shop, si, false, true, 1D).unit();
     }
 }

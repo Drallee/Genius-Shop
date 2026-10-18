@@ -59,9 +59,13 @@ class ContainerSaleTest {
         YamlConfiguration config = new YamlConfiguration();
         config.set("economy-safety.enabled", false);
         when(plugin.getConfig()).thenReturn(config);
+        when(plugin.getEconomy().isReady()).thenReturn(true);
         when(plugin.getMessages().getMessage(anyString())).thenReturn("summary %amount% %price%");
         when(plugin.formatCurrency(anyDouble())).thenAnswer(invocation -> String.valueOf((double) invocation.getArgument(0)));
         when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        org.bukkit.World world = mock(org.bukkit.World.class);
+        when(world.getName()).thenReturn("world");
+        when(player.getWorld()).thenReturn(world);
         when(inventory.getStorageContents()).thenAnswer(invocation -> contents.clone());
         when(inventory.getItem(0)).thenAnswer(invocation -> contents[0]);
         doAnswer(invocation -> { contents[0] = invocation.getArgument(1); return null; }).when(inventory).setItem(eq(0), any());
@@ -71,6 +75,7 @@ class ContainerSaleTest {
         doAnswer(invocation -> { amount.set(invocation.getArgument(0)); return null; }).when(stack).setAmount(anyInt());
         when(stack.clone()).thenReturn(original);
         when(original.getAmount()).thenReturn(3);
+        when(original.clone()).thenReturn(original);
         when(stack.isSimilar(original)).thenReturn(true);
         when(item.getMaterial()).thenReturn(Material.STONE);
         when(item.getUniqueKey()).thenReturn("stone");
@@ -100,7 +105,7 @@ class ContainerSaleTest {
                 verify(plugin.getDataManager()).incrementPlayerCount(player.getUniqueId(), "stone", 2);
                 verify(plugin.getDataManager()).incrementGlobalCount("stone", -2);
                 assertEquals(2, plugin.itemsSold);
-                verify(plugin).recordTransactions(eq(player), eq(wand == null ? me.dralle.shop.data.TransactionEntry.Type.SALE : me.dralle.shop.data.TransactionEntry.Type.WAND_SALE),
+            verify(plugin).recordTransactions(any(java.util.UUID.class), eq(player), eq(wand == null ? me.dralle.shop.data.TransactionEntry.Type.SALE : me.dralle.shop.data.TransactionEntry.Type.WAND_SALE),
                         argThat(lines -> lines.size() == 1 && lines.getFirst().shop().equals("blocks")
                                 && lines.getFirst().item().equals("stone") && lines.getFirst().quantity() == 2
                                 && lines.getFirst().total() == expected));
@@ -110,7 +115,7 @@ class ContainerSaleTest {
                 verify(plugin.getDataManager(), never()).incrementPlayerCount(any(), anyString(), anyInt());
                 verify(plugin.getDataManager(), never()).incrementGlobalCount(anyString(), anyInt());
                 assertEquals(0, plugin.itemsSold);
-                verify(plugin, never()).recordTransactions(any(), any(), anyList());
+            verify(plugin, never()).recordTransactions(any(java.util.UUID.class), any(), any(), anyList());
             }
             verify(player, never()).getInventory();
             if (!campaigns) campaign.verifyNoInteractions();
