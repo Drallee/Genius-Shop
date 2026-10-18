@@ -52,6 +52,13 @@ stock-reset-check-interval-seconds: 1
 # Use "server" for the server's timezone or an IANA ID such as "Europe/Copenhagen".
 # Individual stock reset schedules can override this with their own timezone.
 timezone: "server"
+# Read-only /shop validate-prices simulation settings.
+price-validation:
+  # Upper bound on trade steps considered per report (1,000 to 5,000,000).
+  max-simulated-units: 1000000
+  # Copy exact route keys from a report to acknowledge intended profitable routes.
+  # Example: "cheap:STONE->premium:STONE"
+  intentional-routes: []
 
 # Language file to use (located in languages/ folder)
 # Example: "en_US", "ru_RU"

@@ -80,7 +80,11 @@ public final class CampaignUtil {
     }
 
     public static ShopCampaign resolveCampaign(ShopData shop, ShopItem item) {
-        if (item != null && item.isCampaignEnabled() && isCampaignActive(item, Instant.now())) {
+        return resolveCampaign(shop, item, Instant.now());
+    }
+
+    public static ShopCampaign resolveCampaign(ShopData shop, ShopItem item, Instant now) {
+        if (item != null && item.isCampaignEnabled() && isCampaignActive(item, now)) {
             return new ShopCampaign(
                     "inline-item",
                     item.getCampaignName(),
@@ -94,14 +98,14 @@ public final class CampaignUtil {
 
         if (shop != null && item != null && item.getCampaignKey() != null && !item.getCampaignKey().isBlank()) {
             ShopCampaign c = shop.getCampaigns() != null ? shop.getCampaigns().get(item.getCampaignKey()) : null;
-            if (c != null && isCampaignActive(c, Instant.now())) {
+            if (c != null && isCampaignActive(c, now)) {
                 return c;
             }
         }
 
         if (shop != null && shop.getCampaignKey() != null && !shop.getCampaignKey().isBlank()) {
             ShopCampaign c = shop.getCampaigns() != null ? shop.getCampaigns().get(shop.getCampaignKey()) : null;
-            if (c != null && isCampaignActive(c, Instant.now())) {
+            if (c != null && isCampaignActive(c, now)) {
                 return c;
             }
         }
@@ -111,6 +115,21 @@ public final class CampaignUtil {
 
     public static boolean isCampaignActive(ShopCampaign campaign) {
         return isCampaignActive(campaign, Instant.now());
+    }
+
+    public static java.util.List<Instant> boundaries(ShopData shop, ShopItem item) {
+        java.util.List<ShopCampaign> campaigns = new java.util.ArrayList<>();
+        if (shop != null && shop.getCampaigns() != null) campaigns.addAll(shop.getCampaigns().values());
+        if (item != null && item.isCampaignEnabled()) campaigns.add(new ShopCampaign("inline", "", item.getCampaignStart(),
+                item.getCampaignEnd(), item.getCampaignTimezone(), 1, 1));
+        java.util.List<Instant> times = new java.util.ArrayList<>();
+        for (ShopCampaign campaign : campaigns) {
+            ZoneId zone = parseZone(campaign.getTimezone());
+            Instant start = parseDateTime(campaign.getStart(), zone), end = parseDateTime(campaign.getEnd(), zone);
+            if (start != null) { times.add(start.minusSeconds(1)); times.add(start); }
+            if (end != null) { times.add(end); times.add(end.plusSeconds(1)); }
+        }
+        return times;
     }
 
     public static boolean isCampaignActive(ShopCampaign campaign, Instant now) {

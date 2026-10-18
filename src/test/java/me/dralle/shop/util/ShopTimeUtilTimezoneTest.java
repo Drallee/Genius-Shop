@@ -14,6 +14,14 @@ import static org.mockito.Mockito.*;
 
 class ShopTimeUtilTimezoneTest {
     @Test
+    void simulationSamplesUseTheConfiguredLocalDateAndTimezone() {
+        Instant instant = Instant.parse("2026-10-16T22:30:00Z");
+        var samples = ShopTimeUtil.simulationTimes(List.of("00:00-01:00"), instant, ZoneId.of("Europe/Copenhagen"));
+        assertTrue(samples.contains(Instant.parse("2026-10-16T22:00:00Z")));
+        assertTrue(samples.contains(Instant.parse("2026-10-17T10:00:00Z")));
+    }
+
+    @Test
     void globalTimezoneChangesAvailabilityAndReloadUsesNewValue() {
         var config = new YamlConfiguration();
         var plugin = mock(ShopPlugin.class);

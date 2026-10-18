@@ -18,7 +18,11 @@ public final class PriceFormulaUtil {
 
     public static double resolveBuyBasePrice(ShopPlugin plugin, ShopItem item) {
         if (item == null) return 0D;
-        int globalCount = plugin.getStateRepository().getGlobalCount(item.getUniqueKey());
+        return resolveBuyBasePrice(item, plugin.getStateRepository().getGlobalCount(item.getUniqueKey()));
+    }
+
+    public static double resolveBuyBasePrice(ShopItem item, int globalCount) {
+        if (item == null) return 0D;
         double base = item.getPrice();
         double dynamicPrice = base;
         if (item.isDynamicPricing()) {
@@ -40,7 +44,11 @@ public final class PriceFormulaUtil {
 
     public static double resolveSellBasePrice(ShopPlugin plugin, ShopItem item) {
         if (item == null || item.getSellPrice() == null) return 0D;
-        int globalCount = plugin.getStateRepository().getGlobalCount(item.getUniqueKey());
+        return resolveSellBasePrice(item, plugin.getStateRepository().getGlobalCount(item.getUniqueKey()));
+    }
+
+    public static double resolveSellBasePrice(ShopItem item, int globalCount) {
+        if (item == null || item.getSellPrice() == null) return 0D;
         double base = item.getSellPrice();
         double dynamicPrice = base;
         if (item.isDynamicPricing()) {
