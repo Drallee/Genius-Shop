@@ -1,0 +1,34 @@
+#salesanalytics-tab { min-width: 0; }
+.sticky-footer-actions[hidden] { display: none !important; }
+#salesanalytics-tab [hidden] { display: none !important; }
+.sales-heading, .sales-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sales-heading { margin: 0 0 24px; padding: 0 0 16px; background: none; box-shadow: none; text-align: left; border: 0; border-bottom: 1px solid #323d45; border-radius: 0; }
+#salesanalytics-tab h2 { font-size: 24px; margin: 0 0 5px; letter-spacing: 0; }
+#salesanalytics-tab h3 { font-size: 16px; margin: 26px 0 12px; letter-spacing: 0; }
+.sales-muted { color: #a7b4be; font-size: 12px; }
+.sales-badge { color: #73d6ba; border-left: 3px solid #41b795; padding: 5px 10px; font-size: 12px; }
+.sales-filters { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)) repeat(2, minmax(130px, 1fr)) auto; gap: 12px; align-items: end; }
+.sales-filters label { display: grid; gap: 7px; color: #c7d1d8; font-size: 12px; min-width: 0; }
+.sales-filters input, .sales-filters select { width: 100%; min-width: 0; box-sizing: border-box; background: #20272c; color: #e1e7eb; border: 1px solid #4a555f; border-radius: 5px; padding: 10px 8px; height: 40px; font: inherit; color-scheme: dark; }
+.sales-filters button { min-height: 40px; white-space: nowrap; }
+#sales-status { min-height: 20px; font-size: 13px; color: #b6c3cb; margin: 14px 0; }
+#sales-status[data-error="true"] { color: #ff9898; }
+.sales-money { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid #3c474f; padding: 22px 0; gap: 18px; }
+.sales-money dt { color: #aebec7; font-size: 12px; margin-bottom: 10px; }
+.sales-money dd { margin: 0; font-size: 24px; color: #e4e9eb; overflow-wrap: anywhere; }
+.sales-money dl { margin: 0; }
+.sales-money .inflow dd { color: #73d6ba; }
+.sales-money .outflow dd { color: #f0ba73; }
+.sales-table-wrap { width: 100%; overflow-x: auto; border-block: 1px solid #3c474f; }
+.sales-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sales-table th, .sales-table td { padding: 12px 10px; border-bottom: 1px solid #323d45; text-align: right; white-space: nowrap; }
+.sales-table th { color: #aab9c3; font-size: 11px; font-weight: 600; }
+.sales-table th:first-child, .sales-table td:first-child { text-align: left; }
+.sales-table td { color: #e1e7eb; font-variant-numeric: tabular-nums; }
+.sales-table tbody tr:last-child td { border-bottom: 0; }
+#sales-popular td:nth-child(2), #sales-popular th:nth-child(2) { text-align: left; }
+.sales-chart { position: relative; height: 280px; width: 100%; margin: 12px 0 20px; }
+.sales-history-wrap { max-height: 350px; overflow-y: auto; }
+.sales-history-wrap thead { position: sticky; top: 0; background: #20272c; }
+@media (max-width: 1200px) { .sales-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sales-filters button { justify-self: start; } }
+@media (max-width: 500px) { .sales-money { grid-template-columns: 1fr; gap: 20px; } .sales-money dd { font-size: 22px; } .sales-heading { align-items: start; } .sales-chart { height: 230px; } }

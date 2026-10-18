@@ -111,6 +111,20 @@ public final class TransactionLedger implements AutoCloseable {
         connection.close();
     }
 
+    public synchronized SalesAnalytics.Report analytics(SalesAnalytics.Filter filter) throws SQLException {
+        connection.setAutoCommit(false);
+        try {
+            var report = SalesAnalytics.read(connection, filter);
+            connection.commit();
+            return report;
+        } catch (SQLException | RuntimeException failure) {
+            connection.rollback();
+            throw failure;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
     public record Query(String player, String shop, String item, TransactionEntry.Type type,
                         Instant from, Instant to, int limit, int offset) {
         public Query {

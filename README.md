@@ -99,6 +99,7 @@ Ordinary item purchases check inventory capacity before charging. If delivery fa
 - Draft state, validation, and optional autosave.
 - YAML/JSON import/export, item cloning across shops, and held-item JSON imports.
 - Stock analytics and a data editor for persisted player counts, global counts, and reset tracking.
+- A Sales dashboard with persistent transaction totals, popular items, money flow, and effective price history.
 - Activity history and file rollback through `activity-log.json`.
 - An alternate React editor at `/react.html`, alongside the classic editor.
 - Authenticated administrative HTTP endpoints and opt-in editor telemetry.
@@ -190,6 +191,29 @@ Paths below are relative to the plugin data directory, normally `plugins/Genius-
 Legacy `data.yml` is migrated automatically. Back up the data directory, including `data.db` and any SQLite companion files, while the server is stopped.
 
 ### Transaction Ledger
+
+The classic web editor's **Sales** tab reports completed entries from `transactions.db`.
+Reports survive restarts; they do not reconstruct trades from before ledger installation or
+entries that could not be persisted (these failures are logged). Failed/refunded trades are excluded.
+Date filters use inclusive UTC calendar days, default to the last 30 days, and allow up to 366 days.
+Shop and item filters use exact ledger keys, including removed items and unattributed empty keys.
+
+Purchases are player buys (money **from players**). Sales and wand sales are player sells
+(money **to players**); net to players is sales plus wand sales minus purchases. This is shop
+transaction flow, not the total economy balance or transfers between players.
+Totals separate purchases, sales, and wand sales and count operations, ledger lines, and individual
+item units. A bulk operation can contain multiple lines. Popular items are grouped by shop/item,
+ranked by total traded units, and limited to the top 50; totals always include every matching entry.
+Turnover is the sum of purchase and sale values, not profit.
+
+Select a shop and item for daily effective buy/sell price history. Sell prices include wand sales.
+Daily averages are quantity-weighted (`sum(total) / sum(quantity)`), alongside minimum/maximum
+actual unit prices. Prices reflect completed trades, including discounts and bundle/wand effects,
+not configured offers; days without trades are gaps, not zero-price observations.
+The authenticated, read-only `GET /api/sales-analytics` endpoint accepts `from`, `through`, `shop`,
+and `item` filters and uses the editor's existing online-administrator session checks.
+Charts use locally bundled [Chart.js](https://www.chartjs.org/) 4.5.1 (MIT license in
+`src/main/resources/web/vendor/chart-LICENSE.md`); exact values are also shown in tables.
 
 The ledger records completed purchases, individual sales, bulk/command sales, and
 container/spawner wand sales. Rejected payments and purchases refunded after

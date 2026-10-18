@@ -416,6 +416,12 @@ public class ConfigApiServer {
                 } else {
                     sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET and POST requests");
                 }
+            } else if (path.equals("/api/sales-analytics")) {
+                if (method.equals("GET")) {
+                    handleGetSalesAnalytics(exchange);
+                } else {
+                    sendError(exchange, 405, "Method Not Allowed", "This endpoint only accepts GET requests");
+                }
             } else if (path.equals("/api/stock-analytics")) {
                 if (method.equals("GET")) {
                     handleGetStockAnalytics(exchange);
@@ -975,6 +981,28 @@ public class ConfigApiServer {
 
     private void handleGetStockAnalytics(HttpExchange exchange) throws IOException {
         sendJsonResponse(exchange, 200, getStockAnalyticsMap());
+    }
+
+    private void handleGetSalesAnalytics(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
+        me.dralle.shop.data.SalesAnalytics.Filter filter;
+        try {
+            filter = me.dralle.shop.data.SalesAnalytics.Filter.parse(exchange.getRequestURI().getRawQuery(), java.time.Clock.systemUTC());
+        } catch (IllegalArgumentException failure) {
+            sendError(exchange, 400, "Invalid analytics filters", failure.getMessage());
+            return;
+        }
+        var ledger = plugin.getTransactionLedger();
+        if (ledger == null) {
+            sendError(exchange, 503, "Ledger unavailable", "The transaction ledger is not available.");
+            return;
+        }
+        try {
+            sendJsonResponse(exchange, 200, ledger.analytics(filter));
+        } catch (java.sql.SQLException failure) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "Unable to read sales analytics", failure);
+            sendError(exchange, 500, "Analytics unavailable", "Unable to read the transaction ledger.");
+        }
     }
 
     private void handleGetDatabase(HttpExchange exchange) throws IOException {
@@ -2134,4 +2162,3 @@ public class ConfigApiServer {
         return player;
     }
 }
-

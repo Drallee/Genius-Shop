@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="navigation.css?v=sidebar-1">
     <link rel="stylesheet" href="editor-design.css?v=history-items-1">
+    <link rel="stylesheet" href="sales-analytics.css?v=1">
 </head>
 <body class="editor-shell">
     <aside id="editor-sidebar" class="editor-sidebar" aria-label="Editor navigation">
@@ -29,6 +30,7 @@
             <button type="button" class="tab" data-tab="campaigns" title="Campaigns" onclick="selectEditorTab('campaigns')"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span class="sidebar-label">Campaigns</span></button>
                 <button type="button" class="tab" data-tab="commands" title="Commands" onclick="selectEditorTab('commands')"><i class="fa-solid fa-terminal" aria-hidden="true"></i><span class="sidebar-label">Commands</span></button>
                 <button type="button" class="tab" data-tab="customitems" title="Custom Items" onclick="selectEditorTab('customitems')"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><span class="sidebar-label">Custom Items</span></button>
+            <button type="button" class="tab" data-tab="salesanalytics" title="Sales" onclick="selectEditorTab('salesanalytics')"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span class="sidebar-label">Sales</span></button>
             <button type="button" class="tab" data-tab="stockanalytics" title="Stock" onclick="selectEditorTab('stockanalytics')"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.stock-analytics">Stock</span></button>
             <button type="button" class="tab" data-tab="dataeditor" title="Data" onclick="selectEditorTab('dataeditor')"><i class="fa-solid fa-database" aria-hidden="true"></i><span class="sidebar-label">Data</span></button>
             <button type="button" class="tab" data-tab="guisettings" title="GUI Settings" onclick="selectEditorTab('guisettings')"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="sidebar-label" data-i18n="web-editor.tabs.gui-settings">GUI Settings</span></button>
@@ -388,6 +390,30 @@
                 </div>
 
                 <!-- STOCK ANALYTICS TAB -->
+                <section id="salesanalytics-tab" class="tab-content" aria-labelledby="sales-title">
+                    <header class="sales-heading"><div><h2 id="sales-title">Sales</h2><span id="sales-generated" class="sales-muted"></span></div><span class="sales-badge">Completed transactions / UTC</span></header>
+                    <form id="sales-filters" class="sales-filters">
+                        <label>From (UTC)<input id="sales-from" type="date" min="1970-01-01" max="9999-12-30" required></label>
+                        <label>Through (UTC)<input id="sales-through" type="date" min="1970-01-01" max="9999-12-30" required></label>
+                        <label>Shop<select id="sales-shop"><option value="">All shops</option></select></label>
+                        <label>Item<select id="sales-item"><option value="">All items</option></select></label>
+                        <button type="submit" class="btn-base btn-secondary" title="Refresh sales report"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Refresh</button>
+                    </form>
+                    <p id="sales-status" role="status" aria-live="polite"></p>
+                    <div id="sales-results" hidden>
+                        <div id="sales-money" class="sales-money"></div>
+                        <h3>Transaction Totals</h3>
+                        <div class="sales-table-wrap"><table class="sales-table"><thead><tr><th>Player action</th><th>Operations</th><th>Ledger lines</th><th>Item units</th><th>Money</th></tr></thead><tbody id="sales-totals"></tbody></table></div>
+                        <div class="sales-section-heading"><h3>Popular Items</h3><span id="sales-ranking-count" class="sales-muted"></span></div>
+                        <div class="sales-table-wrap"><table class="sales-table"><thead><tr><th>Shop</th><th>Item</th><th>Units bought</th><th>Units sold</th><th>Turnover</th></tr></thead><tbody id="sales-popular"></tbody></table></div>
+                        <div class="sales-section-heading"><h3>Effective Price History</h3><span class="sales-muted">Per item unit / daily weighted average</span></div>
+                        <p id="sales-price-empty" class="sales-muted">Select a shop and item.</p>
+                        <div id="sales-price-content" hidden>
+                            <div class="sales-chart"><canvas id="sales-chart" role="img" aria-label="Daily effective buy and sell prices; exact values follow in the table"></canvas></div>
+                            <div class="sales-table-wrap sales-history-wrap"><table class="sales-table"><thead><tr><th>UTC day</th><th>Player price</th><th>Units</th><th>Weighted average</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody id="sales-prices"></tbody></table></div>
+                        </div>
+                    </div>
+                </section>
                 <div id="stockanalytics-tab" class="tab-content">
                     <div class="content-header flex justify-between items-center mb-24">
                         <div class="flex items-center gap-12">
@@ -725,6 +751,8 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script src="js/state-store.js"></script>
+    <script src="vendor/chart-4.5.1.umd.min.js"></script>
+    <script src="js/sales-analytics.js?v=1"></script>
     <script src="js/core.js?v=menu-placeholders-1"></script>
     <script src="js/schema.js"></script>
     <script src="vendor/yaml.min.js"></script>
