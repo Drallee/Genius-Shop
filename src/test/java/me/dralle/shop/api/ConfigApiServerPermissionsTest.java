@@ -98,6 +98,12 @@ class ConfigApiServerPermissionsTest {
         HttpExchange exchange = mock(HttpExchange.class);
         Headers headers = new Headers();
         headers.set("X-Session-Token", "session");
+        if ((method.equals("POST") || method.equals("DELETE")) && path.startsWith("/api/file/")) {
+            Field draftField = ConfigApiServer.class.getDeclaredField("drafts");
+            draftField.setAccessible(true);
+            var store = (me.dralle.shop.config.ConfigurationDraftStore) draftField.get(api);
+            headers.set("X-File-Revision", RevisionedFileStore.snapshot(store.files("test").get(path.substring("/api/file/".length()))).revision());
+        }
         when(exchange.getRequestHeaders()).thenReturn(headers);
         when(exchange.getRequestMethod()).thenReturn(method);
         when(exchange.getRequestURI()).thenReturn(URI.create(path));

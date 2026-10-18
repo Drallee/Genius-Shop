@@ -65,6 +65,7 @@
             if (!dialog || !dialog.open || active.file === file) show(conflict);
             throw conflictError();
         }
+        if (response.status === 403 && global.EditorPermissions) await global.EditorPermissions.recheck();
         if (!response.ok) throw new Error(data.message || data.error || `Save failed (${response.status})`);
         if (!data.revision) throw new Error('The server did not return a file revision. Reload before saving again.');
         if (current) {
@@ -215,6 +216,7 @@
         if (response.status === 404) return { revision: 'missing', content: null };
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || data.error || 'Could not load latest file');
+        if (data.draft && global.EditorDrafts) global.EditorDrafts.setState(data.draft);
         if (!data.revision) throw new Error('Missing file revision. Reload the editor before saving.');
         return { revision: data.revision, content: economy ? JSON.stringify(normalizeEconomySafetySettings(data), null, 2) : data.content };
     }
@@ -257,7 +259,9 @@
                 status.textContent = 'The server file changed again. Your reconciled text is preserved; review the latest version.';
                 return;
             }
+            if (response.status === 403 && global.EditorPermissions) await global.EditorPermissions.recheck();
             if (!response.ok) throw new Error(data.message || data.error || 'Could not save reconciled file');
+            if (data.draft && global.EditorDrafts) global.EditorDrafts.setState(data.draft);
             if (!data.revision) throw new Error('Missing file revision. Reload before saving again.');
             const saved = active.economy ? JSON.stringify(normalizeEconomySafetySettings(data.economySafety), null, 2) : content;
             await apply(file, saved, active.economy);

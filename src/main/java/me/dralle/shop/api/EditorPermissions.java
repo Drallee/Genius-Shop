@@ -84,7 +84,7 @@ public record EditorPermissions(boolean admin, boolean analytics, boolean drafts
             return method.equals("GET") ? canReadFile(file) : canWriteFile(file);
         }
         return switch (path) {
-            case "/api/stock-analytics" -> analytics;
+            case "/api/stock-analytics", "/api/sales-analytics" -> analytics;
             case "/api/database" -> database;
             case "/api/draft/review", "/api/draft/discard" -> workspace();
             case "/api/draft/publish" -> publish;

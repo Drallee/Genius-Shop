@@ -22,6 +22,8 @@ class EditorPermissionsTest {
 
     @Test void eachCapabilityIsIndependent() {
         assertTrue(only("analytics").allows("/api/stock-analytics", "GET"));
+        assertTrue(only("analytics").allows("/api/sales-analytics", "GET"));
+        assertFalse(only("drafts").allows("/api/sales-analytics", "GET"));
         assertFalse(only("analytics").allows("/api/database", "GET"));
         assertTrue(only("database").allows("/api/database", "POST"));
         assertFalse(only("database").allows("/api/file/shops/a.yml", "POST"));

@@ -99,7 +99,7 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
         // Reject a stale review without losing the persisted draft.
         state.version++;
         await review.getByRole('button', { name: 'Publish', exact: true }).click();
-        await review.getByText(/Draft changed in another tab/).waitFor();
+        await review.getByText(/reviewed configuration changed/).waitFor();
         assert.equal(await review.getByRole('button', { name: 'Publish', exact: true }).isDisabled(), true);
         assert.deepEqual(state.live, baseline);
         await review.getByRole('button', { name: 'Validate again', exact: true }).click();

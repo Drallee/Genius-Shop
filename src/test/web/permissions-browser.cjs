@@ -25,8 +25,8 @@ const { createDraftPreviewServer } = require('./draft-preview-server.cjs');
                 });
                 await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'domcontentloaded' });
                 await page.waitForFunction(() => !getEditorState('isLoadingFiles') && document.body.classList.contains('permissions-ready'));
-                const expected = role === 'admin' ? ['mainmenu', 'shop', 'purchase', 'sell', 'campaigns', 'commands', 'customitems', 'stockanalytics', 'dataeditor', 'guisettings'] :
-                    role === 'analytics' ? ['stockanalytics'] : role === 'database' ? ['dataeditor'] : role === 'commands' ? ['commands'] :
+                const expected = role === 'admin' ? ['mainmenu', 'shop', 'purchase', 'sell', 'campaigns', 'commands', 'customitems', 'salesanalytics', 'stockanalytics', 'dataeditor', 'guisettings'] :
+                    role === 'analytics' ? ['salesanalytics', 'stockanalytics'] : role === 'database' ? ['dataeditor'] : role === 'commands' ? ['commands'] :
                     role === 'publish' ? [] : ['mainmenu', 'shop', 'purchase', 'sell', 'campaigns', 'customitems', 'guisettings'];
                 assert.deepEqual(await page.locator('.sidebar-tabs .tab:not([hidden])').evaluateAll(buttons => buttons.map(button => button.dataset.tab)), expected, role);
                 assert.equal(await page.locator('.sticky-footer-actions button[onclick="openActivityLogModal()"]').isVisible(), role === 'admin');

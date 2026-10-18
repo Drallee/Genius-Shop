@@ -27,6 +27,7 @@ class TransactionLedgerFlowTest {
     @ValueSource(strings = {"success", "payment-failure", "delivery-failure", "refund-failure", "ambiguous-refund"})
     void purchaseRecordsOnlyAfterPaymentAndDelivery(String outcome) throws Exception {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        when(plugin.getItemDiscovery()).thenReturn(null);
         Player player = mock(Player.class, RETURNS_DEEP_STUBS);
         ItemStack template = mock(ItemStack.class);
         ItemStack delivered = mock(ItemStack.class);
@@ -97,6 +98,7 @@ class TransactionLedgerFlowTest {
     @ValueSource(booleans = {true, false})
     void individualSaleRecordsOnlyAfterSuccessfulDepositAndRemoval(boolean succeeds) throws Exception {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        when(plugin.getItemDiscovery()).thenReturn(null);
         Player player = mock(Player.class, RETURNS_DEEP_STUBS);
         YamlConfiguration config = new YamlConfiguration();
         config.set("economy-safety.enabled", false);

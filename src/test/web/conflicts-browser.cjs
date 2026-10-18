@@ -19,7 +19,10 @@ const { createConflictPreviewServer } = require('./conflict-preview-server.cjs')
             page.setDefaultTimeout(10000);
             page.on('pageerror', error => errors.push(error.message));
             await page.route('https://**/*', route => route.request().resourceType() === 'image' ? route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64') }) : route.abort());
-            await page.addInitScript(() => localStorage.setItem('autoSaveEnabled', 'false'));
+            await page.addInitScript(() => {
+                localStorage.setItem('autoSaveEnabled', 'false');
+                localStorage.setItem('geniusshop:tutorial:v1:preview', JSON.stringify({ firstRunHandled: true, autoNewFeatures: false, sections: {} }));
+            });
             await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'domcontentloaded' });
             await page.waitForFunction(() => !isLoadingFiles && items.length > 0);
             await page.evaluate(() => switchTab('shop'));

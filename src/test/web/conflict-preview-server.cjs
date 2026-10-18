@@ -26,6 +26,7 @@ function createConflictPreviewServer() {
         const send = (code, data) => { response.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(data)); };
         if (url.pathname === '/api/files') {
             const data = { shops: {}, revisions: {}, economySafety: JSON.parse(files.get('config.yml')),
+                permissions: { admin: true }, readOnlyFiles: [],
                 serverInfo: { version: 'conflict-preview', smartSpawnerEnabled: false } };
             files.forEach((content, file) => {
                 data.revisions[file] = revision(file);

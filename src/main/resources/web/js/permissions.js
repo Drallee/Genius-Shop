@@ -5,7 +5,7 @@
     let checking;
     const tabPermissions = { mainmenu: 'drafts', shop: 'drafts', purchase: 'drafts', sell: 'drafts',
         campaigns: 'drafts', customitems: 'drafts', guisettings: 'drafts', commands: 'commands',
-        stockanalytics: 'analytics', dataeditor: 'database' };
+        stockanalytics: 'analytics', salesanalytics: 'analytics', dataeditor: 'database' };
     const tabFiles = { mainmenu: 'menus/main-menu.yml', purchase: 'menus/purchase-menu.yml',
         sell: 'menus/sell-menu.yml', campaigns: 'campaigns.yml', customitems: 'custom-items.yml',
         guisettings: 'menus/gui-settings.yml', commands: 'commands.yml' };

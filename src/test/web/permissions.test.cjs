@@ -17,7 +17,7 @@ test('missing permissions fail closed and every tab follows its independent capa
     const permissions = ctx.EditorPermissions;
     assert.equal(permissions.tabAllowed('shop'), false);
     assert.equal(permissions.can('publish'), false);
-    for (const [node, tab] of [['drafts', 'shop'], ['analytics', 'stockanalytics'], ['commands', 'commands'], ['database', 'dataeditor']]) {
+    for (const [node, tab] of [['drafts', 'shop'], ['analytics', 'stockanalytics'], ['analytics', 'salesanalytics'], ['commands', 'commands'], ['database', 'dataeditor']]) {
         permissions.set({ [node]: true });
         assert.equal(permissions.tabAllowed(tab), true);
         assert.equal(permissions.can('publish'), false);
@@ -47,6 +47,7 @@ test('save all only writes files granted by the server and does not fetch live d
     const calls = [];
     const ctx = context();
     Object.assign(ctx, { Date, allShops: { 'a.yml': 'items: []', 'locked.yml': 'commands: []', 'b.yml': 'items: []' },
+        EditorRevisions: { requireResolved: () => {} },
         getEditorState: () => 'mainmenu', setUnsavedChanges: () => {},
         saveShopFileDirect: name => calls.push(name) });
     for (const method of ['saveCurrentShop', 'saveCampaignHubDirtyShops', 'saveMainMenuYaml', 'savePurchaseMenuYaml',

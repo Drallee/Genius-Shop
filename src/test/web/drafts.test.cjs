@@ -48,6 +48,28 @@ test('a rejected save keeps the revision and does not break subsequent validatio
     assert.equal(headers[2]['X-Draft-Revision'], '2');
 });
 
+test('draft saves also enforce per-file revisions while serializing workspace updates', async () => {
+    const context = editorContext();
+    const calls = [];
+    context.set('URL', URL);
+    context.set('location', { href: 'http://localhost/editor/' });
+    context.run('sessionToken = "session"');
+    context.set('fetch', async (url, options) => {
+        calls.push({ url, headers: options.headers });
+        return new Response(JSON.stringify({ success: true, revision: 'file-' + calls.length,
+            draft: { revision: 'draft-' + calls.length, changedFiles: calls.length } }));
+    });
+    context.run(fs.readFileSync(path.resolve(__dirname, '../../main/resources/web/js/save-conflicts.js'), 'utf8'));
+    context.run(drafts);
+    context.run('EditorRevisions.seed({revisions: {"shops/a.yml": "a-original", "shops/b.yml": "b-original"}, shops: {"a.yml": "a", "b.yml": "b"}})');
+    context.run('EditorDrafts.setState({revision: "draft-0", changedFiles: 0})');
+    await Promise.all(['a', 'b', 'a'].map(file => context.run(`EditorDrafts.request("api/file/shops/${file}.yml", {method: "POST", body: JSON.stringify({content: "edited"})})`)));
+    await context.run('EditorDrafts.request("api/draft/review")');
+    assert.deepEqual(calls.slice(0, 3).map(call => call.headers['X-File-Revision']), ['a-original', 'b-original', 'file-1']);
+    assert.deepEqual(calls.map(call => call.headers['X-Draft-Revision']), ['draft-0', 'draft-1', 'draft-2', 'draft-3']);
+    assert.equal(calls[3].headers['X-File-Revision'], undefined);
+});
+
 test('autosave only saves a draft even when the legacy mode is publish', async () => {
     let callback;
     let saves = 0, publishes = 0;

@@ -34,6 +34,7 @@ class TransactionEntryPointsTest {
 
     private static ShopPlugin plugin(Player player) {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
+        when(plugin.getItemDiscovery()).thenReturn(null);
         var config = new YamlConfiguration();
         config.set("economy-safety.enabled", false);
         when(plugin.getConfig()).thenReturn(config);

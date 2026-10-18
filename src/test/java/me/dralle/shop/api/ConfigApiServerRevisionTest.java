@@ -85,7 +85,12 @@ class ConfigApiServerRevisionTest {
         return new Response(status[0], JsonParser.parseString(output.toString(StandardCharsets.UTF_8)).getAsJsonObject());
     }
 
-    private String revision(String file) throws IOException { return new RevisionedFileStore(root.toFile()).read(root.resolve(file).toFile()).revision(); }
+    private String revision(String file) throws Exception {
+        Field field = ConfigApiServer.class.getDeclaredField("drafts");
+        field.setAccessible(true);
+        var store = (me.dralle.shop.config.ConfigurationDraftStore) field.get(api);
+        return RevisionedFileStore.snapshot(store.files("Admin").get(file)).revision();
+    }
     private String content(String source) { return new com.google.gson.Gson().toJson(Map.of("content", source)); }
 
     @Test void loadedContentsAndRevisionsAreReturnedTogetherWithoutConfigSecrets() throws Exception {
@@ -97,15 +102,15 @@ class ConfigApiServerRevisionTest {
         assertFalse(files.data().toString().contains("top-secret"));
     }
 
-    @Test void externalEditsRejectStaleSavesAndReturnLatestContent() throws Exception {
+    @Test void concurrentDraftEditsRejectStaleSavesAndReturnLatestContent() throws Exception {
         String original = revision("shops/blocks.yml");
-        Files.writeString(root.resolve("shops/blocks.yml"), "rows: 4\nitems: []\n");
+        assertEquals(200, call("POST", "/api/file/shops/blocks.yml", content("rows: 4\nitems: []\n"), original).status());
         Response conflict = call("POST", "/api/file/shops/blocks.yml", content("rows: 5\nitems: []\n"), original);
         assertEquals(409, conflict.status());
         assertEquals("rows: 4\nitems: []\n", conflict.data().get("content").getAsString());
         assertEquals("shops/blocks.yml", conflict.data().get("fileName").getAsString());
         assertEquals(revision("shops/blocks.yml"), conflict.data().get("revision").getAsString());
-        assertEquals("rows: 4\nitems: []\n", Files.readString(root.resolve("shops/blocks.yml")));
+        assertEquals("rows: 3\nitems: []\n", Files.readString(root.resolve("shops/blocks.yml")));
         verify(plugin, never()).reloadPlugin();
     }
 
@@ -116,7 +121,8 @@ class ConfigApiServerRevisionTest {
         assertEquals(200, saved.status());
         assertEquals(revision("shops/blocks.yml"), saved.data().get("revision").getAsString());
         assertEquals(409, call("POST", "/api/file/shops/blocks.yml", content("rows: 6\n"), original).status());
-        verify(plugin, times(1)).reloadPlugin();
+        verify(plugin, never()).reloadPlugin();
+        assertEquals("rows: 3\nitems: []\n", Files.readString(root.resolve("shops/blocks.yml")));
     }
 
     @Test void deletionsAndNewFileCollisionsAreAlsoProtected() throws Exception {
@@ -125,7 +131,8 @@ class ConfigApiServerRevisionTest {
         assertTrue(Files.exists(root.resolve("shops/blocks.yml")));
         assertEquals(200, call("DELETE", "/api/file/shops/blocks.yml", "", original).status());
         assertEquals(409, call("POST", "/api/file/shops/blocks.yml", content("rows: 3\n"), original).status());
-        assertFalse(Files.exists(root.resolve("shops/blocks.yml")));
+        assertTrue(Files.exists(root.resolve("shops/blocks.yml")));
+        assertEquals(404, call("GET", "/api/file/shops/blocks.yml", "", null).status());
         assertEquals(200, call("POST", "/api/file/shops/blocks.yml", content("rows: 3\n"), "missing").status());
         assertEquals(409, call("POST", "/api/file/shops/blocks.yml", content("rows: 4\n"), "missing").status());
     }
@@ -133,7 +140,7 @@ class ConfigApiServerRevisionTest {
     @Test void staleEconomySettingsDoNotMutateLiveConfigAndDoNotExposeCredentials() throws Exception {
         Response loaded = call("GET", "/api/economy-safety", "", null);
         assertEquals(10, loaded.data().get("maxUnitPrice").getAsInt());
-        Files.writeString(root.resolve("config.yml"), config.replace("price: 10", "price: 20"));
+        assertEquals(200, call("POST", "/api/economy-safety", "{\"settings\":{\"maxUnitPrice\":20}}", loaded.data().get("revision").getAsString()).status());
         Response conflict = call("POST", "/api/economy-safety", "{\"settings\":{\"maxUnitPrice\":30}}", loaded.data().get("revision").getAsString());
         assertEquals(409, conflict.status());
         assertFalse(conflict.data().toString().contains("top-secret"));
@@ -146,10 +153,19 @@ class ConfigApiServerRevisionTest {
     @Test void historyRestoreCannotBypassTheSameRevisionGuard() throws Exception {
         Files.writeString(root.resolve("activity-log.json"), "[{\"id\":7,\"action\":\"updated\",\"details\":{\"fileName\":\"shops/blocks.yml\"},\"beforeData\":{\"content\":\"items: []\\n\"}}]");
         String original = revision("shops/blocks.yml");
-        Files.writeString(root.resolve("shops/blocks.yml"), "rows: 4\nitems: []\n");
+        assertEquals(200, call("POST", "/api/file/shops/blocks.yml", content("rows: 4\nitems: []\n"), original).status());
         assertEquals(409, call("POST", "/api/activity-log/rollback", "{\"id\":7}", original).status());
-        assertEquals("rows: 4\nitems: []\n", Files.readString(root.resolve("shops/blocks.yml")));
+        assertEquals("rows: 4\nitems: []\n", call("GET", "/api/file/shops/blocks.yml", "", null).data().get("content").getAsString());
         assertEquals(200, call("POST", "/api/activity-log/rollback", "{\"id\":7}", revision("shops/blocks.yml")).status());
-        assertEquals("items: []\n", Files.readString(root.resolve("shops/blocks.yml")));
+        assertEquals("items: []\n", call("GET", "/api/file/shops/blocks.yml", "", null).data().get("content").getAsString());
+        assertEquals("rows: 3\nitems: []\n", Files.readString(root.resolve("shops/blocks.yml")));
+    }
+
+    @Test void unrelatedFileSavesDoNotInvalidateEachOther() throws Exception {
+        String blocks = revision("shops/blocks.yml");
+        String configRevision = revision("config.yml");
+        assertEquals(200, call("POST", "/api/file/shops/blocks.yml", content("rows: 4\nitems: []\n"), blocks).status());
+        assertEquals(200, call("POST", "/api/economy-safety", "{\"settings\":{\"maxUnitPrice\":20}}", configRevision).status());
+        assertEquals("rows: 3\nitems: []\n", Files.readString(root.resolve("shops/blocks.yml")));
     }
 }

@@ -87,6 +87,13 @@ class ConfigApiServerDraftTest {
     }
 
     private void invoke(String name, Response response, String... arguments) throws Exception {
+        if (name.equals("handleSaveFile") || name.equals("handleDeleteFile") || name.equals("handleSaveEconomySafety")) {
+            Field draftField = ConfigApiServer.class.getDeclaredField("drafts");
+            draftField.setAccessible(true);
+            var store = (me.dralle.shop.config.ConfigurationDraftStore) draftField.get(api);
+            String file = name.equals("handleSaveEconomySafety") ? "config.yml" : arguments[0];
+            response.exchange().getRequestHeaders().set("X-File-Revision", RevisionedFileStore.snapshot(store.files("test").get(file)).revision());
+        }
         Class<?>[] types = new Class<?>[arguments.length + 1];
         Object[] values = new Object[types.length];
         types[0] = HttpExchange.class; values[0] = response.exchange();

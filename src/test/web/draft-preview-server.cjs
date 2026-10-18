@@ -1,5 +1,7 @@
 // In-memory publishing demo. Never writes project files or contacts a Minecraft server.
 const { createPreviewServer } = require('./editor-preview-server.cjs');
+const { createHash } = require('node:crypto');
+const revision = content => content == null ? 'missing' : createHash('sha256').update(content).digest('hex');
 const keys = { mainMenu: 'menus/main-menu.yml', purchaseMenu: 'menus/purchase-menu.yml',
     sellMenu: 'menus/sell-menu.yml', guiSettings: 'menus/gui-settings.yml', campaignsFile: 'campaigns.yml',
     commandsFile: 'commands.yml', customItemsFile: 'custom-items.yml' };
@@ -31,7 +33,8 @@ function createDraftPreviewServer({ permissions = null, readOnlyFiles = [] } = {
             url.pathname.startsWith('/api/file/') && !fileAllowed(decodeURIComponent(url.pathname.slice('/api/file/'.length)));
         if (forbidden) { send(403, { message: 'Editor permission denied' }); return true; }
         if (url.pathname === '/api/files') {
-            const payload = { ...base, shops: {}, draft: status(), permissions: permissions || base.permissions, readOnlyFiles };
+            const payload = { ...base, shops: {}, revisions: {}, draft: status(), permissions: permissions || base.permissions, readOnlyFiles };
+            Object.entries(state.workspace).forEach(([file, content]) => { if (fileAllowed(file)) payload.revisions[file] = revision(content); });
             Object.entries(keys).forEach(([key, file]) => { if (fileAllowed(file)) payload[key] = state.workspace[file]; else delete payload[key]; });
             Object.entries(state.workspace).forEach(([file, content]) => { if (file.startsWith('shops/') && fileAllowed(file)) payload.shops[file.slice(6)] = content; });
             if (state.workspace['config.yml']) payload.economySafety = JSON.parse(state.workspace['config.yml']);
@@ -39,6 +42,12 @@ function createDraftPreviewServer({ permissions = null, readOnlyFiles = [] } = {
             return true;
         }
         if (url.pathname === '/api/draft/review') { send(200, review()); return true; }
+        if (request.method === 'GET' && url.pathname.startsWith('/api/file/')) {
+            const file = decodeURIComponent(url.pathname.slice('/api/file/'.length));
+            const content = state.workspace[file];
+            send(content == null ? 404 : 200, { content, revision: revision(content), draft: status() });
+            return true;
+        }
         if (request.method === 'GET') return false;
         state.requests.push(url.pathname);
         let body = '';
@@ -47,7 +56,14 @@ function createDraftPreviewServer({ permissions = null, readOnlyFiles = [] } = {
             try {
                 const input = body ? JSON.parse(body) : {};
                 const expected = request.headers['x-draft-revision'];
-                if (expected != null && expected !== String(state.version)) return send(409, { message: 'Draft changed in another tab' });
+                if (url.pathname === '/api/draft/discard' && expected !== String(state.version)) return send(409, { message: 'Draft changed in another tab' });
+                const file = url.pathname.startsWith('/api/file/') ? decodeURIComponent(url.pathname.slice('/api/file/'.length)) :
+                    url.pathname === '/api/economy-safety' ? 'config.yml' : null;
+                if (file) {
+                    if (!request.headers['x-file-revision']) return send(428, { message: 'File revision required' });
+                    if (request.headers['x-file-revision'] !== revision(state.workspace[file])) return send(409, {
+                        fileName: file, content: state.workspace[file] ?? null, revision: revision(state.workspace[file]) });
+                }
                 if (url.pathname.startsWith('/api/file/')) {
                     const file = decodeURIComponent(url.pathname.slice('/api/file/'.length));
                     if (request.method === 'DELETE') delete state.workspace[file];
@@ -64,7 +80,8 @@ function createDraftPreviewServer({ permissions = null, readOnlyFiles = [] } = {
                     state.workspace = { ...state.live };
                 } else return send(405, { message: 'Unsupported preview action' });
                 state.version++;
-                send(200, { success: true, draft: status(), economySafety: input.settings });
+                send(200, { success: true, draft: status(), economySafety: input.settings,
+                    revision: file ? revision(state.workspace[file]) : undefined });
             } catch (error) { send(400, { message: error.message }); }
         });
         return true;
