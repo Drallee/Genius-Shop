@@ -75,6 +75,12 @@ Ordinary item purchases check inventory capacity before charging. If delivery fa
 
 Successful editor saves apply configuration reloads to the live server. File-history rollback restores recorded configuration; it does not restore economy balances or all runtime state.
 
+Shop-item saves patch changed values without filling in unrelated optional fields.
+Item stock settings distinguish inherited shop values from explicit enabled/disabled
+overrides. New stock-reset sections contain only the relevant schedule settings;
+existing configured values, comments, unknown keys, and untouched disabled-feature
+options are retained. Repeated unchanged saves do not expand the configuration.
+
 ### Integrations and Developer API
 
 - Vault economy, optional SmartSpawner/Floodgate support, and Discord transaction webhooks.
