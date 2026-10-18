@@ -17,6 +17,7 @@ items:
     price: 50000
     sell-price: 25000
     amount: 1
+    hide-additional: true
     spawner-type: PIG
     global-limit: 128
     show-stock: true
@@ -29,6 +30,7 @@ items:
     price: 75000
     sell-price: 35000
     amount: 1
+    hide-additional: true
     spawner-type: COW
     global-limit: 96
     show-stock: true
@@ -38,6 +40,7 @@ items:
     price: 60000
     sell-price: 30000
     amount: 1
+    hide-additional: true
     spawner-type: SHEEP
     global-limit: 96
 
@@ -46,6 +49,7 @@ items:
     price: 45000
     sell-price: 22000
     amount: 1
+    hide-additional: true
     spawner-type: CHICKEN
     global-limit: 96
 
@@ -54,6 +58,7 @@ items:
     price: 200000
     sell-price: 100000
     amount: 1
+    hide-additional: true
     global-limit: 10
     spawner-type: VILLAGER
     show-stock: true
@@ -69,6 +74,7 @@ items:
     price: 150000
     sell-price: 80000
     amount: 1
+    hide-additional: true
     spawner-type: BLAZE
     global-limit: 24
 
@@ -77,6 +83,7 @@ items:
     price: 110000
     sell-price: 55000
     amount: 1
+    hide-additional: true
     spawner-type: SKELETON
     global-limit: 32
 
@@ -85,6 +92,7 @@ items:
     price: 100000
     sell-price: 50000
     amount: 1
+    hide-additional: true
     spawner-type: ZOMBIE
     global-limit: 32
 
@@ -93,6 +101,7 @@ items:
     price: 180000
     sell-price: 90000
     amount: 1
+    hide-additional: true
     spawner-type: CREEPER
     global-limit: 16
 
@@ -101,6 +110,7 @@ items:
     price: 300000
     sell-price: 150000
     amount: 1
+    hide-additional: true
     global-limit: 5
     spawner-type: IRON_GOLEM
     show-stock: true
@@ -117,10 +127,7 @@ items:
     lore:
       - '&7Produces <gradient:#333333:#aaaaaa>coal</gradient>'
       - '&8Requires SmartSpawner'
-    hide-attributes: true
     hide-additional: true
-    require-name: false
-    require-lore: false
     global-limit: 8
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -137,10 +144,7 @@ items:
     lore:
       - '&7Produces <gradient:#57C1FF:#7EE8FA>diamonds</gradient>'
       - '&8Requires SmartSpawner'
-    hide-attributes: true
     hide-additional: true
-    require-name: false
-    require-lore: false
     global-limit: 3
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -157,10 +161,7 @@ items:
     lore:
       - '&7Produces <gradient:#16A34A:#86EFAC>emeralds</gradient>'
       - '&8Requires SmartSpawner'
-    hide-attributes: true
     hide-additional: true
-    require-name: false
-    require-lore: false
     global-limit: 4
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -177,10 +178,7 @@ items:
     lore:
       - '&7Produces <gradient:#F59E0B:#FDE68A>gold ingots</gradient>'
       - '&8Requires SmartSpawner'
-    hide-attributes: true
     hide-additional: true
-    require-name: false
-    require-lore: false
     global-limit: 5
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -197,10 +195,7 @@ items:
     lore:
       - '&7Produces <gradient:#A78BFA:#F0FDFA>nether stars</gradient>'
       - '&8Requires SmartSpawner'
-    hide-attributes: true
     hide-additional: true
-    require-name: false
-    require-lore: false
     global-limit: 2
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -217,10 +212,7 @@ items:
     lore:
       - '&7Produces <gradient:#3F3F46:#A78BFA>netherite ingots</gradient>'
       - '&8Requires SmartSpawner'
-    hide-attributes: true
     hide-additional: true
-    require-name: false
-    require-lore: false
     global-limit: 2
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -237,10 +229,7 @@ items:
     lore:
       - '&7Produces <gradient:#FACC15:#22C55E>totems of undying</gradient>'
       - '&8Requires SmartSpawner'
-    hide-attributes: true
     hide-additional: true
-    require-name: false
-    require-lore: false
     global-limit: 1
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
