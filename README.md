@@ -167,6 +167,9 @@ See [Web Editor](wiki/Web-Editor.md) for authentication, HTTPS, network troubles
 | Command | Purpose | Permission |
 | --- | --- | --- |
 | `/shop` | Open the main menu | `geniusshop.use` |
+| `/shop search [query]` | Search accessible shops by display name or Minecraft material | `geniusshop.use` |
+| `/shop favorites` | Open personal favorites | `geniusshop.use` |
+| `/shop recent` | Open recently viewed or traded items | `geniusshop.use` |
 | `/shop sell` | Open the bulk-sell menu | `geniusshop.sell` |
 | `/shop reload` | Reload configuration and custom commands | `geniusshop.reload` |
 | `/shop editor` | Generate an editor login link/code | Full admin or any `geniusshop.editor.*` capability below |
@@ -270,6 +273,16 @@ Raw `config.yml`, `discord.yml`, legacy `gui.yml`, language files, economy safet
 Every protected API route checks live permissions server-side, including direct requests, raw file operations, history restores, and publication. Publish rechecks access in the server task before installing files, so a previously saved draft or review token does not preserve revoked rights. `GET /api/permissions` and the `permissions` object in `GET /api/files` expose the current capability flags; `readOnlyFiles` lists command-bearing files locked for that user. The UI hides unavailable sections/actions, and draft saving skips inaccessible files. Returning focus to the editor or a rejected save refreshes revoked access without discarding local edits; use Reload to load newly granted sections and their file contents. Unauthorized operations return HTTP 403; expired, offline, or fully revoked sessions return HTTP 401. Draft workspaces remain per-player, not a cross-player approval queue.
 
 ## Configuration and Data
+
+### Finding Items In Game
+
+`/shop search diamond sword` searches display names and material names, ignoring formatting and case. Material underscores and the `minecraft:` prefix are supported. With no query, it browses all accessible items. The compass button in results accepts a private chat search; `cancel` returns to the previous list, and the prompt expires after 60 seconds. Queries are limited to 64 characters.
+
+Results are paged and open an item detail menu with Buy, Sell, Open Shop, and a favorite toggle. Shop pages also have search, favorites, and recent-item buttons. Shift-right-clicking a shop item or search result toggles its favorite. In favorites or recent items, shift-right-click the matching navigation button to clear that personal list, including unavailable saved references.
+
+Favorites (up to 100) and recent items (the latest 30 distinct references) are stored per Minecraft UUID in `data.db` and survive restarts. Viewing item details and successful purchases/sales update recents. Search, saved lists, selection, and transaction confirmation recheck shop/item permissions, schedules, and item conditions; no extra permission bypass is granted. Removed, replaced, inaccessible, or ambiguous items are omitted without deleting saved favorites, so temporarily unavailable favorites can return. Bookmarks are scoped to the shop and item definition; a uniquely identifiable item can move slots, while price/access-rule changes do not invalidate its bookmark. Changing the item's name, material, variant, amount, metadata, or commands makes the old reference unavailable. Exact duplicate definitions use their original slot; ambiguous moved duplicates are not guessed.
+
+Buy/sell still use the normal balance, stock, cooldown, pricing, delivery, and transaction checks. Open transaction menus are invalidated by a configuration reload; reopen the item to use its new settings. Default main menus include the three discovery buttons. Existing customized menu files are not overwritten: commands and shop-page navigation work immediately, or add main-menu command buttons for `shop search`, `shop favorites`, and `shop recent`. New text is under `messages.discovery` in `en_US.yml`, with the existing English fallback for other languages.
 
 Paths below are relative to the plugin data directory, normally `plugins/Genius-Shop/`.
 

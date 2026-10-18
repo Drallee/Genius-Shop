@@ -41,6 +41,7 @@ public class SellMenu implements Listener {
     public static void open(Player player, ShopItem item, String shopKey, int shopPage) {
         ShopPlugin plugin = ShopPlugin.getInstance();
         ShopData shop = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
+        if (plugin.getItemDiscovery() != null) plugin.getItemDiscovery().bindTrade(player, "sell", shopKey, item);
         if (item.getHeadTexture() != null && !item.getHeadTexture().isEmpty()) {
             player.setMetadata("sell.headTexture", new FixedMetadataValue(plugin, item.getHeadTexture()));
         } else {
@@ -697,7 +698,8 @@ Inventory inv = new SellHolder().createInventory(54, title);
         ShopPlugin plugin = ShopPlugin.getInstance();
 
         ShopData accessShop = shopKey == null ? null : plugin.getShopManager().getShop(shopKey);
-        var access = TransactionService.eligibility(plugin, player, accessShop, findShopItem(shopKey, itemKey), permission);
+        if (plugin.getItemDiscovery() != null && !plugin.getItemDiscovery().guardTrade(player, "sell", shopKey, itemKey)) return;
+        var access = TransactionService.eligibility(plugin, player, accessShop, findShopItem(player, shopKey, itemKey), permission);
         if (!access.allowed()) {
             player.sendMessage(access.message());
             player.closeInventory();
@@ -730,7 +732,7 @@ Inventory inv = new SellHolder().createInventory(54, title);
             return;
         }
 
-        ShopItem matchedItem = findShopItem(shopKey, itemKey);
+        ShopItem matchedItem = findShopItem(player, shopKey, itemKey);
         ShopData shopData = shopKey != null ? plugin.getShopManager().getShop(shopKey) : null;
         boolean sellAddsToStock = resolveSellAddsToStock(shopData, matchedItem);
         boolean allowSellStockOverflow = resolveAllowSellStockOverflow(shopData, matchedItem);
@@ -804,13 +806,14 @@ Inventory inv = new SellHolder().createInventory(54, title);
         plugin.getGenericShopGui().requestRefresh();
 
         plugin.itemsSold++;
+        if (plugin.getItemDiscovery() != null) plugin.getItemDiscovery().recordRecent(player, shopKey, matchedItem);
         plugin.debug("Sell successful: " + player.getName() + " sold " + amount + "x " + material + " for $" + total);
 
         // Fire ShopSellEvent
         if (itemKey != null && shopKey != null) {
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop != null) {
-                ShopItem si = shop.getItemByUniqueKey(itemKey);
+                ShopItem si = findShopItem(player, shopKey, itemKey);
                 if (si != null) {
                     me.dralle.shop.api.events.ShopSellEvent sellEvent =
                             new me.dralle.shop.api.events.ShopSellEvent(player, si, amount, total, shopKey);
@@ -849,7 +852,7 @@ Inventory inv = new SellHolder().createInventory(54, title);
         if (itemKey != null && shopKey != null) {
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop != null) {
-                ShopItem si = shop.getItemByUniqueKey(itemKey);
+                ShopItem si = findShopItem(player, shopKey, itemKey);
                 if (si != null) {
                     nextSellPrice = calculateSellPrice(shop, si);
                 }
@@ -859,7 +862,8 @@ Inventory inv = new SellHolder().createInventory(54, title);
         open(player, material, nextSellPrice, newAmount, priceUnitAmount, spawnerType, spawnerItem, potionType, enchantments, customName, customLore, hideAttr, hideAdd, requireName, requireLore, sellPricePerItem, shopKey, shopPage, itemKey, limit, globalLimit, dynamicPricing, minPrice, maxPrice, priceChange, permission);
     }
 
-    private ShopItem findShopItem(String shopKey, String itemKey) {
+    private ShopItem findShopItem(Player player, String shopKey, String itemKey) {
+        if (plugin.getItemDiscovery() != null) return plugin.getItemDiscovery().transactionItem(player, "sell", shopKey, itemKey);
         if (shopKey == null || itemKey == null) return null;
         ShopData shop = plugin.getShopManager().getShop(shopKey);
         if (shop == null) return null;

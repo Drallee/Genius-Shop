@@ -9,7 +9,7 @@ softdepend: [SmartSpawner, SmartSpawners]
 commands:
   shop:
     description: Open the shop menu or reload the plugin
-    usage: /shop [reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem|giveitem|ledger|refunds]
+    usage: /shop [search [query]|favorites|recent|reload|editor|confirmlogin|sell|wiki|resetstock|validate-prices|exportitem|giveitem|ledger|refunds]
 
 permissions:
   geniusshop.refunds:
