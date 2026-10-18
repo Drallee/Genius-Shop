@@ -131,10 +131,10 @@ public class GeniusShopAPIImpl implements GeniusShopAPI {
         }
 
         // Shop availability
-        if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) return false;
+        if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes(), plugin)) return false;
 
         // Item availability
-        return ShopTimeUtil.isShopAvailable(item.getAvailableTimes());
+        return ShopTimeUtil.isShopAvailable(item.getAvailableTimes(), plugin);
     }
 
     private double calculateBuyPrice(ShopItem item) {

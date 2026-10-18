@@ -76,6 +76,9 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-shell .btn-secondary { background: #24292d; border: 1px solid #3b444b; color: #d8e0e5; }
 .editor-shell .btn-secondary:hover { background: #30373d; border-color: #59656f; box-shadow: none; transform: none; }
 .editor-shell .btn-danger { background: #54282d; border: 1px solid #86404a; color: #ffb8c1; }
+.editor-shell .modal-remove-field { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 38px; padding: 0; border-radius: 6px; font-size: 20px; line-height: 1; box-shadow: none; }
+.editor-shell .modal-remove-field:hover { background: #6b3038; border-color: #b95765; color: #ffd4db; transform: none; }
+.editor-shell .modal-remove-field:active { background: #432126; transform: none; }
 .editor-shell .btn-warning { background: #4a3b22; border: 1px solid #7f6535; color: #f1d59c; }
 .editor-shell button:disabled { opacity: 0.45; cursor: not-allowed; }
 .editor-shell :is(button, input, select, textarea):focus-visible, .login-page :is(button, input, select):focus-visible { outline: 2px solid #83d9b8; outline-offset: 2px; }
@@ -107,6 +110,21 @@ body.editor-shell::before, body.editor-shell::after, body.login-page::before, bo
 .editor-shell .checkbox-grid { background: #191c1f; border: 1px solid var(--border); border-radius: 6px; padding: 16px; gap: 16px; }
 .editor-shell .checkbox-grid label, .editor-shell .checkbox-grid label span { font-size: 13px; font-weight: 500; text-transform: none; }
 .editor-shell .form-group { min-width: 0; }
+.editor-shell #modal-content { overflow-anchor: none; scroll-behavior: auto; }
+.editor-shell .modal-option-sections.modal-item-sections { margin-top: 0; }
+.editor-shell #modal-content .form-row:has(> .form-group):not(:has(> .form-group:not([style*="display: none"]))) { display: none; }
+@media (prefers-reduced-motion: reduce) {
+    .editor-shell #edit-modal, .editor-shell #edit-modal * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+.editor-shell .modal-option-sections { width: 100%; margin-top: 20px; }
+.editor-shell .modal-option-section { min-width: 0; padding: 18px 0; border-top: 1px solid var(--border); }
+.editor-shell .modal-option-section:last-child { padding-bottom: 0; }
+.editor-shell .modal-option-section .checkbox-group-title { padding: 0; margin: 0 0 12px; border: 0; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0; }
+.editor-shell .modal-option-section .form-group { margin-bottom: 12px; }
+.editor-shell .modal-option-section .form-group:last-child { margin-bottom: 0; }
+.editor-shell .modal-option-section label:has(input[type="checkbox"]) { min-height: 24px; gap: 10px; }
+.editor-shell .modal-option-section label:has(input[type="checkbox"]) span { font-size: 13px; font-weight: 500; }
+.editor-shell .modal-option-section .form-group:has(input[type="checkbox"]) .input-hint { margin-left: 26px; }
 .editor-shell .input-hint { color: var(--text-dim); line-height: 1.5; font-size: 12px; }
 
 .editor-shell :is(.item-card, .shop-item, .card-base, .command-card) { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: none; }

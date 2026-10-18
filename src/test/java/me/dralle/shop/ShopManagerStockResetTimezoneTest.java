@@ -33,21 +33,21 @@ class ShopManagerStockResetTimezoneTest {
     @ValueSource(strings = {" ", "\t\n"})
     void fillsAndPersistsMissingOrBlankMainTimezone(String timezone) throws Exception {
         YamlConfiguration config = new YamlConfiguration();
-        config.set("stock-reset.timezone", timezone);
+        config.set("timezone", timezone);
         config.set("merge-missing-defaults", false);
         config.set("config-version", 15);
-        config.addDefault("stock-reset.timezone", "UTC");
+        config.addDefault("timezone", "UTC");
         ShopPlugin plugin = plugin(config, dailyShop(null));
 
         try (var in = getClass().getResourceAsStream("/config.yml")) {
             assertNotNull(in);
             String bundledDefault = YamlConfiguration.loadConfiguration(
-                    new InputStreamReader(in, StandardCharsets.UTF_8)).getString("stock-reset.timezone");
+                    new InputStreamReader(in, StandardCharsets.UTF_8)).getString("timezone");
             assertNotNull(bundledDefault);
             new ShopManager(plugin);
-            assertEquals(bundledDefault, config.getString("stock-reset.timezone"));
+            assertEquals(bundledDefault, config.getString("timezone"));
             assertEquals(bundledDefault, YamlConfiguration.loadConfiguration(
-                    dataFolder.resolve("config.yml").toFile()).getString("stock-reset.timezone"));
+                    dataFolder.resolve("config.yml").toFile()).getString("timezone"));
         }
         verify(plugin).saveConfig();
         new ShopManager(plugin);
@@ -58,12 +58,12 @@ class ShopManagerStockResetTimezoneTest {
     @ValueSource(strings = {"UTC", "Europe/Copenhagen", "server"})
     void preservesExplicitMainTimezone(String timezone) throws Exception {
         YamlConfiguration config = new YamlConfiguration();
-        config.set("stock-reset.timezone", timezone);
+        config.set("timezone", timezone);
         ShopPlugin plugin = plugin(config, dailyShop(null));
 
         new ShopManager(plugin);
 
-        assertEquals(timezone, config.getString("stock-reset.timezone"));
+        assertEquals(timezone, config.getString("timezone"));
         verify(plugin, never()).saveConfig();
         verify(plugin, never()).getResource("config.yml");
     }
@@ -73,11 +73,11 @@ class ShopManagerStockResetTimezoneTest {
         YamlConfiguration config = new YamlConfiguration();
         ShopPlugin plugin = plugin(config, dailyShop(null));
         when(plugin.getResource("config.yml")).thenAnswer(invocation -> new ByteArrayInputStream(
-                "stock-reset:\n  timezone: Asia/Tokyo\n".getBytes(StandardCharsets.UTF_8)));
+                "timezone: Asia/Tokyo\n".getBytes(StandardCharsets.UTF_8)));
 
         StockResetRule rule = new ShopManager(plugin).getShop("market").getStockResetRule();
 
-        assertEquals("Asia/Tokyo", config.getString("stock-reset.timezone"));
+        assertEquals("Asia/Tokyo", config.getString("timezone"));
         assertEquals(Instant.parse("2026-10-12T15:00:00Z"),
                 rule.getNextResetInstant(Instant.parse("2026-10-12T10:00:00Z"), 0));
     }
@@ -87,7 +87,7 @@ class ShopManagerStockResetTimezoneTest {
     @ValueSource(strings = {" ", "\t"})
     void shopAndItemSchedulesInheritMainTimezone(String timezone) throws Exception {
         YamlConfiguration config = new YamlConfiguration();
-        config.set("stock-reset.timezone", "Europe/Copenhagen");
+        config.set("timezone", "Europe/Copenhagen");
         YamlConfiguration shop = dailyShop(timezone);
         Map<String, Object> reset = new LinkedHashMap<>();
         reset.put("type", "DAILY");
@@ -106,7 +106,7 @@ class ShopManagerStockResetTimezoneTest {
     @ValueSource(strings = {"UTC", "server"})
     void explicitShopAndItemTimezonesOverrideMainTimezone(String timezone) throws Exception {
         YamlConfiguration config = new YamlConfiguration();
-        config.set("stock-reset.timezone", "Asia/Tokyo");
+        config.set("timezone", "Asia/Tokyo");
         YamlConfiguration shop = dailyShop(timezone);
         shop.set("items", List.of(Map.of("material", "DIAMOND", "stock-reset",
                 Map.of("type", "DAILY", "timezone", timezone))));
@@ -122,13 +122,13 @@ class ShopManagerStockResetTimezoneTest {
     @Test
     void rebuildingManagerUsesUpdatedMainTimezone() throws Exception {
         YamlConfiguration config = new YamlConfiguration();
-        config.set("stock-reset.timezone", "UTC");
+        config.set("timezone", "UTC");
         ShopPlugin plugin = plugin(config, dailyShop(null));
         Instant now = Instant.parse("2026-10-12T10:00:00Z");
         assertEquals(Instant.parse("2026-10-13T00:00:00Z"), new ShopManager(plugin)
                 .getShop("market").getStockResetRule().getNextResetInstant(now, 0));
 
-        config.set("stock-reset.timezone", "Europe/Copenhagen");
+        config.set("timezone", "Europe/Copenhagen");
         assertDailyCopenhagenSchedule(new ShopManager(plugin).getShop("market").getStockResetRule());
     }
 

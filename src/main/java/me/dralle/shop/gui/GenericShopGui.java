@@ -300,7 +300,7 @@ public class GenericShopGui implements Listener {
             }
         }
 
-        if (!ShopTimeUtil.isShopAvailable(item.getAvailableTimes())) {
+        if (!ShopTimeUtil.isShopAvailable(item.getAvailableTimes(), plugin)) {
             String available = ShopTimeUtil.formatAvailableTimes(item.getAvailableTimes(), plugin);
             player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
                     .replace("%shop%", item.getName() != null ? ShopItemUtil.color(item.getName()) : item.getMaterial().name())
@@ -363,7 +363,7 @@ public class GenericShopGui implements Listener {
         }
 
         // Time restriction check
-        if (!bypassShopAccess && !ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
+        if (!bypassShopAccess && !ShopTimeUtil.isShopAvailable(shop.getAvailableTimes(), plugin)) {
             String availableTimes = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
             plugin.debug("Shop " + shopKey + " not available. Restrictions: " + shop.getAvailableTimes());
             player.sendMessage(

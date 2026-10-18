@@ -42,7 +42,7 @@ public class ShopManager {
 
     public ShopManager(ShopPlugin plugin) {
         this.plugin = plugin;
-        populateStockResetTimezone();
+        populateTimezone();
         this.validationMessages.clear();
         ShopFileManager fileManager = plugin.getShopFileManager();
         loadGlobalCampaigns();
@@ -412,8 +412,8 @@ public class ShopManager {
         }
     }
 
-    private void populateStockResetTimezone() {
-        String path = "stock-reset.timezone";
+    private void populateTimezone() {
+        String path = "timezone";
         FileConfiguration config = plugin.getConfig();
         String timezone = config.contains(path, true) ? config.getString(path) : null;
         if (timezone != null && !timezone.isBlank()) return;
@@ -426,7 +426,7 @@ public class ShopManager {
                 defaultTimezone = defaults.getString(path, "server");
             }
         } catch (IOException e) {
-            me.dralle.shop.util.ConsoleLog.warn(plugin, "Could not read default stock-reset timezone: " + e.getMessage());
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "Could not read default timezone: " + e.getMessage());
         }
         config.set(path, defaultTimezone);
         plugin.saveConfig();
@@ -504,8 +504,9 @@ public class ShopManager {
         }
 
         if (timezoneRaw == null || timezoneRaw.isBlank()) {
-            timezoneRaw = plugin.getConfig().getString("stock-reset.timezone", "server");
+            timezoneRaw = plugin.getConfig().getString("timezone", "server");
         }
+        if (timezoneRaw != null) timezoneRaw = timezoneRaw.trim();
         ZoneId zone = ZoneId.systemDefault();
         if (timezoneRaw != null && !timezoneRaw.equalsIgnoreCase("server")) {
             try {
@@ -677,7 +678,7 @@ public class ShopManager {
             }
 
             // Time restriction check
-            if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) continue;
+            if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes(), plugin)) continue;
 
             for (ShopItem si : shop.getItems()) {
                 if (si.getSellPrice() != null && si.getSellPrice() > 0) {
@@ -687,7 +688,7 @@ public class ShopManager {
                     }
 
                     // Item-level time restriction check
-                    if (!ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) continue;
+                    if (!ShopTimeUtil.isShopAvailable(si.getAvailableTimes(), plugin)) continue;
 
                     // Advanced conditions check
                     if (player != null) {

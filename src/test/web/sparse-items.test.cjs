@@ -13,6 +13,10 @@ function setup(source) {
     editor.run('updateAll = () => updateExport(); parseShopYaml(source);');
     return {
         editor,
+        open() {
+            editor.run('openShopItemModal(items[0].id)');
+            return modal;
+        },
         save(changes = {}) {
             editor.run('openShopItemModal(items[0].id)');
             const values = Object.fromEntries(modal.fields.map(field => [field.id,
@@ -23,6 +27,91 @@ function setup(source) {
         }
     };
 }
+
+test('item sections contain every field once, with content and dynamic pricing in context', () => {
+    const { open } = setup('items:\n  - material: STONE\n    price: 10\n');
+    const modal = open();
+    const rendered = new Set(modal.sections.flatMap(section => section.fields.map(key => 'modal-' + key)));
+    for (const field of modal.fields) assert.ok(rendered.has(field.id) || field.revealAfter, field.id);
+    assert.deepEqual(Array.from(modal.sections[0].fields.slice(0, 3)), ['name', 'enableLore', 'enableEnchantments']);
+    for (const id of ['modal-buyPriceFormula', 'modal-sellPriceFormula', 'modal-dynamicPricing']) {
+        assert.equal(modal.fields.find(field => field.id === id).revealAfter, 'modal-enableDynamicPricing');
+    }
+    assert.ok(!modal.fields.some(field => field.id === 'modal-campaignStart'));
+    assert.equal(modal.fields.find(field => field.id === 'modal-campaignKey').revealAfter, 'modal-campaignEnabled');
+});
+
+test('formula-only pricing survives unrelated saves without enabling stock-based pricing', () => {
+    const source = 'items:\n  - material: STONE\n    price: 10\n    buy-price-formula: base * 2\n    dynamic-pricing: false\n';
+    const { open, save } = setup(source);
+    const modal = open();
+    assert.equal(modal.fields.find(field => field.id === 'modal-enableDynamicPricing').value, true);
+    assert.equal(modal.fields.find(field => field.id === 'modal-dynamicPricing').value, false);
+    const saved = save({ 'modal-price': '12' }).items[0];
+    assert.equal(saved['buy-price-formula'], 'base * 2');
+    assert.equal(saved['dynamic-pricing'], false);
+    assert.ok(!Object.hasOwn(save({ 'modal-enableDynamicPricing': false }).items[0], 'buy-price-formula'));
+});
+
+test('shared campaign assignments are toggled without creating inline campaign settings', () => {
+    const { editor, open, save } = setup('items:\n  - material: STONE\n    price: 10\n');
+    editor.run("globalCampaigns = [{key: 'sale', name: 'Sale'}]");
+    const modal = open();
+    assert.ok(modal.fields.find(field => field.id === 'modal-campaignKey').options.some(option => option.value === 'sale'));
+    const item = save({ 'modal-campaignEnabled': true, 'modal-campaignKey': 'sale' }).items[0];
+    assert.equal(item.campaign, 'sale');
+    assert.ok(!Object.hasOwn(item, 'campaign-start'));
+    assert.ok(!Object.hasOwn(item, 'campaign-enabled'));
+    editor.run('parseShopYaml(saved)');
+    assert.ok(!Object.hasOwn(save({ 'modal-campaignEnabled': false }).items[0], 'campaign'));
+});
+
+test('legacy and missing campaign assignments survive unrelated saves and can be replaced explicitly', () => {
+    const { save } = setup("items:\n  - material: STONE\n    campaign-enabled: true\n    campaign-start: '2020-01-01 00:00'\n    campaign-buy-multiplier: 0.5\n");
+    assert.equal(save({ 'modal-price': '12' }).items[0]['campaign-enabled'], true);
+    const replaced = save({ 'modal-campaignKey': 'sale' }).items[0];
+    assert.equal(replaced.campaign, 'sale');
+    assert.equal(replaced['campaign-enabled'] ?? false, false);
+    assert.equal(replaced['campaign-buy-multiplier'], 0.5);
+    const missing = setup('items:\n  - material: STONE\n    campaign: unknown-campaign\n');
+    assert.ok(missing.open().fields.find(field => field.id === 'modal-campaignKey').options.some(option => option.value === 'unknown-campaign'));
+    assert.equal(missing.save().items[0].campaign, 'unknown-campaign');
+});
+
+test('stock controls require stock limits and toggling preserves the configured schedule', () => {
+    const { editor } = setup('items:\n  - material: STONE\n    price: 10\n');
+    const nodes = Object.fromEntries(['stockResetEnabled', 'showStock', 'showStockResetTimer',
+        'sellAddsToStock', 'allowSellStockOverflow', 'stockResetType', 'stockResetTime',
+        'stockResetTimezone'].map(key => ['group-modal-' + key, { style: {} }]));
+    nodes['modal-enableLimits'] = { checked: false };
+    nodes['modal-stockResetEnabled'] = { checked: true };
+    nodes['modal-stockResetType'] = { value: 'daily' };
+    editor.set('document', { getElementById: id => nodes[id] || null });
+    editor.run('updateItemStockInputUi()');
+    for (const [id, node] of Object.entries(nodes)) {
+        if (id.startsWith('group-')) assert.equal(node.style.display, 'none', id);
+    }
+    nodes['modal-enableLimits'].checked = true;
+    editor.run('updateItemStockInputUi()');
+    for (const [id, node] of Object.entries(nodes)) {
+        if (id.startsWith('group-')) assert.equal(node.style.display, 'block', id);
+    }
+    nodes['modal-showStockResetTimer'] = { checked: true };
+    nodes['modal-stockResetEnabled'].checked = false;
+    editor.run('updateStockResetInputUi()');
+    assert.equal(nodes['group-modal-showStockResetTimer'].style.display, 'none');
+    assert.equal(nodes['modal-showStockResetTimer'].checked, true);
+    nodes['modal-stockResetEnabled'].checked = true;
+    editor.run('updateStockResetInputUi()');
+    assert.equal(nodes['group-modal-showStockResetTimer'].style.display, 'block');
+    nodes['modal-enableLimits'].checked = false;
+    editor.run('updateItemStockInputUi()');
+    assert.equal(nodes['modal-stockResetEnabled'].checked, true);
+    assert.equal(nodes['group-modal-stockResetType'].style.display, 'none');
+    delete nodes['modal-enableLimits'];
+    editor.run('updateStockResetInputUi()');
+    assert.equal(nodes['group-modal-stockResetType'].style.display, 'block');
+});
 
 test('Golden Apple price-only modal saves preserve absent options and shop inheritance', () => {
     const source = '# Minimal shop\nsell-adds-to-stock: true\nallow-sell-stock-overflow: true\nitems:\n  - material: GOLDEN_APPLE # keep\n    price: 100\n';

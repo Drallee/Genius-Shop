@@ -721,7 +721,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
             ShopData shop = plugin.getShopManager().getShop(shopKey);
             if (shop != null) {
                 // Shop availability
-                if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
+                if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes(), plugin)) {
                     player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
                             .replace("%shop%", ShopItemUtil.color(shop.getGuiName()))
                             .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin)));
@@ -731,7 +731,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                 // Item availability
                 if (itemKey != null) {
                     ShopItem si = shop.getItemByUniqueKey(itemKey);
-                    if (si != null && !ShopTimeUtil.isShopAvailable(si.getAvailableTimes())) {
+                    if (si != null && !ShopTimeUtil.isShopAvailable(si.getAvailableTimes(), plugin)) {
                         player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
                                 .replace("%shop%", si.getName() != null ? ShopItemUtil.color(si.getName()) : si.getMaterial().name())
                                 .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(si.getAvailableTimes(), plugin)));

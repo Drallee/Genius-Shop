@@ -85,7 +85,7 @@ public class CustomCommandExecutor implements TabExecutor {
             player.sendMessage(plugin.getMessages().getMessage("no-permission"));
             return;
         }
-        if (!ShopTimeUtil.isShopAvailable(item.getAvailableTimes())) {
+        if (!ShopTimeUtil.isShopAvailable(item.getAvailableTimes(), plugin)) {
             player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
                     .replace("%shop%", item.getName() != null ? ShopItemUtil.color(item.getName()) : item.getMaterial().name())
                     .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(item.getAvailableTimes(), plugin)));
@@ -126,7 +126,7 @@ public class CustomCommandExecutor implements TabExecutor {
             player.sendMessage(plugin.getMessages().getMessage("custom-command-no-shop-access").replace("%shop%", ShopItemUtil.color(shop.getGuiName())));
             return false;
         }
-        if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes()) && !hasShopBypass(player)) {
+        if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes(), plugin) && !hasShopBypass(player)) {
             player.sendMessage(plugin.getMessages().getMessage("shop-not-available")
                     .replace("%shop%", ShopItemUtil.color(shop.getGuiName()))
                     .replace("%available-times%", ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin)));

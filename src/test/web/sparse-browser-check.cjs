@@ -53,11 +53,13 @@ async function check(type, name, viewport) {
         assert.equal(server.state().yaml, once);
         assert.equal(server.state().saves, 1, 'Unchanged second save should not write again');
         await open();
+        await page.locator('#modal-enableLimits').check();
         await choose('modal-sellAddsToStock', 'Disabled');
         await choose('modal-allowSellStockOverflow', 'Disabled');
         await save();
         assert.equal((await item())['sell-adds-to-stock'], false);
         await open();
+        await page.locator('#modal-enableLimits').check();
         await choose('modal-sellAddsToStock', 'Inherit shop (Enabled)');
         await choose('modal-allowSellStockOverflow', 'Inherit shop (Enabled)');
         await page.locator('#modal-stockResetEnabled').check();
@@ -66,6 +68,7 @@ async function check(type, name, viewport) {
         await save();
         assert.deepEqual(await item(), { material: 'GOLDEN_APPLE', price: 125, 'stock-reset': { enabled: true, type: 'second-interval', interval: 15 } });
         await open();
+        await page.locator('#modal-enableLimits').check();
         await page.locator('#custom-modal-sellAddsToStock').scrollIntoViewIfNeeded();
         await page.waitForFunction(() => document.getElementById('toast-container').childElementCount === 0);
         await page.screenshot({ path: path.resolve(__dirname, `../../../target/sparse-${name}-${viewport.width}.jpg`), type: 'jpeg', quality: 65 });
@@ -95,11 +98,16 @@ async function check(type, name, viewport) {
         console.log(`PASS ${name} ${viewport.width}: sparse saves, inheritance, repeated saves, changed-item history, intact rollback snapshots, layout`);
     } finally {
         await browser.close();
+        server.closeAllConnections();
         await new Promise(resolve => server.close(resolve));
     }
 }
 (async () => {
     for (const [type, name] of [[chromium, 'chrome'], [firefox, 'firefox']]) {
-        for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) await check(type, name, viewport);
+        if (process.argv[2] && process.argv[2] !== name) continue;
+        for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+            if (process.argv[3] && Number(process.argv[3]) !== viewport.width) continue;
+            await check(type, name, viewport);
+        }
     }
 })().catch(error => { console.error(error); process.exitCode = 1; });

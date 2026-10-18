@@ -256,7 +256,7 @@ Inventory inv = new MainMenuHolder().createInventory(size, title);
             }
 
             // Check time restrictions
-            if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
+            if (!ShopTimeUtil.isShopAvailable(shop.getAvailableTimes(), plugin)) {
                 String availableTimes = ShopTimeUtil.formatAvailableTimes(shop.getAvailableTimes(), plugin);
                 player.sendMessage(
                         plugin.getMessages()
