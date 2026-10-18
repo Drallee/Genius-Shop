@@ -43,9 +43,9 @@ items:
     amount: 16
     global-limit: 400
     dynamic-pricing: true
-    min-price: 12
-    max-price: 40
-    price-change: 0.25
+    min-price: 1
+    max-price: 20
+    price-change: 0.05
     show-stock: true
 
   - material: POTATO

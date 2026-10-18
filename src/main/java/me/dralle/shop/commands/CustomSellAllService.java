@@ -2,6 +2,7 @@ package me.dralle.shop.commands;
 
 import me.dralle.shop.ShopManager;
 import me.dralle.shop.ShopPlugin;
+import me.dralle.shop.util.SaleReceipt;
 import me.dralle.shop.api.events.ShopSellEvent;
 import me.dralle.shop.economy.TransactionService;
 import me.dralle.shop.economy.TransactionSafetyGuard;
@@ -147,6 +148,8 @@ public class CustomSellAllService {
 
         Map<Integer, Integer> quantities = new HashMap<>();
         for (SalePlan plan : plans) quantities.merge(plan.slot, plan.amount, Integer::sum);
+        var receipt = plans.stream().map(plan -> SaleReceipt.line(plan.sellInfo.shopKey,
+                plan.sellInfo.item, plan.amount, plan.earned)).toList();
         var result = TransactionService.sale(plugin, player, new TransactionService.Context(saleAction(itemId), shopKey, itemId,
                         itemId == null ? me.dralle.shop.data.TransactionEntry.Type.SALE : me.dralle.shop.data.TransactionEntry.Type.WAND_SALE,
                         plans.stream().map(plan -> new me.dralle.shop.data.TransactionEntry.Line(
@@ -175,7 +178,7 @@ public class CustomSellAllService {
         plugin.getDiscordWebhook().sendSellNotification(player.getName(),
                 (itemId == null ? "Command Sell All" : "Sell Wand " + itemId) + " (" + totalItems + " items)",
                 totalItems, totalEarned, plugin.getCurrencySymbol());
-        return new SellAllResult(totalItems, totalEarned, partial);
+        return new SellAllResult(totalItems, totalEarned, partial, receipt);
     }
 
     private SalePlan createPlan(
@@ -228,10 +231,10 @@ public class CustomSellAllService {
             return;
         }
         String key = result.partial ? "custom-command-sellall-partial-success" : "custom-command-sellall-success";
-        player.sendMessage(plugin.getMessages().getMessage(key)
+        SaleReceipt.send(plugin, player, plugin.getMessages().getMessage(key)
                 .replace("%amount%", String.valueOf(result.itemsSold))
                 .replace("%items%", String.valueOf(result.itemsSold))
-                .replace("%price%", plugin.formatCurrency(result.earned)));
+                .replace("%price%", plugin.formatCurrency(result.earned)), result.receipt);
     }
 
     private double calculateCurrentSellPrice(ShopData shop, ShopItem item, boolean useCampaigns) {
@@ -248,9 +251,9 @@ public class CustomSellAllService {
 
     private record SalePlan(int slot, int amount, double earned, double unitPrice, ShopManager.SellInfo sellInfo) {}
 
-    private record SellAllResult(int itemsSold, double earned, boolean partial) {
+    private record SellAllResult(int itemsSold, double earned, boolean partial, List<SaleReceipt.Line> receipt) {
         static SellAllResult empty() {
-            return new SellAllResult(0, 0D, false);
+            return new SellAllResult(0, 0D, false, List.of());
         }
     }
 }

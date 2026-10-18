@@ -214,8 +214,12 @@ models. The report gives each profitable route's best sampled scenario per mode:
 shop/item keys, quantity, start time, stock counters, cost, revenue, estimated
 profit, and eligibility conditions.
 
-Chat shows a summary and the first results. The complete report is written to
-`price-validation-<id>.txt` in the plugin data directory. Routes are labelled
+In-game chat shows a colored summary and the five most profitable route/mode
+findings. Hover for prices, timing, exact identifiers, conditions, and assumptions;
+click a finding to copy its intentional-route key. Skipped items and warnings are
+grouped into one hoverable line. The full-report button copies the filename.
+Console output and `price-validation/price-validation-<id>.txt` in the plugin data directory retain
+the complete report, including every finding and warning. Routes are labelled
 `REVIEW` by default. Acknowledged routes remain visible as `INTENTIONAL`:
 
 ```yaml
@@ -334,6 +338,21 @@ Omitting the operation UUID creates a new operation on each call. Vault
 payment and the SQLite commit are separate operations, so a process crash between
 them is not protected by a shared transaction.
 
+### SmartSpawner Resale
+
+Spawner sale matching reads SmartSpawner's native item/mob identity through its
+inspection API before considering vanilla block-state data. Item spawners match
+their exact `spawner-item` material; mob spawners match `spawner-type`. Display names
+alone cannot identify a spawner or make one item-spawner type sell as another.
+Purchases preserve the provider's item data and apply explicitly required shop
+names/lore so new purchases satisfy the same resale restrictions.
+
+The bundled item-spawner examples use `require-name: false` and `require-lore: false`
+to accept existing native SmartSpawner items. For an existing server, set these
+values on the relevant entries in `plugins/GeniusShop/shops/spawners.yml` and run
+`/shop reload`; existing shop files are not overwritten on upgrade. Keep these
+restrictions enabled when a shop intentionally requires an exact custom variant.
+
 ### Refund Recovery
 
 When purchase delivery fails and inventory restoration succeeds, the original shared
@@ -369,6 +388,13 @@ provider's history first, then explicitly record its outcome with a note:
 `paid` closes the case without paying again; `unpaid` returns it to pending for an
 explicit retry. Review notes retain the administrator identity and time. Access
 requires `geniusshop.refunds`, granted to operators and full admins by default.
+Bulk selling, Sell All, and sell wands attach a colored receipt to the success
+message on hover: quantities, item types, shop, actual paid totals, and average
+price per item. Repeated stacks are grouped; large receipts show the first 12
+item types and an overall total that includes all sold items.
+
+Refund cases use colored statuses with full details on hover; clicking a case
+suggests its read-only inspect command. Repayments still require an explicit retry.
 Back up `refunds.db` and its SQLite companion files with the other plugin data
 while the server is stopped. Configuration reloads leave the recovery store open.
 If a database claim or completion cannot be saved, payment is blocked or the

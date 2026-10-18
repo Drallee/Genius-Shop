@@ -9,6 +9,7 @@ import me.dralle.shop.economy.TransactionSafetyGuard;
 import me.dralle.shop.model.ShopData;
 import me.dralle.shop.model.ShopItem;
 import me.dralle.shop.util.ShopItemUtil;
+import me.dralle.shop.util.SaleReceipt;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -204,6 +205,8 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
 
             Map<Integer, Integer> quantities = new java.util.LinkedHashMap<>();
             for (SalePlan plan : plans) quantities.merge(plan.slot, plan.soldAmount, Integer::sum);
+            var receipt = plans.stream().map(plan -> SaleReceipt.line(plan.sellInfo.shopKey,
+                    plan.sellInfo.item, plan.soldAmount, plan.earned)).toList();
             var result = TransactionService.sale(plugin, player,
                     new TransactionService.Context("bulk-sell", null, null,
                             me.dralle.shop.data.TransactionEntry.Type.SALE,
@@ -232,7 +235,7 @@ Inventory inv = new BulkSellHolder().createInventory(rows * 9, me.dralle.shop.ut
                     .replace("%amount%", String.valueOf(totalItemsSold))
                     .replace("%item%", "items")
                     .replace("%price%", plugin.formatCurrency(totalEarned));
-            player.sendMessage(ShopItemUtil.color(msg));
+            SaleReceipt.send(plugin, player, msg, receipt);
             
             // Metrics
             plugin.itemsSold += totalItemsSold;

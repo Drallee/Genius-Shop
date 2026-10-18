@@ -50,6 +50,7 @@ class ContainerSaleTest {
     private void sale(boolean campaigns, boolean depositSucceeds, double expected, String wand) {
         ShopPlugin plugin = mock(ShopPlugin.class, RETURNS_DEEP_STUBS);
         Player player = mock(Player.class);
+        when(player.spigot()).thenReturn(mock(Player.Spigot.class));
         Inventory inventory = mock(Inventory.class);
         ShopItem item = mock(ShopItem.class);
         ItemStack stack = mock(ItemStack.class);

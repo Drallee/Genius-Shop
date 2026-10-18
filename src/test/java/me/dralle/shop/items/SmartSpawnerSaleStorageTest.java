@@ -214,7 +214,7 @@ class SmartSpawnerSaleStorageTest {
         final FakeSpawner data = new FakeSpawner();
         final FakeManager manager = new FakeManager();
         final FakeViewers viewers = new FakeViewers();
-        final Player player = mock(Player.class);
+        final Player player = mock(Player.class, RETURNS_DEEP_STUBS);
         final Signature stone = new Signature(Material.STONE), bone = new Signature(Material.BONE);
         Fixture() {
             data.inventory.items.put(stone, 100L);

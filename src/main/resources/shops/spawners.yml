@@ -119,8 +119,8 @@ items:
       - '&8Requires SmartSpawner'
     hide-attributes: true
     hide-additional: true
-    require-name: true
-    require-lore: true
+    require-name: false
+    require-lore: false
     global-limit: 8
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -139,8 +139,8 @@ items:
       - '&8Requires SmartSpawner'
     hide-attributes: true
     hide-additional: true
-    require-name: true
-    require-lore: true
+    require-name: false
+    require-lore: false
     global-limit: 3
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -159,8 +159,8 @@ items:
       - '&8Requires SmartSpawner'
     hide-attributes: true
     hide-additional: true
-    require-name: true
-    require-lore: true
+    require-name: false
+    require-lore: false
     global-limit: 4
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -179,8 +179,8 @@ items:
       - '&8Requires SmartSpawner'
     hide-attributes: true
     hide-additional: true
-    require-name: true
-    require-lore: true
+    require-name: false
+    require-lore: false
     global-limit: 5
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -199,8 +199,8 @@ items:
       - '&8Requires SmartSpawner'
     hide-attributes: true
     hide-additional: true
-    require-name: true
-    require-lore: true
+    require-name: false
+    require-lore: false
     global-limit: 2
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -219,8 +219,8 @@ items:
       - '&8Requires SmartSpawner'
     hide-attributes: true
     hide-additional: true
-    require-name: true
-    require-lore: true
+    require-name: false
+    require-lore: false
     global-limit: 2
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false
@@ -239,8 +239,8 @@ items:
       - '&8Requires SmartSpawner'
     hide-attributes: true
     hide-additional: true
-    require-name: true
-    require-lore: true
+    require-name: false
+    require-lore: false
     global-limit: 1
     sell-adds-to-stock: false
     allow-sell-stock-overflow: false

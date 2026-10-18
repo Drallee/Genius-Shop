@@ -116,7 +116,7 @@ class PriceSimulationCommandTest {
             assertTrue(new PriceSimulationCommand(plugin).execute(sender, new String[]{"validate-prices", "player=Alice", "at=2026-10-12T12:00:00Z", "quantities=1", "stock=live"}));
         }
         String report;
-        try (var reports = Files.list(folder)) { report = Files.readString(reports.findFirst().orElseThrow()); }
+        try (var reports = Files.list(folder.resolve("price-validation"))) { report = Files.readString(reports.findFirst().orElseThrow()); }
         assertEquals(matches && permitted, report.contains("REVIEW cheap:buy->premium:sell"));
         verify(plugin, never()).getEconomy();
         verify(player, never()).getInventory();

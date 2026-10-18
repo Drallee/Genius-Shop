@@ -586,6 +586,8 @@ public class ShopItemUtil {
     public static String getSpawnerType(ItemStack item) {
         if (item == null || item.getType() != Material.SPAWNER || !item.hasItemMeta()) return null;
 
+        SmartSpawnerHook.Identity identity = SmartSpawnerHook.identify(item);
+        if (identity.managed()) return identity.type();
         ItemMeta meta = item.getItemMeta();
         if (meta instanceof BlockStateMeta bsm) {
             BlockState bs = bsm.getBlockState();

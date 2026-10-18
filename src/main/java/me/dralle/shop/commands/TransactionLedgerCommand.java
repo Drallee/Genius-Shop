@@ -88,7 +88,7 @@ public final class TransactionLedgerCommand {
                 + "\n\n&eClick to copy the record ID.");
         if (sender instanceof Player player) {
             TextComponent message = new TextComponent(TextComponent.fromLegacyText(summary));
-            message.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(details)));
+            message.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(TextComponent.fromLegacyText(details))));
             message.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, entry.id().toString()));
             player.spigot().sendMessage(message);
         } else {

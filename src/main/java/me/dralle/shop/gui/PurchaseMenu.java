@@ -1009,7 +1009,9 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
                 if (spawnerPlugin == null || !spawnerPlugin.isEnabled()) {
                     throw new IllegalStateException("SmartSpawner is no longer enabled");
                 }
-                return SmartSpawnerHook.createSpawnerItem(spawnerPlugin, spawnerType, spawnerItem);
+                ItemStack nativeItem = SmartSpawnerHook.createSpawnerItem(spawnerPlugin, spawnerType, spawnerItem);
+                applyDeliveryMetadata(nativeItem, customName, customLore, enchantments, hideAttr, hideAdd);
+                return nativeItem;
             }
         }
 
@@ -1059,26 +1061,7 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
             ShopItemUtil.applyHeadTexture(item, headTexture, headOwner);
         }
 
-        // Apply enchantments
-        if (enchantments != null && !enchantments.isEmpty()) {
-            ShopItemUtil.applyEnchantments(item, enchantments);
-        }
-
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            if (customName != null) meta.setDisplayName(ShopItemUtil.color(customName));
-            if (customLore != null && !customLore.isEmpty()) {
-                List<String> coloredLore = new ArrayList<>();
-                for (String line : customLore) {
-                    if (line == null) continue;
-                    coloredLore.addAll(ShopItemUtil.splitAndColor(line));
-                }
-                meta.setLore(coloredLore);
-            }
-            if (hideAttr) meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            if (hideAdd) meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-            item.setItemMeta(meta);
-        }
+        applyDeliveryMetadata(item, customName, customLore, enchantments, hideAttr, hideAdd);
 
         // Apply unstable TNT components if enabled
         if (unstableTnt && material == Material.TNT) {
@@ -1124,6 +1107,24 @@ Inventory inv = new PurchaseHolder().createInventory(54, title);
     /* ============================================================
      * METADATA HELPERS
      * ============================================================ */
+    private static void applyDeliveryMetadata(ItemStack item, String customName, List<String> customLore,
+                                              Map<String, Integer> enchantments, boolean hideAttr, boolean hideAdd) {
+        if (enchantments != null && !enchantments.isEmpty()) ShopItemUtil.applyEnchantments(item, enchantments);
+        ItemMeta metadata = item.getItemMeta();
+        if (metadata == null) return;
+        if (customName != null) metadata.setDisplayName(ShopItemUtil.color(customName));
+        if (customLore != null && !customLore.isEmpty()) {
+            List<String> coloredLore = new ArrayList<>();
+            for (String line : customLore) {
+                if (line != null) coloredLore.addAll(ShopItemUtil.splitAndColor(line));
+            }
+            metadata.setLore(coloredLore);
+        }
+        if (hideAttr) metadata.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        if (hideAdd) metadata.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+        item.setItemMeta(metadata);
+    }
+
     private static String meta(Player p, String key, String def) {
         return p.hasMetadata(key) ? p.getMetadata(key).getFirst().asString() : def;
     }

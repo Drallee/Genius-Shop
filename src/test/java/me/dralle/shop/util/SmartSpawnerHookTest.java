@@ -16,6 +16,44 @@ class SmartSpawnerHookTest {
         ItemStack createItemSpawnerItem(Material material);
     }
 
+    public interface InspectionApi {
+        boolean isItemSpawner(ItemStack item);
+        boolean isSmartSpawner(ItemStack item);
+        Material getItemSpawnerMaterial(ItemStack item);
+        EntityType getSpawnerEntityType(ItemStack item);
+    }
+
+    @Test
+    void readsNativeItemSpawnerBeforeMobFallback() throws Exception {
+        InspectionApi api = mock(InspectionApi.class);
+        ItemStack item = spawner();
+        when(api.isItemSpawner(item)).thenReturn(true);
+        when(api.getItemSpawnerMaterial(item)).thenReturn(Material.DIAMOND);
+        assertEquals(new SmartSpawnerHook.Identity(true, "ITEM:DIAMOND"), SmartSpawnerHook.identify(InspectionApi.class, api, item));
+        verify(api, never()).getSpawnerEntityType(any());
+        verify(api, never()).isSmartSpawner(any());
+    }
+
+    @Test
+    void readsNativeMobAndLeavesUnmanagedItemsForVanillaMatching() throws Exception {
+        InspectionApi api = mock(InspectionApi.class);
+        ItemStack item = spawner();
+        when(api.isSmartSpawner(item)).thenReturn(true);
+        when(api.getSpawnerEntityType(item)).thenReturn(EntityType.COW);
+        assertEquals(new SmartSpawnerHook.Identity(true, "COW"), SmartSpawnerHook.identify(InspectionApi.class, api, item));
+        when(api.isSmartSpawner(item)).thenReturn(false);
+        assertEquals(new SmartSpawnerHook.Identity(false, null), SmartSpawnerHook.identify(InspectionApi.class, api, item));
+    }
+
+    @Test
+    void unreadableManagedItemsNeverFallBackToVanillaIdentity() throws Exception {
+        InspectionApi api = mock(InspectionApi.class);
+        ItemStack item = spawner();
+        when(api.isItemSpawner(item)).thenReturn(true);
+        assertEquals(new SmartSpawnerHook.Identity(true, null), SmartSpawnerHook.identify(InspectionApi.class, api, item));
+        assertEquals(new SmartSpawnerHook.Identity(true, null), SmartSpawnerHook.identify(InspectionApi.class, null, item));
+    }
+
     @Test
     void createsMobSpawnerUsingNormalizedEntityType() throws Exception {
         CreationApi api = mock(CreationApi.class);

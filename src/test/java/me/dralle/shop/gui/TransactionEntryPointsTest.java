@@ -64,6 +64,7 @@ class TransactionEntryPointsTest {
 
     private void bulk(boolean paid, boolean removalFails) throws Exception {
         Player player = mock(Player.class);
+        when(player.spigot()).thenReturn(mock(Player.Spigot.class));
         ShopPlugin plugin = plugin(player);
         Inventory inventory = mock(Inventory.class);
         ItemStack[] contents = {stack(4), stack(4)};

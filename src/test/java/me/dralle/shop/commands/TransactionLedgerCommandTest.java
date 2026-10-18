@@ -159,7 +159,7 @@ class TransactionLedgerCommandTest {
         };
         assertTrue(message.toLegacyText().contains(expectedColor));
         var hover = (net.md_5.bungee.api.chat.hover.content.Text) message.getHoverEvent().getContents().getFirst();
-        String details = hover.getValue().toString();
+        String details = net.md_5.bungee.api.chat.BaseComponent.toPlainText((net.md_5.bungee.api.chat.BaseComponent[]) hover.getValue());
         assertTrue(details.contains(entry.id().toString()));
         assertTrue(details.contains(entry.operationId().toString()));
         assertTrue(details.contains(entry.playerId().toString()));

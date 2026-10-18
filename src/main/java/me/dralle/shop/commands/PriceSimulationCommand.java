@@ -9,6 +9,11 @@ import me.dralle.shop.util.CampaignUtil;
 import me.dralle.shop.util.ItemConditionUtil;
 import me.dralle.shop.util.ShopItemUtil;
 import me.dralle.shop.util.ShopTimeUtil;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Text;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -16,15 +21,20 @@ import org.bukkit.inventory.ItemStack;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.logging.Level;
 
 public final class PriceSimulationCommand {
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss 'UTC'").withZone(ZoneOffset.UTC);
     private final ShopPlugin plugin;
     public PriceSimulationCommand(ShopPlugin plugin) { this.plugin = plugin; }
     public record Options(String player, Instant at, List<Integer> quantities, String stock, String mode) {}
+    record Report(List<String> lines, List<Result> findings, long steps, boolean incomplete) {}
 
     public static Options parse(String[] args) {
         Map<String, String> values = new HashMap<>();
@@ -53,12 +63,12 @@ public final class PriceSimulationCommand {
         final Options options;
         try { options = parse(args); }
         catch (IllegalArgumentException failure) {
-            sender.sendMessage("Invalid simulation options: " + failure.getMessage());
-            sender.sendMessage("/shop validate-prices [player=name] [at=ISO-instant] [quantities=1,16,64] [stock=all|live|zero|half|depleted|count] [mode=both|batch|sequential]");
+            sender.sendMessage(color("&cInvalid simulation options: &f" + failure.getMessage()));
+            sender.sendMessage(color("&7/shop validate-prices [player=name] [at=ISO-instant] [quantities=1,16,64] [stock=all|live|zero|half|depleted|count] [mode=both|batch|sequential]"));
             return true;
         }
         Player player = options.player() == null ? null : plugin.getServer().getPlayerExact(options.player());
-        if (options.player() != null && player == null) { sender.sendMessage("Simulation player must be online."); return true; }
+        if (options.player() != null && player == null) { sender.sendMessage(color("&cSimulation player must be online.")); return true; }
         List<Offer> offers = new ArrayList<>();
         Map<String, Integer> counts = new HashMap<>();
         List<Reset> resets = new ArrayList<>();
@@ -112,21 +122,21 @@ public final class PriceSimulationCommand {
                 cooldowns ? Math.max(0, config.getLong("economy-safety.cooldowns.buy-ms", 0)) : 0,
                 cooldowns ? Math.max(0, config.getLong("economy-safety.cooldowns.sell-ms", 0)) : 0);
         long budget = Math.max(1000, Math.min(5000000, config.getLong("price-validation.max-simulated-units", 1000000)));
-        var output = plugin.getDataFolder().toPath().resolve("price-validation-" + UUID.randomUUID() + ".txt");
+        var output = plugin.getDataFolder().toPath().resolve("price-validation").resolve("price-validation-" + UUID.randomUUID() + ".txt");
         ZoneId timezone = ShopTimeUtil.getTimezone(plugin);
-        sender.sendMessage("Simulating " + routes.size() + " matching routes using copied counters; no trades will execute.");
+        sender.sendMessage(color("&bChecking &f" + routes.size() + " &broutes... &7Read-only; no trades will execute."));
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                List<String> report = run(routes, stock, counts, resets, options, safety, intentional, budget, timezone);
-                report.addAll(warnings);
-                Files.write(output, report, StandardCharsets.UTF_8);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    report.stream().limit(25).forEach(sender::sendMessage);
-                    sender.sendMessage("Full price simulation report: " + output.getFileName());
-                });
+                Report report = simulate(routes, stock, counts, resets, options, safety, intentional, budget, timezone);
+                List<String> fileLines = new ArrayList<>(report.lines());
+                fileLines.addAll(warnings);
+                Files.createDirectories(output.getParent());
+                Files.write(output, fileLines, StandardCharsets.UTF_8);
+                plugin.getServer().getScheduler().runTask(plugin, () ->
+                        displayReport(sender, report, options, intentional, warnings, output, routes.size(), timezone));
             } catch (Exception failure) {
                 plugin.getLogger().log(Level.WARNING, "Price simulation failed", failure);
-                plugin.getServer().getScheduler().runTask(plugin, () -> sender.sendMessage("Price simulation failed; check server log."));
+                plugin.getServer().getScheduler().runTask(plugin, () -> sender.sendMessage(color("&cPrice simulation failed. &7Check the server log.")));
             }
         });
         return true;
@@ -138,6 +148,11 @@ public final class PriceSimulationCommand {
     }
 
     public static List<String> run(List<Route> routes, Map<String, Integer> stock, Map<String, Integer> counts, List<Reset> resets,
+                                   Options options, Safety safety, Set<String> intentional, long budget, ZoneId timezone) {
+        return new ArrayList<>(simulate(routes, stock, counts, resets, options, safety, intentional, budget, timezone).lines());
+    }
+
+    private static Report simulate(List<Route> routes, Map<String, Integer> stock, Map<String, Integer> counts, List<Reset> resets,
                                    Options options, Safety safety, Set<String> intentional, long budget, ZoneId timezone) {
         Map<String, Result> best = new LinkedHashMap<>();
         long units = 0;
@@ -176,7 +191,8 @@ public final class PriceSimulationCommand {
         report.add("Player=" + (options.player() == null ? "configuration eligibility; fresh player counts" : options.player()) + "; quantities=" + options.quantities() + "; stock=" + options.stock());
         report.add("Availability timezone=" + timezone);
         if (truncated) report.add("INCOMPLETE: sampling/time or work budget reached; omitted scenarios may contain other profitable routes.");
-        for (Result result : best.values().stream().sorted(Comparator.comparingDouble(Result::profit).reversed()).toList()) {
+        List<Result> findings = best.values().stream().sorted(Comparator.comparingDouble(Result::profit).reversed()).toList();
+        for (Result result : findings) {
             String classification = intentional.contains(result.route().key()) ? "INTENTIONAL" : "REVIEW";
             report.add(String.format(Locale.ROOT, "%s %s | %s qty=%d cost=%.6f revenue=%.6f profit=%.6f at=%s stock-used=%d/%d",
                     classification, result.route().key(), result.mode(), result.quantity(), result.cost(), result.revenue(), result.profit(), result.at(), result.buyStock(), result.sellStock()));
@@ -185,7 +201,81 @@ public final class PriceSimulationCommand {
         report.add("BATCH uses one buy and one sale at their starting prices; SEQUENTIAL reprices each individual buy and sale and advances configured cooldown time.");
         report.add("Samples cover listed quantities/counters, the next week's availability boundaries and configured campaign boundaries; absence of findings is not proof of no arbitrage.");
         report.add("Assumes sufficient balance/inventory space, any required confirmation, and eligible initial cooldown/last-price history. Permissions and world/level/game-mode conditions must all hold.");
-        return report;
+        return new Report(List.copyOf(report), findings, units, truncated);
+    }
+
+    void displayReport(CommandSender sender, Report report, Options options, Set<String> intentional,
+                       List<String> warnings, Path output, int routes, ZoneId timezone) {
+        if (!(sender instanceof Player player)) {
+            report.lines().forEach(sender::sendMessage);
+            warnings.forEach(sender::sendMessage);
+            sender.sendMessage("Full price simulation report: " + output);
+            return;
+        }
+        if (!player.isOnline()) return;
+        if (!player.hasPermission("geniusshop.validateprices") && !player.hasPermission("geniusshop.admin")
+                && !player.hasPermission("shop.admin") && !player.isOp()) return;
+        player.sendMessage(color("&8----- &6&lPrice Check &8-----"));
+        String summary = "&7Routes: &f" + routes + " &8| &7Findings: &e" + report.findings().size() + " &8| &7[hover for summary]";
+        String details = "&6Simulation summary\n&7Candidate routes: &f" + routes
+                + "\n&7Simulated trade steps: &f" + report.steps()
+                + "\n&7Profitable routes / modes: &e" + report.findings().size()
+                + "\n&7Quantities: &f" + options.quantities() + "\n&7Stock: &f" + options.stock()
+                + "\n&7Mode: &f" + options.mode() + "\n&7Availability timezone: &f" + timezone
+                + "\n&7Player: &f" + (options.player() == null ? "Configuration eligibility / fresh counts" : options.player())
+                + "\n\n&7Batch: one buy and sale at starting prices."
+                + "\n&7Sequential: reprice each unit with cooldowns."
+                + "\n&7Sampled scenarios assume funds, space and eligibility."
+                + "\n&eNo findings does not guarantee no profitable routes."
+                + "\n&aNo balances, inventory or stock were changed.";
+        sendHover(player, summary, details, null);
+        if (report.incomplete()) {
+            sendHover(player, "&cINCOMPLETE &8| &7Sampling limit reached [hover]",
+                    "&eThe time-sampling or trade-step budget was reached.\n&7Some scenarios were not checked; inspect the full report.", null);
+        }
+        if (report.findings().isEmpty()) player.sendMessage(color("&7No profitable routes found in the sampled scenarios."));
+        for (Result result : report.findings().stream().limit(5).toList()) {
+            boolean intended = intentional.contains(result.route().key());
+            String item = result.route().buy().item().getMaterial() == null ? result.route().buy().item().getUniqueKey()
+                    : result.route().buy().item().getMaterial().name().replace('_', ' ');
+            String routeSummary = (intended ? "&aINTENTIONAL" : "&eREVIEW") + " &8| &f" + compact(item)
+                    + " &7" + result.quantity() + "x &8| &a+" + plugin.formatCurrency(result.profit())
+                    + "\n  &7" + compact(result.route().buy().shop().getKey()) + " &8-> &7" + compact(result.route().sell().shop().getKey())
+                    + " &8| &7" + result.mode().name().toLowerCase(Locale.ROOT);
+            String routeDetails = "&6" + (intended ? "Intentional profitable route" : "Review profitable route")
+                    + "\n&7Buy: &f" + result.route().buy().shop().getKey() + ":" + result.route().buy().item().getUniqueKey()
+                    + "\n&7Sell: &f" + result.route().sell().shop().getKey() + ":" + result.route().sell().item().getUniqueKey()
+                    + "\n&7Quantity: &e" + result.quantity() + "\n&7Cost: &6" + plugin.formatCurrency(result.cost())
+                    + "\n&7Revenue: &a" + plugin.formatCurrency(result.revenue()) + "\n&7Estimated profit: &a" + plugin.formatCurrency(result.profit())
+                    + "\n&7Mode: &f" + result.mode() + "\n&7Time: &f" + DATE.format(result.at())
+                    + "\n&7Starting stock used: &f" + result.buyStock() + " / " + result.sellStock()
+                    + "\n&7Conditions: &f" + PriceSimulation.conditions(result.route())
+                    + "\n\n&eClick to copy the intentional-route key.";
+            sendHover(player, routeSummary, routeDetails, result.route().key());
+        }
+        if (report.findings().size() > 5) player.sendMessage(color("&7Showing top 5; &e" + (report.findings().size() - 5) + " &7more findings in the report file."));
+        if (!warnings.isEmpty()) {
+            String warningDetails = "&6Skipped items / warnings\n&7" + String.join("\n&7", warnings.stream().limit(5).toList());
+            if (warnings.size() > 5) warningDetails += "\n&e" + (warnings.size() - 5) + " more in the report file.";
+            sendHover(player, "&e" + warnings.size() + " skipped / warnings &7[hover]", warningDetails, null);
+        }
+        sendHover(player, "&bFull report &7[click to copy filename]",
+                "&7Saved to: &f" + output + "\n&eClick to copy the filename.", output.getFileName().toString());
+    }
+
+    private static void sendHover(Player player, String text, String details, String copy) {
+        TextComponent message = new TextComponent(TextComponent.fromLegacyText(color(text)));
+        message.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(TextComponent.fromLegacyText(color(details)))));
+        if (copy != null) message.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, copy));
+        player.spigot().sendMessage(message);
+    }
+
+    private static String compact(String value) {
+        return value.length() > 24 ? value.substring(0, 21) + "..." : value;
+    }
+
+    private static String color(String value) {
+        return ChatColor.translateAlternateColorCodes('&', value);
     }
 
     private static int count(ShopItem item, Map<String, Integer> stock, String mode) {

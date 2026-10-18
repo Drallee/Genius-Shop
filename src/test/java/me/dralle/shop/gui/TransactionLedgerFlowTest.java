@@ -161,6 +161,7 @@ class TransactionLedgerFlowTest {
         when(stack.clone()).thenReturn(stack);
         when(stack.isSimilar(stack)).thenReturn(true);
         when(item.getUniqueKey()).thenReturn("stone");
+        when(item.getMaterial()).thenReturn(Material.STONE);
         when(item.getSellPrice()).thenReturn(100D);
         when(item.getAmount()).thenReturn(4);
         when(item.calculateSellTotal(100D, 4)).thenReturn(100D);
