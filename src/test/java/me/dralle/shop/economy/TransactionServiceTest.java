@@ -348,6 +348,27 @@ class TransactionServiceTest {
     }
 
     @Test
+    void eligibilityUsesConfiguredTimezoneForBothShopAndItem() {
+        ShopData shop = mock(ShopData.class);
+        ShopItem item = mock(ShopItem.class);
+        var shopTimes = List.of("SATURDAY");
+        var itemTimes = List.of("00:00-01:00");
+        when(shop.getAvailableTimes()).thenReturn(shopTimes);
+        when(shop.getGuiName()).thenReturn("Blocks");
+        when(item.getAvailableTimes()).thenReturn(itemTimes);
+        when(item.getMaterial()).thenReturn(org.bukkit.Material.STONE);
+        when(plugin.getMessages().getMessage("shop-not-available")).thenReturn("Unavailable %shop% %available-times%");
+        try (var times = mockStatic(me.dralle.shop.util.ShopTimeUtil.class)) {
+            times.when(() -> me.dralle.shop.util.ShopTimeUtil.formatAvailableTimes(anyList(), eq(plugin))).thenReturn("schedule");
+            assertFalse(TransactionService.eligibility(plugin, null, shop, item, null).allowed());
+            times.when(() -> me.dralle.shop.util.ShopTimeUtil.isShopAvailable(shopTimes, plugin)).thenReturn(true);
+            assertFalse(TransactionService.eligibility(plugin, null, shop, item, null).allowed());
+            times.when(() -> me.dralle.shop.util.ShopTimeUtil.isShopAvailable(itemTimes, plugin)).thenReturn(true);
+            assertTrue(TransactionService.eligibility(plugin, null, shop, item, null).allowed());
+        }
+    }
+
+    @Test
     void countUpdatesKeepBuyAndSellStockDirections() {
         TransactionService.updateCounts(plugin, player, "buy", 2, true, true, 0, false);
         TransactionService.updateCounts(plugin, player, "sell", 3, false, false, 10, true);

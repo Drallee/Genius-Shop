@@ -45,7 +45,9 @@ amount, and context. Do not retry a payment to repair an uncertain provider outc
 
 ## Combined Branch Testing
 
-The issue #27 branch integrates #23, #34, and #35. Built-in purchase, sale, bulk-sale, command,
+The `integration/shop-testing` branch combines #23, #24, #25, #26, #27, #29, #34,
+and #35, including the tested ledger display, debug logging, and packaging fixes.
+Built-in purchase, sale, bulk-sale, command,
 and wand entry points pass ledger lines into the shared settlement context. The service
 records them once after payment and delivery, using the result ID as the ledger operation
 ID, before stock updates or success notifications. Financially completed trades remain
@@ -60,5 +62,9 @@ not change completed-sales metrics. Recheck totals after a full server restart,
 including a bulk transaction spanning shops. Purchases are money leaving player
 balances; sales and wand sales are money entering them.
 
-Test editor branches together separately for save conflicts, drafts, permissions, tutorial,
-and rendering behavior. Passing standalone feature tests does not establish merged behavior.
+Check main-menu preview tooltips (#24), configured availability/reset timezones and
+item editor sections (#25), and editor loading/cache behavior (#26) together with Sales.
+The shared transaction service and price simulation both use the configured timezone.
+For #29, run `/shop validate-prices` with representative quantities, stock counts,
+campaign times, and player permissions. Confirm reports distinguish intentional
+profitable routes and that balances, inventory, stock, and ledger totals remain unchanged.
