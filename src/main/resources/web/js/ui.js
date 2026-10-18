@@ -2809,26 +2809,6 @@ function resolveMainMenuAction(shop) {
     return action || (shop.shopKey ? 'shop-key' : shop.commands?.length ? 'command' : 'no-action');
 }
 
-function buildMainMenuPreviewInfo(shop) {
-    const action = resolveMainMenuAction(shop);
-    const lines = [
-        `Slot: ${shop.slot}`,
-        `Material: ${shop.material}`,
-        `Action: ${action}`
-    ];
-    if (action === 'shop-key' && shop.shopKey) lines.push(`Shop: ${shop.shopKey}`);
-    if (action === 'command' || action === 'command-close') {
-        lines.push(`Run commands as: ${shop.runAs || 'player'}`);
-        (shop.commands || []).forEach(command => lines.push(`Command: ${command}`));
-    }
-    lines.push(
-        `Required Permission: ${shop.permission || 'None'}`,
-        `Hide Attributes: ${shop.hideAttributes ? 'Yes' : 'No'}`,
-        `Hide Additional Info: ${shop.hideAdditional ? 'Yes' : 'No'}`
-    );
-    return lines.map(line => `<div class="tooltip-line">${escapeHtml(line)}</div>`).join('');
-}
-
 function buildMainMenuPreviewLore(shop) {
     const catalogShop = (commandCatalog || {})[shop.shopKey];
     const times = catalogShop && Array.isArray(catalogShop.availableTimes) && catalogShop.availableTimes.length
@@ -2882,7 +2862,7 @@ function updateGuiPreview() {
             
             slot.onclick = () => openMainMenuShopModal(loadedGuiShops.indexOf(shop));
 
-            setupTooltip(slot, shop.name, buildMainMenuPreviewLore(shop), buildMainMenuPreviewInfo(shop));
+            setupTooltip(slot, shop.name, buildMainMenuPreviewLore(shop));
         }
         
         grid.appendChild(slot);

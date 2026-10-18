@@ -29,15 +29,17 @@ function setup() {
 }
 
 for (const parity of [false, true]) {
-    test(`main menu tooltip shows lore and configured settings with parity ${parity}`, () => {
+    test(`main menu tooltip shows only the display name and lore with parity ${parity}`, () => {
         const { editor, grid, tooltip } = setup();
         editor.run(`previewParityMode = ${parity}; updateGuiPreview()`);
         assert.equal(grid.children.length, 9);
         grid.children[0].listeners.mouseenter({ clientX: 50, clientY: 50 });
-        for (const text of ['Custom lore', '&nbsp;', 'Version: 1.7.0', 'Action: command-close',
-            'Command: say hello', 'Run commands as: console', 'Required Permission: geniusshop.admin',
-            'Hide Attributes: Yes', 'Hide Additional Info: Yes']) {
+        for (const text of ['Menu item', 'Custom lore', '&nbsp;', 'Version: 1.7.0']) {
             assert.ok(tooltip.innerHTML.includes(text), text);
+        }
+        for (const text of ['Slot:', 'Material:', 'Action:', 'Command:', 'Run commands as:',
+            'Required Permission:', 'Hide Attributes:', 'Hide Additional Info:', 'geniusshop.admin', 'say hello']) {
+            assert.ok(!tooltip.innerHTML.includes(text), text);
         }
         editor.run(`loadedGuiShops[0].hideAttributes = false;
             loadedGuiShops[0].hideAdditional = false;
@@ -45,10 +47,7 @@ for (const parity of [false, true]) {
             loadedGuiShops[0].lore = [];
             updateGuiPreview()`);
         grid.children[9].listeners.mouseenter({ clientX: 50, clientY: 50 });
-        assert.ok(tooltip.innerHTML.includes('Hide Attributes: No'));
-        assert.ok(tooltip.innerHTML.includes('Hide Additional Info: No'));
-        assert.ok(tooltip.innerHTML.includes('Required Permission: None'));
-        assert.ok(!tooltip.innerHTML.includes('Custom lore'));
+        assert.equal(tooltip.innerHTML, editor.run('`<div class="tooltip-title">${parseMinecraftColors(loadedGuiShops[0].name)}</div>`'));
     });
 }
 
@@ -64,19 +63,17 @@ test('main menu actions use explicit values and legacy defaults', () => {
         editor.set('shop', shop);
         assert.equal(editor.run('resolveMainMenuAction(shop)'), action);
     }
-    editor.set('shop', { shopKey: 'blocks' });
-    assert.ok(editor.run('buildMainMenuPreviewInfo(shop)').includes('Shop: blocks'));
 });
 
-test('main menu tooltip escapes configuration identifiers and commands', () => {
-    const { editor } = setup();
-    editor.set('shop', {
-        action: 'command', commands: ['say <img src=x onerror=alert(1)>'],
-        permission: '<script>admin</script>&a'
-    });
-    const html = editor.run('buildMainMenuPreviewInfo(shop)');
+test('main menu tooltip escapes the displayed name and lore', () => {
+    const { editor, grid, tooltip } = setup();
+    editor.run(`loadedGuiShops[0].name = '<script>menu</script>';
+        loadedGuiShops[0].lore = ['<img src=x onerror=alert(1)>'];
+        updateGuiPreview()`);
+    grid.children[0].listeners.mouseenter({ clientX: 50, clientY: 50 });
+    const html = tooltip.innerHTML;
     assert.ok(!html.includes('<img'));
     assert.ok(!html.includes('<script>'));
     assert.ok(html.includes('&lt;img'));
-    assert.ok(html.includes('&lt;script&gt;admin&lt;/script&gt;&amp;a'));
+    assert.ok(html.includes('&lt;script&gt;menu&lt;/script&gt;'));
 });
