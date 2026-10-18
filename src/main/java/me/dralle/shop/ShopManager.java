@@ -12,6 +12,7 @@ import me.dralle.shop.util.YamlUtil;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.time.DayOfWeek;
@@ -22,6 +23,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 public class ShopManager {
@@ -34,6 +39,7 @@ public class ShopManager {
 
     public ShopManager(ShopPlugin plugin) {
         this.plugin = plugin;
+        populateTimezone();
         this.validationMessages.clear();
         ShopFileManager fileManager = plugin.getShopFileManager();
         loadGlobalCampaigns();
@@ -403,6 +409,26 @@ public class ShopManager {
         }
     }
 
+    private void populateTimezone() {
+        String path = "timezone";
+        FileConfiguration config = plugin.getConfig();
+        String timezone = config.contains(path, true) ? config.getString(path) : null;
+        if (timezone != null && !timezone.isBlank()) return;
+
+        String defaultTimezone = "server";
+        try (InputStream in = plugin.getResource("config.yml")) {
+            if (in != null) {
+                FileConfiguration defaults = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(in, StandardCharsets.UTF_8));
+                defaultTimezone = defaults.getString(path, "server");
+            }
+        } catch (IOException e) {
+            me.dralle.shop.util.ConsoleLog.warn(plugin, "Could not read default timezone: " + e.getMessage());
+        }
+        config.set(path, defaultTimezone);
+        plugin.saveConfig();
+    }
+
     private StockResetRule parseShopResetRule(String shopKey, FileConfiguration config) {
         ConfigurationSection sec = config.getConfigurationSection("stock-reset");
         if (sec == null) return null;
@@ -416,7 +442,7 @@ public class ShopManager {
 
         if (raw instanceof String) {
             String type = (String) raw;
-            return parseResetValues("item '" + matName + "'", type, "00:00", null, null, null, null, null, null, "server", true);
+            return parseResetValues("item '" + matName + "'", type, "00:00", null, null, null, null, null, null, null, true);
         }
 
         if (raw instanceof Map) {
@@ -429,7 +455,7 @@ public class ShopManager {
             Integer monthDay = intVal(m.get("month-day"), null);
             String date = stringVal(m.get("date"), null);
             Integer interval = intVal(m.get("interval"), null);
-            String timezone = stringVal(m.get("timezone"), "server");
+            String timezone = stringVal(m.get("timezone"), null);
             boolean enabled = boolVal(m.get("enabled"), true);
             return parseResetValues("item '" + matName + "'", type, time, dayOfWeek, dayOfMonth, month, monthDay, date, interval, timezone, enabled);
         }
@@ -447,7 +473,7 @@ public class ShopManager {
         Integer monthDay = sec.contains("month-day") ? sec.getInt("month-day") : null;
         String date = sec.getString("date", null);
         Integer interval = sec.contains("interval") ? sec.getInt("interval") : null;
-        String timezone = sec.getString("timezone", "server");
+        String timezone = sec.getString("timezone");
         boolean enabled = sec.getBoolean("enabled", true);
         return parseResetValues(context, type, time, dayOfWeek, dayOfMonth, month, monthDay, date, interval, timezone, enabled);
     }
@@ -474,6 +500,10 @@ public class ShopManager {
             return null;
         }
 
+        if (timezoneRaw == null || timezoneRaw.isBlank()) {
+            timezoneRaw = plugin.getConfig().getString("timezone", "server");
+        }
+        if (timezoneRaw != null) timezoneRaw = timezoneRaw.trim();
         ZoneId zone = ZoneId.systemDefault();
         if (timezoneRaw != null && !timezoneRaw.equalsIgnoreCase("server")) {
             try {

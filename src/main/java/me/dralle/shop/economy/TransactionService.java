@@ -67,10 +67,10 @@ public final class TransactionService {
                 return TransactionSafetyGuard.GuardResult.fail(plugin.getMessages().getMessage("no-permission"));
             }
         }
-        if (shop != null && !ShopTimeUtil.isShopAvailable(shop.getAvailableTimes())) {
+        if (shop != null && !ShopTimeUtil.isShopAvailable(shop.getAvailableTimes(), plugin)) {
             return unavailable(plugin, shop.getGuiName(), shop.getAvailableTimes());
         }
-        if (item != null && !ShopTimeUtil.isShopAvailable(item.getAvailableTimes())) {
+        if (item != null && !ShopTimeUtil.isShopAvailable(item.getAvailableTimes(), plugin)) {
             return unavailable(plugin, item.getName() == null ? item.getMaterial().name() : item.getName(), item.getAvailableTimes());
         }
         if (player != null && item != null) {

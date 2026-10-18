@@ -127,6 +127,15 @@ Available fields:
 - `date`: for `ONCE` (`yyyy-MM-dd HH:mm` or `yyyy-MM-dd'T'HH:mm`)
 - `timezone`: IANA timezone (e.g. `Europe/Copenhagen`) or `server`
 
+Missing or blank schedule timezones use the global `timezone` from the main
+`config.yml`. Missing or blank values in the main config are filled from the
+bundled default (`server`) on startup and reload. Explicit schedule timezones
+override the main config value, including an explicit `server` value.
+
+The same global timezone applies to shop and item `available-times`, including
+opening hours, weekdays and date ranges. Set `timezone: "Europe/Copenhagen"`
+in the main `config.yml` to use Danish local time (including daylight saving).
+
 Shop-level example (every Monday at 22:00):
 
 ```yaml

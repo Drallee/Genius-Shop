@@ -117,7 +117,8 @@ function resolveItemCampaign(item) {
         };
     }
 
-    const findCampaign = (key) => (globalCampaigns || []).find(c => c && c.key === key);
+    const findCampaign = (key) => (currentShopSettings.campaigns || []).find(c => c && c.key === key)
+        || (globalCampaigns || []).find(c => c && c.key === key);
     const itemCampaign = item.campaign ? findCampaign(item.campaign) : null;
     if (itemCampaign && isCampaignWindowActive(itemCampaign.start, itemCampaign.end, itemCampaign.timezone)) {
         return {

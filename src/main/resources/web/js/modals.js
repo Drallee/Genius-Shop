@@ -480,7 +480,110 @@ function toggleModalSidePreview() {
     applyModalPreviewCollapsedState(collapsed);
 }
 
+let finishModalLayoutChange = () => {};
+let modalScrollSpace;
+
+function setupModalScrollSpace(content) {
+    modalScrollSpace?.dispose();
+    let settling = false;
+    let touchY = null;
+    const trim = () => {
+        const layout = content.firstElementChild;
+        if (settling || !layout) return;
+        const style = getComputedStyle(content);
+        const needed = Math.max(0, content.scrollTop + content.clientHeight
+            - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom));
+        const reserved = parseFloat(layout.style.minHeight) || 0;
+        layout.style.minHeight = reserved > 0 ? `${Math.min(reserved, Math.ceil(needed))}px` : '';
+    };
+    const release = () => {
+        finishModalLayoutChange();
+        settling = false;
+        if (content.firstElementChild) content.firstElementChild.style.minHeight = '';
+    };
+    const handlers = {
+        scroll: trim,
+        wheel: event => { if (event.deltaY > 0) release(); },
+        touchstart: event => { touchY = event.touches[0]?.clientY ?? null; },
+        touchmove: event => {
+            const nextY = event.touches[0]?.clientY;
+            if (touchY != null && nextY != null && nextY < touchY - 3) release();
+            touchY = nextY ?? null;
+        },
+        keydown: event => {
+            if (!event.target.matches('input, textarea, select, button, [contenteditable="true"]')
+                && ['ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) release();
+        },
+        pointerdown: event => { if (event.target === content) release(); }
+    };
+    for (const [event, handler] of Object.entries(handlers)) content.addEventListener(event, handler, { passive: true });
+    modalScrollSpace = {
+        begin: () => { settling = true; },
+        end: () => { settling = false; trim(); },
+        dispose: () => {
+            for (const [event, handler] of Object.entries(handlers)) content.removeEventListener(event, handler);
+        }
+    };
+}
+
+function changeModalLayout(anchor, change) {
+    finishModalLayoutChange();
+    modalScrollSpace?.begin();
+    const content = document.getElementById('modal-content');
+    const layout = content.firstElementChild;
+    // Reserve the current scroll range before collapsing fields, including in Firefox.
+    const contentStyle = getComputedStyle(content);
+    const reservedHeight = content.scrollHeight - parseFloat(contentStyle.paddingTop) - parseFloat(contentStyle.paddingBottom);
+    layout.style.minHeight = `${Math.ceil(Math.max(layout.getBoundingClientRect().height, reservedHeight))}px`;
+    const top = anchor.getBoundingClientRect().top;
+    const groups = [...content.querySelectorAll('.form-group')];
+    const hidden = new Set(groups.filter(group => getComputedStyle(group).display === 'none'));
+    change();
+    const animations = [];
+    if (!document.body.classList.contains('no-animations') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        for (const group of hidden) {
+            if (getComputedStyle(group).display === 'none') continue;
+            const style = getComputedStyle(group);
+            const animation = group.animate([
+                { height: '0px', marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px', opacity: 0, overflow: 'hidden' },
+                { height: style.height, marginTop: style.marginTop, marginBottom: style.marginBottom,
+                    paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, opacity: 1, overflow: 'hidden' }
+            ], { duration: 180, easing: 'ease-out' });
+            animation.id = 'modal-field-reveal';
+            animations.push(animation);
+        }
+    }
+    // Keep the clicked control anchored while fields change height above or below it.
+    let active = true;
+    let frame;
+    const restore = () => {
+        if (!active || !anchor.isConnected || !anchor.getClientRects().length) return;
+        content.scrollTop += anchor.getBoundingClientRect().top - top;
+    };
+    const stop = () => {
+        active = false;
+        cancelAnimationFrame(frame);
+        for (const event of ['wheel', 'touchstart', 'keydown']) content.removeEventListener(event, stop);
+        modalScrollSpace?.end();
+    };
+    for (const event of ['wheel', 'touchstart', 'keydown']) content.addEventListener(event, stop, { passive: true });
+    const end = performance.now() + 220;
+    const tick = () => {
+        restore();
+        if (active && performance.now() < end) frame = requestAnimationFrame(tick);
+        else stop();
+    };
+    finishModalLayoutChange = () => {
+        for (const animation of animations) animation.cancel();
+        restore();
+        stop();
+    };
+    restore();
+    frame = requestAnimationFrame(tick);
+}
+
 function openEditModal(data) {
+    finishModalLayoutChange();
     currentModalData = data;
     const modal = document.getElementById('edit-modal');
     const modalTitle = document.getElementById('modal-title');
@@ -539,7 +642,7 @@ function openEditModal(data) {
 
                 if (field.removeable) {
                     fHtml += `</div>`;
-                    fHtml += `<button type="button" id="remove-${field.id}" class="btn btn-danger-text" style="padding: 4px 8px; font-size: 1.2em;" title="${t('web-editor.modals.remove')}">×</button>`;
+                    fHtml += `<button type="button" id="remove-${field.id}" class="btn-base btn-danger modal-remove-field" title="${escapeHtml(t('web-editor.modals.remove'))}" aria-label="${escapeHtml(t('web-editor.modals.remove') + ': ' + field.label)}"><span aria-hidden="true">&times;</span></button>`;
                     fHtml += `</div>`;
                 }
             }
@@ -552,8 +655,28 @@ function openEditModal(data) {
         };
 
         const checkboxes = data.fields.filter(f => f.type === 'checkbox');
-        const regularFields = data.fields.filter(f => f.type !== 'checkbox');
+        const regularFields = data.fields.filter(f => f.type !== 'checkbox' && !f.revealAfter);
 
+        if (data.sections) {
+            const renderWithChildren = field => renderField(field) + data.fields
+                .filter(child => child.revealAfter === field.id).map(renderWithChildren).join('');
+            html += '<div class="modal-option-sections modal-item-sections">';
+            for (const section of data.sections) {
+                html += `<section class="modal-option-section"><div class="checkbox-group-title">${escapeHtml(section.title)}</div>`;
+                const sectionFields = section.fields.map(id => data.fields.find(candidate => candidate.id === `modal-${id}`))
+                    .filter(field => field && !field.revealAfter);
+                for (let index = 0; index < sectionFields.length; index++) {
+                    const field = sectionFields[index];
+                    const next = sectionFields[index + 1];
+                    if (field.row && next?.row) {
+                        html += `<div class="form-row">${renderWithChildren(field)}${renderWithChildren(next)}</div>`;
+                        index++;
+                    } else html += renderWithChildren(field);
+                }
+                html += '</section>';
+            }
+            html += '</div>';
+        } else {
         let i = 0;
         while (i < regularFields.length) {
             const field = regularFields[i];
@@ -577,15 +700,25 @@ function openEditModal(data) {
                 grouped[key].push(cb);
             });
 
-            html += '<div class="checkbox-grid">';
-            Object.entries(grouped).forEach(([groupName, groupFields]) => {
-                html += `<div class="checkbox-group-card"><div class="checkbox-group-title">${escapeHtml(groupName)}</div>`;
+            html += '<div class="modal-option-sections">';
+            const groupEntries = Object.entries(grouped);
+            const stockIndex = groupEntries.findIndex(([name]) => name === 'Stock & Reset');
+            const displayIndex = groupEntries.findIndex(([name]) => name === 'Display Flags');
+            if (stockIndex > displayIndex && displayIndex >= 0) {
+                groupEntries.splice(displayIndex, 0, groupEntries.splice(stockIndex, 1)[0]);
+            }
+            groupEntries.forEach(([groupName, groupFields]) => {
+                html += `<section class="modal-option-section"><div class="checkbox-group-title">${escapeHtml(groupName)}</div>`;
                 groupFields.forEach(cb => {
                     html += renderField(cb);
+                    data.fields.filter(field => field.revealAfter === cb.id).forEach(field => {
+                        html += renderField(field);
+                    });
                 });
-                html += '</div>';
+                html += '</section>';
             });
             html += '</div>';
+        }
         }
 
         if (data.preview && data.preview.enabled) {
@@ -607,7 +740,7 @@ function openEditModal(data) {
                 </div>
             `;
         } else {
-            modalContent.innerHTML = html;
+            modalContent.innerHTML = `<div class="modal-fields">${html}</div>`;
         }
 
         // Attach event listeners
@@ -619,8 +752,10 @@ function openEditModal(data) {
                 }
                 if (field.onchange) {
                     el.addEventListener('change', (e) => {
-                        field.onchange(e);
-                        refreshModalSidePreview();
+                        changeModalLayout(el, () => {
+                            field.onchange(e);
+                            refreshModalSidePreview();
+                        });
                     });
                 }
                 if (field.oninput) {
@@ -638,8 +773,10 @@ function openEditModal(data) {
                 const removeBtn = document.getElementById(`remove-${field.id}`);
                 if (removeBtn) {
                     removeBtn.addEventListener('click', (e) => {
-                        field.onRemove(e);
-                        refreshModalSidePreview();
+                        changeModalLayout(removeBtn, () => {
+                            field.onRemove(e);
+                            refreshModalSidePreview();
+                        });
                     });
                 }
             }
@@ -647,6 +784,8 @@ function openEditModal(data) {
     } else {
         modalContent.innerHTML = data.content;
     }
+
+    setupModalScrollSpace(modalContent);
 
     // Show/hide delete button
     if (data.onDelete) {
@@ -702,6 +841,9 @@ function openEditModal(data) {
 }
 
 function closeEditModal() {
+    finishModalLayoutChange();
+    modalScrollSpace?.dispose();
+    modalScrollSpace = null;
     const modal = document.getElementById('edit-modal');
     const modalBox = modal.querySelector('.modal-box');
     const animationsDisabled = document.body.classList.contains('no-animations');
@@ -784,6 +926,15 @@ function updateHeadTextureInputUi() {
     }
 }
 
+function updateItemStockInputUi() {
+    const enabled = document.getElementById('modal-enableLimits')?.checked === true;
+    for (const key of ['stockResetEnabled', 'showStock', 'sellAddsToStock', 'allowSellStockOverflow']) {
+        const group = document.getElementById(`group-modal-${key}`);
+        if (group) group.style.display = enabled ? 'block' : 'none';
+    }
+    updateStockResetInputUi();
+}
+
 function updateStockResetInputUi(prefix = 'modal-stockReset') {
     const enabled = document.getElementById(`${prefix}Enabled`);
     const typeEl = document.getElementById(`${prefix}Type`);
@@ -797,7 +948,12 @@ function updateStockResetInputUi(prefix = 'modal-stockReset') {
     const dateGroup = document.getElementById(`group-${prefix}Date`);
     const timezoneGroup = document.getElementById(`group-${prefix}Timezone`);
 
-    const isEnabled = !!(enabled && enabled.checked);
+    const limits = document.getElementById('modal-enableLimits');
+    const isEnabled = !!(enabled && enabled.checked) && (!limits || limits.checked);
+    if (prefix === 'modal-stockReset') {
+        const timerGroup = document.getElementById('group-modal-showStockResetTimer');
+        if (timerGroup) timerGroup.style.display = isEnabled ? 'block' : 'none';
+    }
     const type = ((typeEl && typeEl.value) || 'daily').toLowerCase();
 
     if (typeGroup) typeGroup.style.display = isEnabled ? 'block' : 'none';
@@ -909,15 +1065,22 @@ function buildShopItemPreviewHtml(baseItem, formData) {
     const sellPrice = parseFloat(formData['modal-sellPrice']) || 0;
     const buyPerItem = (formData['modal-buyPricePerItem'] || 'per-item') === 'per-item';
     const sellPerItem = (formData['modal-sellPricePerItem'] || 'per-item') === 'per-item';
-    const campaignEnabled = !!formData['modal-campaignEnabled'];
-    const campaignName = (formData['modal-campaignName'] || '').trim();
-    const campaignStart = (formData['modal-campaignStart'] || '').trim();
-    const campaignEnd = (formData['modal-campaignEnd'] || '').trim();
-    const campaignTimezone = (formData['modal-campaignTimezone'] || '').trim();
-    const campaignBuyMultiplierRaw = parseFloat(formData['modal-campaignBuyMultiplier']);
-    const campaignSellMultiplierRaw = parseFloat(formData['modal-campaignSellMultiplier']);
-    const campaignBuyMultiplier = Number.isFinite(campaignBuyMultiplierRaw) && campaignBuyMultiplierRaw > 0 ? campaignBuyMultiplierRaw : 1;
-    const campaignSellMultiplier = Number.isFinite(campaignSellMultiplierRaw) && campaignSellMultiplierRaw > 0 ? campaignSellMultiplierRaw : 1;
+    const assignedCampaign = formData['modal-campaignEnabled'] ? formData['modal-campaignKey'] || '' : '';
+    const legacyCampaign = !!formData['modal-campaignEnabled'] &&
+        assignedCampaign === formData['modal-legacyCampaignValue'];
+    const campaign = resolveItemCampaign({ ...baseItem,
+        campaignEnabled: legacyCampaign && !!baseItem.campaignEnabled,
+        campaign: legacyCampaign ? baseItem.campaign : assignedCampaign });
+    const campaignEnabled = !!campaign;
+    const campaignName = campaign?.name || campaign?.key || '';
+    const campaignDefinition = legacyCampaign ? { start: baseItem.campaignStart, end: baseItem.campaignEnd, timezone: baseItem.campaignTimezone }
+        : (currentShopSettings.campaigns || []).find(candidate => candidate.key === campaign?.key)
+            || (globalCampaigns || []).find(candidate => candidate.key === campaign?.key) || {};
+    const campaignStart = campaignDefinition.start || '';
+    const campaignEnd = campaignDefinition.end || '';
+    const campaignTimezone = campaignDefinition.timezone || '';
+    const campaignBuyMultiplier = campaign?.buyMultiplier || 1;
+    const campaignSellMultiplier = campaign?.sellMultiplier || 1;
     const name = formData['modal-name'] || baseItem.name || '&eItem';
 
     const baseBuyTotal = buyPerItem ? (buyPrice * amount) : buyPrice;
@@ -936,11 +1099,11 @@ function buildShopItemPreviewHtml(baseItem, formData) {
     const runCommandOnly = !!formData['modal-runCommandOnly'];
     const playerLimit = !!formData['modal-enableLimits'] ? (parseInt(formData['modal-limit'], 10) || 0) : 0;
     const globalLimit = !!formData['modal-enableLimits'] ? (parseInt(formData['modal-globalLimit'], 10) || 0) : 0;
-    const dynamicPricing = !!formData['modal-dynamicPricing'];
+    const dynamicPricing = !!formData['modal-enableDynamicPricing'] && !!formData['modal-dynamicPricing'];
     const minPrice = parseFloat(formData['modal-minPrice']) || 0;
     const maxPrice = parseFloat(formData['modal-maxPrice']) || 0;
     const priceChange = parseFloat(formData['modal-priceChange']) || 0;
-    const permission = (formData['modal-permission'] || '').trim();
+    const permission = formData['modal-enablePermission'] ? (formData['modal-permission'] || '').trim() : '';
     const hideAttributes = !!formData['modal-hideAttributes'];
     const hideAdditional = !!formData['modal-hideAdditional'];
     const requireName = !!formData['modal-requireName'];
@@ -1917,16 +2080,29 @@ function openShopItemModal(itemId) {
     const hasEnchantments = !!(item.enchantments && Object.keys(item.enchantments).length > 0);
     const hasCommands = !!(item.commands && item.commands.length > 0);
     const hasLimits = (item.limit || 0) > 0 || (item.globalLimit || 0) > 0;
-    const campaignOptions = [{ value: '', label: 'None' }]
+    const campaignOptions = [{ value: '', label: 'Inherit shop campaign' }]
         .concat((globalCampaigns || [])
             .filter(c => c && c.key)
             .map(c => ({ value: c.key, label: c.name ? `${c.key} - ${c.name}` : c.key })));
+    for (const campaign of currentShopSettings.campaigns || []) {
+        const existing = campaignOptions.find(option => option.value === campaign.key);
+        const option = { value: campaign.key, label: campaign.name ? `${campaign.key} - ${campaign.name}` : campaign.key };
+        if (existing) Object.assign(existing, option);
+        else campaignOptions.push(option);
+    }
+    if (item.campaign && !campaignOptions.some(option => option.value === item.campaign)) {
+        campaignOptions.push({ value: item.campaign, label: `${item.campaign} (not found)` });
+    }
+    let legacyCampaignValue = '__legacy_item_campaign__';
+    while (campaignOptions.some(option => option.value === legacyCampaignValue)) legacyCampaignValue += '_';
+    if (item.campaignEnabled) campaignOptions.push({ value: legacyCampaignValue, label: 'Existing legacy item campaign' });
     const hasAdvancedConditions = (item.minPlayerLevel || 0) > 0
         || (item.maxPlayerLevel || 0) > 0
         || !!String(item.requiredGamemode || '').trim()
         || (Array.isArray(item.allowedWorlds) && item.allowedWorlds.length > 0)
         || (Array.isArray(item.deniedWorlds) && item.deniedWorlds.length > 0);
-    const hasCampaign = !!item.campaignEnabled;
+    const hasCampaign = !!item.campaignEnabled || !!item.campaign;
+    const hasDynamicPricing = !!item.dynamicPricing || !!item.buyPriceFormula || !!item.sellPriceFormula;
 
     const fields = [
         { id: 'modal-name', label: t('web-editor.modals.fields.display-name'), value: item.name, hint: t('web-editor.modals.fields.display-name-hint') },
@@ -1964,7 +2140,7 @@ function openShopItemModal(itemId) {
             checkboxGroup: 'Trading Rules',
             onchange: (e) => {
                 const enabled = e.target.checked;
-                ['campaignName', 'campaignStart', 'campaignEnd', 'campaignTimezone', 'campaignBuyMultiplier', 'campaignSellMultiplier'].forEach(key => {
+                ['campaignKey'].forEach(key => {
                     const group = document.getElementById(`group-modal-${key}`);
                     if (group) group.style.display = enabled ? 'block' : 'none';
                 });
@@ -1974,9 +2150,10 @@ function openShopItemModal(itemId) {
             id: 'modal-campaignKey',
             label: t('web-editor.modals.fields.campaign-key', 'Assigned Campaign'),
             type: 'select',
-            value: item.campaign || '',
+            value: item.campaignEnabled ? legacyCampaignValue : (item.campaign || ''),
             options: campaignOptions,
-            hint: t('web-editor.modals.fields.campaign-key-hint', 'Use a campaign from the Campaigns tab. Item inline campaign settings override this.')
+            hidden: !hasCampaign,
+            hint: 'Campaigns are managed in the Campaigns tab.'
         },
         { id: 'modal-campaignName', label: t('web-editor.modals.fields.campaign-name', 'Campaign Name'), value: item.campaignName || '', hidden: !hasCampaign },
         { id: 'modal-campaignStart', label: t('web-editor.modals.fields.campaign-start', 'Campaign Start'), value: item.campaignStart || '', hint: t('web-editor.modals.fields.campaign-start-hint', 'Use YYYY-MM-DD HH:mm (or ISO).'), hidden: !hasCampaign },
@@ -2131,12 +2308,13 @@ function openShopItemModal(itemId) {
 
     fields.push({
         id: 'modal-enableLimits',
-        label: 'Enable Limits',
+        label: 'Enable Stock Limits',
         type: 'checkbox',
         value: hasLimits,
-        checkboxGroup: 'Trading Rules',
+        checkboxGroup: 'Stock & Reset',
         onchange: (e) => {
             const enabled = e.target.checked;
+            updateItemStockInputUi();
             const addGroup = document.getElementById('group-modal-add-limit');
             const playerGroup = document.getElementById('group-modal-limit');
             const globalGroup = document.getElementById('group-modal-globalLimit');
@@ -2328,7 +2506,7 @@ function openShopItemModal(itemId) {
         fields.push({ id: `modal-${property}`, label, type: 'select',
             value: item[property] == null ? '' : String(item[property]),
             options: [{ value: '', label: `Inherit shop (${currentShopSettings[property] ? 'Enabled' : 'Disabled'})` },
-                { value: 'true', label: 'Enabled' }, { value: 'false', label: 'Disabled' }] });
+                { value: 'true', label: 'Enabled' }, { value: 'false', label: 'Disabled' }], hidden: !hasLimits });
     }
     const itemStockReset = sanitizeStockResetRule(item.stockResetRule);
     fields.push({
@@ -2336,6 +2514,7 @@ function openShopItemModal(itemId) {
         label: 'Enable stock reset for this item',
         type: 'checkbox',
         value: itemStockReset.enabled,
+        hidden: !hasLimits,
         checkboxGroup: 'Stock & Reset',
         onchange: () => updateStockResetInputUi()
     });
@@ -2374,6 +2553,7 @@ function openShopItemModal(itemId) {
         label: 'Show stock line',
         type: 'checkbox',
         value: !!item.showStock,
+        hidden: !hasLimits,
         checkboxGroup: 'Stock & Reset',
         hint: 'Used when Shop Item Lore Format contains %global-limit%'
     });
@@ -2382,9 +2562,58 @@ function openShopItemModal(itemId) {
         label: 'Enable stock reset timer token',
         type: 'checkbox',
         value: !!item.showStockResetTimer,
+        hidden: !hasLimits || !itemStockReset.enabled,
         checkboxGroup: 'Stock & Reset',
         hint: 'Used when Shop Item Lore Format contains %stock-reset-timer%'
     });
+
+    const optionalToggle = (id, label, enabled, keys) => {
+        fields.push({ id: `modal-${id}`, label, type: 'checkbox', value: enabled,
+            onchange: event => {
+                for (const key of keys) {
+                    const group = document.getElementById(`group-modal-${key}`);
+                    if (group) group.style.display = event.target.checked ? 'block' : 'none';
+                }
+                if (id === 'enableDynamicPricing' && event.target.checked) {
+                    const dynamic = fields.find(field => field.id === 'modal-dynamicPricing');
+                    dynamic.onchange({ target: document.getElementById('modal-dynamicPricing') });
+                }
+            } });
+        for (const key of keys) {
+            const field = fields.find(candidate => candidate.id === `modal-${key}`);
+            if (!field) continue;
+            field.revealAfter = `modal-${id}`;
+            field.hidden = !enabled || field.hidden === true;
+        }
+    };
+    optionalToggle('enableDynamicPricing', 'Enable Dynamic Pricing', hasDynamicPricing,
+        ['dynamicPricing', 'minPrice', 'maxPrice', 'priceChange', 'buyPriceFormula', 'sellPriceFormula']);
+    fields.find(field => field.id === 'modal-dynamicPricing').label = 'Adjust prices with stock';
+    optionalToggle('enablePermission', 'Require Permission', !!item.permission, ['permission']);
+    optionalToggle('enableIdentifiers', 'Use Custom Item Keys', !!item.itemKey || !!item.variantKey, ['itemKey', 'variantKey']);
+    // Legacy inline values remain in the model for unchanged saves, not in the new assignment UI.
+    for (let index = fields.length - 1; index >= 0; index--) {
+        if (fields[index].id.startsWith('modal-campaign') &&
+            !['modal-campaignEnabled', 'modal-campaignKey'].includes(fields[index].id)) fields.splice(index, 1);
+    }
+
+    const revealedFields = {
+        enableLore: ['lore'],
+        enableEnchantments: ['enchantments'],
+        campaignEnabled: ['campaignKey'],
+        enableLimits: ['add-limit', 'limit', 'globalLimit', 'sellAddsToStock', 'allowSellStockOverflow',
+            'stockResetEnabled', 'showStock'],
+        enableCommands: ['commands', 'runAs', 'runCommandOnly'],
+        enableConditions: ['minPlayerLevel', 'maxPlayerLevel', 'requiredGamemode', 'allowedWorlds', 'deniedWorlds'],
+        stockResetEnabled: ['stockResetType', 'stockResetTime', 'stockResetInterval', 'stockResetDayOfWeek',
+            'stockResetDayOfMonth', 'stockResetMonth', 'stockResetDate', 'stockResetTimezone', 'showStockResetTimer']
+    };
+    for (const [toggle, keys] of Object.entries(revealedFields)) {
+        for (const key of keys) {
+            const field = fields.find(candidate => candidate.id === `modal-${key}`);
+            if (field) field.revealAfter = `modal-${toggle}`;
+        }
+    }
 
     openEditModal({
         titleHtml: `
@@ -2399,6 +2628,18 @@ function openShopItemModal(itemId) {
             </div>
         `,
         fields: fields,
+        sections: [
+            { title: 'Item & Appearance', fields: ['name', 'enableLore', 'enableEnchantments', 'slot', 'amount',
+                'spawnerMode', 'spawnerType', 'spawnerItem', 'potionType', 'potionLevel',
+                'headTextureMode', 'headTexture', 'headOwner'] },
+            { title: 'Pricing', fields: ['price', 'buyPricePerItem', 'sellPrice', 'sellPricePerItem',
+                'enableDynamicPricing', 'campaignEnabled'] },
+            { title: 'Stock & Reset', fields: ['enableLimits'] },
+            { title: 'Display Flags', fields: ['hideAttributes', 'hideAdditional', 'unstableTnt'] },
+            { title: 'Requirements', fields: ['requireName', 'requireLore', 'enablePermission', 'enableConditions'] },
+            { title: 'Actions', fields: ['enableCommands'] },
+            { title: 'Advanced', fields: ['enableIdentifiers'] }
+        ],
         extraActions: [
             {
                 id: 'modal-export-item-btn',
@@ -2422,7 +2663,7 @@ function openShopItemModal(itemId) {
         preview: {
             enabled: true,
             title: 'Item Preview',
-            render: (formData) => buildShopItemPreviewHtml(item, formData)
+            render: (formData) => buildShopItemPreviewHtml(item, { ...formData, 'modal-legacyCampaignValue': legacyCampaignValue })
         },
         onSave: (data) => {
             const beforeData = JSON.parse(JSON.stringify(item));
@@ -2435,14 +2676,13 @@ function openShopItemModal(itemId) {
             item.sellPrice = parseFloat(data['modal-sellPrice']) || 0;
             item.buyPricePerItem = (data['modal-buyPricePerItem'] || 'per-item') === 'per-item';
             item.sellPricePerItem = (data['modal-sellPricePerItem'] || 'per-item') === 'per-item';
-            item.campaign = (data['modal-campaignKey'] || '').trim();
-            item.campaignEnabled = !!data['modal-campaignEnabled'];
-            item.campaignName = item.campaignEnabled ? (data['modal-campaignName'] || '').trim() : '';
-            item.campaignStart = item.campaignEnabled ? (data['modal-campaignStart'] || '').trim() : '';
-            item.campaignEnd = item.campaignEnabled ? (data['modal-campaignEnd'] || '').trim() : '';
-            item.campaignTimezone = item.campaignEnabled ? (data['modal-campaignTimezone'] || '').trim() : '';
-            item.campaignBuyMultiplier = item.campaignEnabled ? Math.max(0.01, parseFloat(data['modal-campaignBuyMultiplier']) || 1) : 1;
-            item.campaignSellMultiplier = item.campaignEnabled ? Math.max(0.01, parseFloat(data['modal-campaignSellMultiplier']) || 1) : 1;
+            if (!data['modal-campaignEnabled']) {
+                item.campaign = '';
+                item.campaignEnabled = false;
+            } else if (data['modal-campaignKey'] !== legacyCampaignValue) {
+                item.campaign = (data['modal-campaignKey'] || '').trim();
+                item.campaignEnabled = false;
+            }
             item.amount = parseInt(data['modal-amount']) || 1;
             item.lore = data['modal-enableLore'] ? data['modal-lore'].split('\n') : [];
             item.slot = parseInt(data['modal-slot']) || 0;
@@ -2506,12 +2746,12 @@ function openShopItemModal(itemId) {
             item.limit = data['modal-enableLimits'] ? (parseInt(data['modal-limit']) || 0) : 0;
             item.globalLimit = data['modal-enableLimits'] ? (parseInt(data['modal-globalLimit']) || 0) : 0;
 
-            item.dynamicPricing = data['modal-dynamicPricing'];
+            item.dynamicPricing = !!data['modal-enableDynamicPricing'] && !!data['modal-dynamicPricing'];
             item.minPrice = parseFloat(data['modal-minPrice']) || 0;
             item.maxPrice = parseFloat(data['modal-maxPrice']) || 0;
             item.priceChange = parseFloat(data['modal-priceChange']) || 0;
-            item.buyPriceFormula = (data['modal-buyPriceFormula'] || '').trim();
-            item.sellPriceFormula = (data['modal-sellPriceFormula'] || '').trim();
+            item.buyPriceFormula = data['modal-enableDynamicPricing'] ? (data['modal-buyPriceFormula'] || '').trim() : '';
+            item.sellPriceFormula = data['modal-enableDynamicPricing'] ? (data['modal-sellPriceFormula'] || '').trim() : '';
             item.commands = data['modal-enableCommands']
                 ? data['modal-commands'].split('\n').filter(line => line.trim() !== '')
                 : [];
@@ -2519,9 +2759,9 @@ function openShopItemModal(itemId) {
                 ? ((data['modal-runAs'] || 'console').toLowerCase() === 'player' ? 'player' : 'console')
                 : 'console';
             item.runCommandOnly = data['modal-enableCommands'] ? data['modal-runCommandOnly'] : true;
-            item.permission = data['modal-permission'] || '';
-            item.itemKey = (data['modal-itemKey'] || '').trim();
-            item.variantKey = (data['modal-variantKey'] || '').trim();
+            item.permission = data['modal-enablePermission'] ? data['modal-permission'] || '' : '';
+            item.itemKey = data['modal-enableIdentifiers'] ? (data['modal-itemKey'] || '').trim() : '';
+            item.variantKey = data['modal-enableIdentifiers'] ? (data['modal-variantKey'] || '').trim() : '';
             if (data['modal-enableConditions']) {
                 item.minPlayerLevel = parseInt(data['modal-minPlayerLevel']) || 0;
                 item.maxPlayerLevel = parseInt(data['modal-maxPlayerLevel']) || 0;
@@ -2585,7 +2825,7 @@ function openShopItemModal(itemId) {
     setTimeout(() => {
         handleShopItemMaterialChange(item.material);
         updateHeadTextureInputUi();
-        updateStockResetInputUi();
+        updateItemStockInputUi();
     }, 0);
 }
 

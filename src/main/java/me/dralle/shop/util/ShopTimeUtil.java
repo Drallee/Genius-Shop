@@ -3,6 +3,9 @@ package me.dralle.shop.util;
 import me.dralle.shop.ShopPlugin;
 
 import java.time.DayOfWeek;
+import java.time.Clock;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -20,12 +23,33 @@ public class ShopTimeUtil {
      * @return true if shop is available (or no restrictions), false otherwise
      */
     public static boolean isShopAvailable(List<String> restrictions) {
+        return isShopAvailable(restrictions, Clock.systemDefaultZone());
+    }
+
+    public static boolean isShopAvailable(List<String> restrictions, ShopPlugin plugin) {
+        return isShopAvailable(restrictions, Clock.system(getTimezone(plugin)));
+    }
+
+    public static ZoneId getTimezone(ShopPlugin plugin) {
+        String configured = plugin.getConfig().getString("timezone", "server");
+        if (configured == null || configured.isBlank() || configured.trim().equalsIgnoreCase("server")) {
+            return ZoneId.systemDefault();
+        }
+        try {
+            return ZoneId.of(configured.trim());
+        } catch (java.time.DateTimeException ignored) {
+            return ZoneId.systemDefault();
+        }
+    }
+
+    static boolean isShopAvailable(List<String> restrictions, Clock clock) {
         if (restrictions == null || restrictions.isEmpty()) {
             return true; // No restrictions = always available
         }
 
-        LocalDate now = LocalDate.now();
-        LocalTime timeNow = LocalTime.now();
+        ZonedDateTime current = ZonedDateTime.now(clock);
+        LocalDate now = current.toLocalDate();
+        LocalTime timeNow = current.toLocalTime();
         DayOfWeek dayOfWeek = now.getDayOfWeek();
 
         // All restrictions must pass (AND logic)

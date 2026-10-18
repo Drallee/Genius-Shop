@@ -1,8 +1,9 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const root = path.resolve(__dirname, '../../main/resources/web');
-const resources = path.dirname(root);
+const resources = process.env.SHOP_TEST_RESOURCES
+    ? path.resolve(process.env.SHOP_TEST_RESOURCES) : path.resolve(__dirname, '../../main/resources');
+const root = path.join(resources, 'web');
 const original = '# Minimal item / sample data\ngui-name: Sample Shop\nrows: 3\nsell-adds-to-stock: true\nallow-sell-stock-overflow: true\nitems:\n  - material: GOLDEN_APPLE # Keep this comment\n    price: 100\n';
 
 function start(port = 0) {
