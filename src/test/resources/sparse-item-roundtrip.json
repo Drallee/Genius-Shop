@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Minimal Golden Apple",
+    "before": "sell-adds-to-stock: true\nitems:\n  - material: GOLDEN_APPLE\n    price: 100\n",
+    "after": "sell-adds-to-stock: true\nitems:\n  - material: GOLDEN_APPLE\n    price: 125\n"
+  },
+  {
+    "name": "Explicit overrides and disabled features",
+    "before": "items:\n  - material: GOLDEN_APPLE\n    price: 100\n    sell-price: 0\n    permission: ''\n    run-command-only: false\n    run-as: player\n    sell-adds-to-stock: false\n    allow-sell-stock-overflow: false\n    campaign-enabled: false\n    campaign-name: Saved campaign\n    campaign-buy-multiplier: 2\n    lore: ['', '']\n    stock-reset: {enabled: false, type: weekly, day-of-week: FRIDAY, timezone: UTC}\n",
+    "after": "items:\n  - material: GOLDEN_APPLE\n    price: 125\n    sell-price: 0\n    permission: ''\n    run-command-only: false\n    run-as: player\n    sell-adds-to-stock: false\n    allow-sell-stock-overflow: false\n    campaign-enabled: false\n    campaign-name: Saved campaign\n    campaign-buy-multiplier: 2\n    lore: ['', '']\n    stock-reset: {enabled: false, type: weekly, day-of-week: FRIDAY, timezone: UTC}\n"
+  }
+]

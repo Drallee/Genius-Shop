@@ -254,3 +254,7 @@ body.login-page .login-container .premium-select { background: #24292d !importan
 .editor-shell #custom-items-container .setting-item { min-width: 0; }
 .editor-shell #custom-items-container .setting-item label { display: flex; flex-direction: column; gap: 6px; }
 .editor-shell #custom-items-container :is(input, select, textarea) { max-width: 100%; min-width: 0; }
+.activity-comparison > div { min-width: 0; }
+@media (max-width: 640px) {
+    .activity-comparison { grid-template-columns: minmax(0, 1fr) !important; }
+}
